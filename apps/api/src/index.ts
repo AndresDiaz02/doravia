@@ -92,8 +92,13 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   if (err instanceof PlanFeatureError || err.name === "PlanFeatureError") {
     return res.status(403).json({ error: err.message, code: "PLAN_FEATURE_NOT_INCLUDED" });
   }
-  console.error(err);
+  console.error("[API Error]", err);
   res.status(500).json({ error: "Error interno del servidor." });
+});
+
+// Capturar promesas rechazadas no manejadas para evitar crash del proceso
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
 });
 
 const PORT = process.env.PORT ?? 3001;

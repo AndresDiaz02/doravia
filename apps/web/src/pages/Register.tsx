@@ -7,19 +7,23 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
 const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
-  expres:   { nombre: "Exprés",   precio: "$350.000 / año" },
-  semilla:  { nombre: "Semilla",  precio: "$730.000 / año" },
-  raiz:     { nombre: "Raíz",     precio: "$1.150.000 / año" },
-  brote:    { nombre: "Brote",    precio: "$1.680.000 / año" },
-  cosecha:  { nombre: "Cosecha",  precio: "$2.320.000 / año" },
+  origen:      { nombre: "Origen",   precio: "Gratis" },
+  origen_24:   { nombre: "Origen 24",  precio: "$119.900 / año" },
+  origen_60:   { nombre: "Origen 60",  precio: "$199.900 / año" },
+  origen_120:  { nombre: "Origen 120", precio: "$299.900 / año" },
+  origen_300:  { nombre: "Origen 300", precio: "$399.900 / año" },
+  semilla:     { nombre: "Semilla",  precio: "$730.000 / año" },
+  raiz:        { nombre: "Raíz",     precio: "$1.150.000 / año" },
+  brote:       { nombre: "Brote",    precio: "$1.680.000 / año" },
+  cosecha:     { nombre: "Cosecha",  precio: "$2.320.000 / año" },
 };
 
 const PLANES_LISTA = [
-  { slug: "expres",  label: "Exprés — $350.000/año",   desc: "300 facturas al año · 1 usuario" },
-  { slug: "semilla", label: "Semilla — $730.000/año",   desc: "50 facturas/mes · 3 usuarios" },
-  { slug: "raiz",    label: "Raíz — $1.150.000/año",    desc: "Facturas ilimitadas · Inventario" },
-  { slug: "brote",   label: "Brote — $1.680.000/año",   desc: "Recurrentes · Reportes comparativos" },
-  { slug: "cosecha", label: "Cosecha — $2.320.000/año", desc: "Plan completo · Centros de costos" },
+  { slug: "origen",   label: "Origen — Gratis",            desc: "12 facturas/año · Solo facturación DIAN" },
+  { slug: "semilla",  label: "Semilla — $730.000/año",      desc: "ERP completo · Inventario · 3 usuarios" },
+  { slug: "raiz",     label: "Raíz — $1.150.000/año",       desc: "Facturas ilimitadas · 5 usuarios" },
+  { slug: "brote",    label: "Brote — $1.680.000/año",      desc: "Recurrentes · Reportes comparativos" },
+  { slug: "cosecha",  label: "Cosecha — $2.320.000/año",    desc: "Plan completo · Centros de costos" },
 ];
 
 interface RegisterResponse {

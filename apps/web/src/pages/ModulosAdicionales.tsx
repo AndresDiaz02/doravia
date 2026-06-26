@@ -48,14 +48,14 @@ interface PlanPOS {
 
 const PLANES_POS: PlanPOS[] = [
   {
-    slug: "pos_basico",
-    nombre: "POS Básico",
+    slug: "punto",
+    nombre: "Punto",
     precio: 480_000,
     features: ["1 caja", "2 usuarios", "1 bodega", "Ventas, fiados e historial", "Reportes del día"],
   },
   {
-    slug: "pos_pro",
-    nombre: "POS Pro",
+    slug: "punto_plus",
+    nombre: "Punto Plus",
     precio: 840_000,
     features: ["Multi-caja simultáneas", "Usuarios ilimitados", "3 bodegas", "Cuentas por pagar", "Libro diario y mayor"],
     destacado: true,
@@ -169,7 +169,7 @@ export default function ModulosAdicionales() {
           <h2 className="font-semibold text-gray-800">Punto de venta (POS)</h2>
           {posActivo && (
             <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">
-              {posProActivo ? "POS Pro activo" : "POS Básico activo"}
+              {posProActivo ? "Punto Plus activo" : "Punto activo"}
             </span>
           )}
         </div>

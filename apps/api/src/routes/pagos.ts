@@ -118,7 +118,7 @@ router.post("/webhook", async (req, res) => {
   const unAnio = new Date(hoy);
   unAnio.setFullYear(unAnio.getFullYear() + 1);
 
-  const POS_PLANS = ["pos_basico", "pos_pro"];
+  const POS_PLANS = ["punto", "punto_plus"];
 
   if (POS_PLANS.includes(planSlug)) {
     // Plan POS: activa el addon sin tocar el plan ERP del tenant
@@ -129,7 +129,7 @@ router.post("/webhook", async (req, res) => {
     const addons: Record<string, boolean> = {
       ...((current?.addons ?? {}) as Record<string, boolean>),
       pos: true,
-      ...(planSlug === "pos_pro" ? { pos_multi_caja: true } : {}),
+      ...(planSlug === "punto_plus" ? { pos_multi_caja: true } : {}),
     };
     await db.update(tenants).set({ addons }).where(eq(tenants.id, tenant.id));
     console.log(`POS addon activado (${planSlug}) para tenant ${tenant.id}`);

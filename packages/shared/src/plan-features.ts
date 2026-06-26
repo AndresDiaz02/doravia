@@ -53,7 +53,7 @@ export const FEATURE_LABELS: Record<PlanFeature, string> = {
 };
 
 // Nivel contable ordinal — niveles superiores incluyen todos los anteriores
-// 0 = sin contabilidad (Origen, Exprés)
+// 0 = sin contabilidad (planes Origen)
 export const ACCOUNTING_LEVELS = {
   ninguno:        0,
   diario_mayor:   1,
@@ -70,13 +70,17 @@ export interface PlanLimits {
   max_usuarios:      number | null;
   max_bodegas:       number | null;
   max_facturas_mes:  number | null;
-  max_facturas_año:  number | null; // para Origen/Exprés con límite anual
+  max_facturas_ano:  number | null; // para Origen con límite anual
   max_ia_docs_mes:   number | null; // null = ilimitado, 0 = sin IA
 }
 
 export interface PlanDefinition extends PlanLimits {
   id: string;
-  slug: "origen" | "expres" | "semilla" | "raiz" | "brote" | "cosecha" | "pos_basico" | "pos_pro";
+  slug:
+    | "origen"
+    | "origen_24" | "origen_60" | "origen_120" | "origen_300"
+    | "semilla" | "raiz" | "brote" | "cosecha"
+    | "punto" | "punto_plus";
   nombre: string;
   accounting_level: number;
   features: PlanFeatures;

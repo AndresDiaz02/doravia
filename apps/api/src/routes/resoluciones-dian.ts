@@ -14,100 +14,115 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 // GET /api/resoluciones-dian — lista todas las resoluciones del tenant
 router.get("/", async (req, res) => {
-  const rows = await db
-    .select()
-    .from(resoluciones_dian)
-    .where(eq(resoluciones_dian.tenant_id, req.tenantId))
-    .orderBy(desc(resoluciones_dian.created_at));
+  try {
+    const rows = await db
+      .select()
+      .from(resoluciones_dian)
+      .where(eq(resoluciones_dian.tenant_id, req.tenantId))
+      .orderBy(desc(resoluciones_dian.created_at));
 
-  res.json(rows);
+    res.json(rows);
+  } catch (err) {
+    console.error("Error en GET /resoluciones-dian:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
 });
 
 // POST /api/resoluciones-dian — registra una nueva resolución y la activa
 router.post("/", requireAdmin, async (req, res) => {
-  const {
-    numero_resolucion,
-    fecha_resolucion,
-    prefijo,
-    consecutivo_desde,
-    consecutivo_hasta,
-    fecha_desde,
-    fecha_hasta,
-  } = req.body;
+  try {
+    const {
+      numero_resolucion,
+      fecha_resolucion,
+      prefijo,
+      consecutivo_desde,
+      consecutivo_hasta,
+      fecha_desde,
+      fecha_hasta,
+    } = req.body;
 
-  if (
-    !numero_resolucion ||
-    !fecha_resolucion ||
-    !prefijo ||
-    consecutivo_desde == null ||
-    consecutivo_hasta == null ||
-    !fecha_desde ||
-    !fecha_hasta
-  ) {
-    return res.status(400).json({
-      error:
-        "Campos requeridos: numero_resolucion, fecha_resolucion, prefijo, consecutivo_desde, consecutivo_hasta, fecha_desde, fecha_hasta.",
+    if (
+      !numero_resolucion ||
+      !fecha_resolucion ||
+      !prefijo ||
+      consecutivo_desde == null ||
+      consecutivo_hasta == null ||
+      !fecha_desde ||
+      !fecha_hasta
+    ) {
+      return res.status(400).json({
+        error:
+          "Campos requeridos: numero_resolucion, fecha_resolucion, prefijo, consecutivo_desde, consecutivo_hasta, fecha_desde, fecha_hasta.",
+      });
+    }
+
+    if (Number(consecutivo_desde) > Number(consecutivo_hasta)) {
+      return res.status(400).json({ error: "consecutivo_desde no puede ser mayor que consecutivo_hasta." });
+    }
+
+    const nueva = await db.transaction(async (tx) => {
+      await tx
+        .update(resoluciones_dian)
+        .set({ activa: false })
+        .where(eq(resoluciones_dian.tenant_id, req.tenantId));
+
+      const [row] = await tx
+        .insert(resoluciones_dian)
+        .values({
+          tenant_id: req.tenantId,
+          numero_resolucion,
+          fecha_resolucion,
+          prefijo,
+          consecutivo_desde: Number(consecutivo_desde),
+          consecutivo_hasta: Number(consecutivo_hasta),
+          consecutivo_actual: Number(consecutivo_desde),
+          fecha_desde,
+          fecha_hasta,
+          activa: true,
+        })
+        .returning();
+
+      return row;
     });
+
+    res.status(201).json(nueva);
+  } catch (err) {
+    console.error("Error en POST /resoluciones-dian:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
   }
-
-  if (Number(consecutivo_desde) > Number(consecutivo_hasta)) {
-    return res.status(400).json({ error: "consecutivo_desde no puede ser mayor que consecutivo_hasta." });
-  }
-
-  const nueva = await db.transaction(async (tx) => {
-    await tx
-      .update(resoluciones_dian)
-      .set({ activa: false })
-      .where(eq(resoluciones_dian.tenant_id, req.tenantId));
-
-    const [row] = await tx
-      .insert(resoluciones_dian)
-      .values({
-        tenant_id: req.tenantId,
-        numero_resolucion,
-        fecha_resolucion,
-        prefijo,
-        consecutivo_desde: Number(consecutivo_desde),
-        consecutivo_hasta: Number(consecutivo_hasta),
-        consecutivo_actual: Number(consecutivo_desde),
-        fecha_desde,
-        fecha_hasta,
-        activa: true,
-      })
-      .returning();
-
-    return row;
-  });
-
-  res.status(201).json(nueva);
 });
 
 // PATCH /api/resoluciones-dian/:id/activar — activa una resolución existente
 router.patch("/:id/activar", requireAdmin, async (req, res) => {
-  const [resolucion] = await db
-    .select()
-    .from(resoluciones_dian)
-    .where(and(eq(resoluciones_dian.id, req.params.id), eq(resoluciones_dian.tenant_id, req.tenantId)))
-    .limit(1);
+  try {
+    const [resolucion] = await db
+      .select()
+      .from(resoluciones_dian)
+      .where(and(eq(resoluciones_dian.id, req.params.id), eq(resoluciones_dian.tenant_id, req.tenantId)))
+      .limit(1);
 
-  if (!resolucion) return res.status(404).json({ error: "Resolución no encontrada." });
+    if (!resolucion) return res.status(404).json({ error: "Resolución no encontrada." });
 
-  const actualizada = await db.transaction(async (tx) => {
-    await tx
-      .update(resoluciones_dian)
-      .set({ activa: false })
-      .where(eq(resoluciones_dian.tenant_id, req.tenantId));
+    const actualizada = await db.transaction(async (tx) => {
+      await tx
+        .update(resoluciones_dian)
+        .set({ activa: false })
+        .where(eq(resoluciones_dian.tenant_id, req.tenantId));
 
-    const [row] = await tx
-      .update(resoluciones_dian)
-      .set({ activa: true })
-      .where(eq(resoluciones_dian.id, resolucion.id))
-      .returning();
+      const [row] = await tx
+        .update(resoluciones_dian)
+        .set({ activa: true })
+        .where(eq(resoluciones_dian.id, resolucion.id))
+        .returning();
 
-    return row;
-  });
+      return row;
+    });
 
-  res.json(actualizada);
+    res.json(actualizada);
+  } catch (err) {
+    console.error("Error en PATCH /resoluciones-dian/:id/activar:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
 });
 
 export default router;

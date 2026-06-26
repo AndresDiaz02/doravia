@@ -12,9 +12,12 @@ async function seed() {
     .onConflictDoUpdate({
       target: plans.slug,
       set: {
+        nombre: sql`excluded.nombre`,
         max_usuarios: sql`excluded.max_usuarios`,
         max_bodegas: sql`excluded.max_bodegas`,
         max_facturas_mes: sql`excluded.max_facturas_mes`,
+        max_facturas_ano: sql`excluded.max_facturas_ano`,
+        max_ia_docs_mes: sql`excluded.max_ia_docs_mes`,
         accounting_level: sql`excluded.accounting_level`,
         features: sql`excluded.features`,
         precio_anual_cop: sql`excluded.precio_anual_cop`,

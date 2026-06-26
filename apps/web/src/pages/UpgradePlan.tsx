@@ -31,10 +31,10 @@ interface OrigenCapacidad {
 
 const ORIGEN_CAPACIDADES: OrigenCapacidad[] = [
   { slug: "origen",     docs: 12,   precio: 0,       etiqueta: "Gratis" },
-  { slug: "origen_24",  docs: 24,   precio: 119_900 },
-  { slug: "origen_60",  docs: 60,   precio: 199_900 },
-  { slug: "origen_120", docs: 120,  precio: 299_900 },
-  { slug: "origen_300", docs: 300,  precio: 399_900 },
+  { slug: "origen_24",  docs: 24,   precio: 99_900  },
+  { slug: "origen_60",  docs: 60,   precio: 169_900 },
+  { slug: "origen_120", docs: 120,  precio: 249_900 },
+  { slug: "origen_300", docs: 300,  precio: 329_900 },
 ];
 
 interface PlanERP {

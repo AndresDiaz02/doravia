@@ -50,7 +50,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_ia_docs_mes: 0,
     accounting_level: 0,
     features: { ...origenFeatures },
-    precio_anual_cop: 119_900,
+    precio_anual_cop: 99_900,
   },
   {
     slug: "origen_60",
@@ -62,7 +62,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_ia_docs_mes: 0,
     accounting_level: 0,
     features: { ...origenFeatures },
-    precio_anual_cop: 199_900,
+    precio_anual_cop: 169_900,
   },
   {
     slug: "origen_120",
@@ -74,7 +74,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_ia_docs_mes: 0,
     accounting_level: 0,
     features: { ...origenFeatures },
-    precio_anual_cop: 299_900,
+    precio_anual_cop: 249_900,
   },
   {
     slug: "origen_300",
@@ -86,7 +86,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_ia_docs_mes: 0,
     accounting_level: 0,
     features: { ...origenFeatures },
-    precio_anual_cop: 399_900,
+    precio_anual_cop: 329_900,
   },
 
   // ── ERP: escalera principal ───────────────────────────────────────────────

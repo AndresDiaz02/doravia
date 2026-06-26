@@ -7,23 +7,27 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
 const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
-  origen:      { nombre: "Origen",   precio: "Gratis" },
-  origen_24:   { nombre: "Origen 24",  precio: "$119.900 / año" },
-  origen_60:   { nombre: "Origen 60",  precio: "$199.900 / año" },
-  origen_120:  { nombre: "Origen 120", precio: "$299.900 / año" },
-  origen_300:  { nombre: "Origen 300", precio: "$399.900 / año" },
-  semilla:     { nombre: "Semilla",  precio: "$730.000 / año" },
-  raiz:        { nombre: "Raíz",     precio: "$1.150.000 / año" },
-  brote:       { nombre: "Brote",    precio: "$1.680.000 / año" },
-  cosecha:     { nombre: "Cosecha",  precio: "$2.320.000 / año" },
+  origen:      { nombre: "Origen",      precio: "Gratis" },
+  origen_24:   { nombre: "Origen 24",   precio: "$99.900 / año" },
+  origen_60:   { nombre: "Origen 60",   precio: "$169.900 / año" },
+  origen_120:  { nombre: "Origen 120",  precio: "$249.900 / año" },
+  origen_300:  { nombre: "Origen 300",  precio: "$329.900 / año" },
+  semilla:     { nombre: "Semilla",     precio: "$730.000 / año" },
+  raiz:        { nombre: "Raíz",        precio: "$1.150.000 / año" },
+  brote:       { nombre: "Brote",       precio: "$1.680.000 / año" },
+  cosecha:     { nombre: "Cosecha",     precio: "$2.320.000 / año" },
 };
 
 const PLANES_LISTA = [
-  { slug: "origen",   label: "Origen — Gratis",            desc: "12 facturas/año · Solo facturación DIAN" },
-  { slug: "semilla",  label: "Semilla — $730.000/año",      desc: "ERP completo · Inventario · 3 usuarios" },
-  { slug: "raiz",     label: "Raíz — $1.150.000/año",       desc: "Facturas ilimitadas · 5 usuarios" },
-  { slug: "brote",    label: "Brote — $1.680.000/año",      desc: "Recurrentes · Reportes comparativos" },
-  { slug: "cosecha",  label: "Cosecha — $2.320.000/año",    desc: "Plan completo · Centros de costos" },
+  { slug: "origen",     label: "Origen — Gratis",             desc: "12 documentos/año · Solo facturación DIAN" },
+  { slug: "origen_24",  label: "Origen 24 — $99.900/año",     desc: "24 documentos/año · Solo facturación DIAN" },
+  { slug: "origen_60",  label: "Origen 60 — $169.900/año",    desc: "60 documentos/año · Solo facturación DIAN" },
+  { slug: "origen_120", label: "Origen 120 — $249.900/año",   desc: "120 documentos/año · Solo facturación DIAN" },
+  { slug: "origen_300", label: "Origen 300 — $329.900/año",   desc: "300 documentos/año · Solo facturación DIAN" },
+  { slug: "semilla",    label: "Semilla — $730.000/año",       desc: "ERP completo · Inventario · 3 usuarios" },
+  { slug: "raiz",       label: "Raíz — $1.150.000/año",        desc: "Facturación ilimitada · 5 usuarios · 3 bodegas" },
+  { slug: "brote",      label: "Brote — $1.680.000/año",       desc: "Recurrentes · CRM · Reportes comparativos" },
+  { slug: "cosecha",    label: "Cosecha — $2.320.000/año",     desc: "Plan completo · Centros de costos · Ilimitado" },
 ];
 
 interface RegisterResponse {

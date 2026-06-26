@@ -247,7 +247,7 @@
         <a href="#contacto">Contacto</a>
       </nav>
       <div class="nav-actions">
-        <a href="https://app.doraviasoft.com" class="btn-login">Iniciar sesión</a>
+        <a href="https://merry-mousse-d79419.netlify.app/login" class="btn-login">Iniciar sesión</a>
         <a href="#contacto" class="btn-cta-small">Hablar con ventas</a>
       </div>
       <div class="mobile-toggle">☰</div>
@@ -383,7 +383,7 @@
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Conoce cuánto gana realmente tu empresa</div>
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Importa y exporta a Excel</div>
           </div>
-          <a href="#contacto" class="erp-plan-btn" style="background:#A8763E; color:#fff;">Elegir Semilla</a>
+          <a href="https://merry-mousse-d79419.netlify.app/register?plan=semilla" class="erp-plan-btn" style="background:#A8763E; color:#fff;">Elegir Semilla</a>
         </div>
 
         <div class="erp-plan" style="background:#E8DCC8;">
@@ -396,7 +396,7 @@
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Roles y permisos por persona</div>
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Dashboard con tus números clave</div>
           </div>
-          <a href="#contacto" class="erp-plan-btn" style="background:#5C4530; color:#fff;">Elegir Raíz</a>
+          <a href="https://merry-mousse-d79419.netlify.app/register?plan=raiz" class="erp-plan-btn" style="background:#5C4530; color:#fff;">Elegir Raíz</a>
         </div>
 
         <div class="erp-plan" style="background:var(--yellow);">
@@ -409,7 +409,7 @@
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Automatizaciones de procesos</div>
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes avanzados</div>
           </div>
-          <a href="#contacto" class="erp-plan-btn" style="background:#2C3A1E; color:var(--yellow);">Elegir Brote</a>
+          <a href="https://merry-mousse-d79419.netlify.app/register?plan=brote" class="erp-plan-btn" style="background:#2C3A1E; color:var(--yellow);">Elegir Brote</a>
         </div>
 
         <div class="erp-plan" style="background:var(--coral);">
@@ -422,7 +422,7 @@
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Business Intelligence</div>
             <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Auditoría completa</div>
           </div>
-          <a href="#contacto" class="erp-plan-btn" style="background:var(--navy); color:#fff;">Elegir Cosecha</a>
+          <a href="https://merry-mousse-d79419.netlify.app/register?plan=cosecha" class="erp-plan-btn" style="background:var(--navy); color:#fff;">Elegir Cosecha</a>
         </div>
       </div>
 
@@ -457,7 +457,7 @@
             <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multipago y control de caja</div>
             <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes de ventas y gastos</div>
           </div>
-          <a href="#contacto" class="pos-plan-btn">Elegir Punto</a>
+          <a href="https://stirring-longma-af504d.netlify.app/register?plan=punto" class="pos-plan-btn">Elegir Punto</a>
         </div>
 
         <div class="pos-plan-card pos-featured">
@@ -473,7 +473,7 @@
             <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Apertura/cierre de varias cajas</div>
             <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes avanzados</div>
           </div>
-          <a href="#contacto" class="pos-plan-btn">Elegir Punto Plus</a>
+          <a href="https://stirring-longma-af504d.netlify.app/register?plan=punto_plus" class="pos-plan-btn">Elegir Punto Plus</a>
         </div>
       </div>
 
@@ -645,12 +645,15 @@
   </footer>
 
   <script>
+    const ERP_URL = 'https://merry-mousse-d79419.netlify.app';
+    const POS_URL = 'https://stirring-longma-af504d.netlify.app';
+
     const origenData = [
-      { docs: '12',  price: 'Gratis',    tag: 'Para siempre, sin costo', isFree: true  },
-      { docs: '24',  price: '$99.900',   tag: null, isFree: false },
-      { docs: '60',  price: '$169.900',  tag: null, isFree: false },
-      { docs: '120', price: '$249.900',  tag: null, isFree: false },
-      { docs: '300', price: '$329.900',  tag: null, isFree: false },
+      { docs: '12',  price: 'Gratis',    tag: 'Para siempre, sin costo', isFree: true,  slug: 'origen'     },
+      { docs: '24',  price: '$99.900',   tag: null, isFree: false, slug: 'origen_24'  },
+      { docs: '60',  price: '$169.900',  tag: null, isFree: false, slug: 'origen_60'  },
+      { docs: '120', price: '$249.900',  tag: null, isFree: false, slug: 'origen_120' },
+      { docs: '300', price: '$329.900',  tag: null, isFree: false, slug: 'origen_300' },
     ];
     const slider    = document.getElementById('origenSlider');
     const docsLabel = document.getElementById('origenDocsLabel');
@@ -669,6 +672,7 @@
         freeTagEl.style.display = 'none';
       }
       btnEl.textContent = d.isFree ? 'Empezar gratis →' : 'Elegir este plan →';
+      btnEl.href = ERP_URL + '/register?plan=' + d.slug;
     }
     slider.addEventListener('input', updateOrigen);
     updateOrigen();

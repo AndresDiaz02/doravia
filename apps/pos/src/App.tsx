@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import SeleccionCaja from "./pages/SeleccionCaja";
 import Venta from "./pages/Venta";
 import Fiados from "./pages/Fiados";
@@ -21,6 +22,10 @@ function AppInner() {
   const [turno, setTurno] = useState<TurnoActivo | null>(null);
   const [vista, setVista] = useState<Vista>("venta");
   const [showCierre, setShowCierre] = useState(false);
+
+  if (window.location.pathname === "/register") {
+    return <Register onRegistered={() => { window.location.href = "/"; }} />;
+  }
 
   if (loading) {
     return (

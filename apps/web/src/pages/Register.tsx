@@ -16,7 +16,11 @@ const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
   raiz:        { nombre: "Raíz",        precio: "$1.150.000 / año" },
   brote:       { nombre: "Brote",       precio: "$1.680.000 / año" },
   cosecha:     { nombre: "Cosecha",     precio: "$2.320.000 / año" },
+  punto:       { nombre: "Punto",       precio: "$480.000 / año" },
+  punto_plus:  { nombre: "Punto Plus",  precio: "$840.000 / año" },
 };
+
+const PLANES_POS = ["punto", "punto_plus"];
 
 const PLANES_LISTA = [
   { slug: "origen",     label: "Origen — Gratis",             desc: "12 documentos/año · Solo facturación DIAN" },
@@ -111,10 +115,10 @@ export function Register() {
             signature: { integrity: checkout.signature.integrity },
             redirectUrl: checkout.redirect_url,
           });
-          return; // Wompi toma el control, no navegamos
+          return;
         } else {
-          // Wompi no cargó aún: ir a /planes para que paguen desde ahí
-          navigate("/planes", { replace: true });
+          const destino = PLANES_POS.includes(form.plan_slug) ? "/pos/cajas" : "/planes";
+          navigate(destino, { replace: true });
           return;
         }
       }

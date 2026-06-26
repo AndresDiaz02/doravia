@@ -6,9 +6,14 @@ export default function ResultadoPago() {
   const [params] = useSearchParams();
   const [status, setStatus] = useState<"loading" | "approved" | "declined" | "pending">("loading");
 
+  const planSlug = (() => {
+    const ref = params.get("reference") ?? "";
+    const parts = ref.split("-");
+    return parts.length >= 3 ? parts[2] : "";
+  })();
+  const esPOS = ["punto", "punto_plus"].includes(planSlug);
+
   useEffect(() => {
-    // Wompi añade id, reference, amount_in_cents, currency, payment_method_type, status
-    // En producción consultarías el estado real de la transacción
     setTimeout(() => {
       const txStatus = params.get("id") ? "approved" : "pending";
       setStatus(txStatus as typeof status);
@@ -49,13 +54,22 @@ export default function ResultadoPago() {
           <p className="text-gray-500 mt-2">{msg.desc}</p>
         </div>
         {status !== "loading" && (
-          <Link
-            to="/dashboard"
-            className="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-            onClick={() => window.location.reload()}
-          >
-            Ir al Dashboard
-          </Link>
+          status === "approved" && esPOS ? (
+            <Link
+              to="/pos/cajas"
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+            >
+              Configurar cajas POS →
+            </Link>
+          ) : (
+            <Link
+              to="/dashboard"
+              className="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              onClick={() => window.location.reload()}
+            >
+              Ir al Dashboard
+            </Link>
+          )
         )}
       </div>
     </div>

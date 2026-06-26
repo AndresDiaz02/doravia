@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Monitor, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Monitor, Pencil, ToggleLeft, ToggleRight, ExternalLink } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { Dialog } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
@@ -85,9 +85,19 @@ export default function AdminCajas() {
           <h1 className="text-xl font-bold text-gray-900">Cajas POS</h1>
           <p className="text-sm text-gray-500 mt-0.5">Administra las cajas registradoras del punto de venta</p>
         </div>
-        <Button onClick={abrirCrear}>
-          <Plus className="h-4 w-4 mr-1.5" /> Nueva caja
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href={import.meta.env.VITE_POS_URL ?? "https://stirring-longma-af504d.netlify.app"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" /> Ir al POS
+          </a>
+          <Button onClick={abrirCrear}>
+            <Plus className="h-4 w-4 mr-1.5" /> Nueva caja
+          </Button>
+        </div>
       </div>
 
       {loading ? (

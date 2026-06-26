@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -81,12 +81,6 @@ export function Login() {
           </form>
         </div>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
-          ¿Nuevo en Doravia?{" "}
-          <Link to="/registro" className="font-medium text-green-600 hover:underline">
-            Registra tu empresa
-          </Link>
-        </p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -217,12 +217,6 @@ export function Register() {
           </form>
         </div>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
-          ¿Ya tienes cuenta?{" "}
-          <Link to="/login" className="font-medium text-green-600 hover:underline">
-            Inicia sesión
-          </Link>
-        </p>
       </div>
     </div>
   );

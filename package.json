@@ -1,0 +1,14 @@
+{
+  "name": "doravia",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "db:push": "pnpm --filter @workspace/db push",
+    "db:seed": "pnpm --filter @workspace/db seed",
+    "db:studio": "pnpm --filter @workspace/db studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

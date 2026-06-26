@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cmd /c \"dir /a C:\\\\Users\\\\epsa2\\\\doravia\\\\apps\\\\web\")",
+      "PowerShell(cmd /c \"dir /a C:\\\\Users\\\\epsa2\\\\doravia\\\\apps\\\\api\")",
+      "PowerShell(cmd /c \"dir /s /b C:\\\\Users\\\\epsa2\\\\doravia\\\\apps\\\\web\")",
+      "Bash(./node_modules/.bin/tsc --noEmit --skipLibCheck)",
+      "Bash(./node_modules/.bin/tsc --version)",
+      "PowerShell(pnpm install 2>&1)",
+      "Bash(xargs grep -l \"documento\\\\|file\\\\|attachment\\\\|archivo\")",
+      "PowerShell(cd c:\\\\Users\\\\epsa2\\\\doravia; pnpm --filter @workspace/api build 2>&1 | Where-Object { $_ -match \"pos\\\\.ts\" })",
+      "PowerShell(cd c:\\\\Users\\\\epsa2\\\\doravia; pnpm --filter @workspace/api build 2>&1 | Where-Object { $_ -match \"pos\\\\.ts|error TS\" } | Select-Object -First 20)",
+      "PowerShell(cd c:\\\\Users\\\\epsa2\\\\doravia; pnpm --filter @workspace/api build 2>&1 | Where-Object { $_ -match \"^src/routes/pos\" -or $_ -match \"^src/routes/exportar\" } | Select-Object -First 10)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:3001/health\" -Method GET 2>&1)",
+      "PowerShell(cd c:\\\\Users\\\\epsa2\\\\doravia; pnpm --filter @workspace/api build 2>&1 | Where-Object { $_ -match \"^src/routes/pos|^src/services/contabilidad\" } | Select-Object -First 10)",
+      "WebFetch(domain:doraviasoft.com)",
+      "Bash(pnpm --filter @workspace/api add cors)",
+      "Bash(pnpm --filter @workspace/api add -D @types/cors)",
+      "Bash(pnpm --filter @workspace/db run push)"
+    ]
+  }
+}

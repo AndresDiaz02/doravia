@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Variables de entorno — NUNCA subir al repo
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Drizzle migrations generadas
+packages/db/drizzle/
+
+# TypeScript
+*.js.map
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

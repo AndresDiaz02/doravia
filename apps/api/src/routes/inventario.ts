@@ -45,6 +45,64 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET /api/inventario/kardex/:producto_id — movimientos cronológicos con saldo acumulado
+router.get("/kardex/:producto_id", async (req, res) => {
+  try {
+    const { producto_id } = req.params;
+    const { bodega_id } = req.query as { bodega_id?: string };
+
+    const [producto] = await db
+      .select({ id: productos.id, nombre: productos.nombre, codigo: productos.codigo })
+      .from(productos)
+      .where(and(eq(productos.id, producto_id), eq(productos.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
+
+    const condicion = bodega_id
+      ? and(
+          eq(movimientos_inventario.tenant_id, req.tenantId),
+          eq(movimientos_inventario.producto_id, producto_id),
+          eq(movimientos_inventario.bodega_id, bodega_id),
+        )
+      : and(
+          eq(movimientos_inventario.tenant_id, req.tenantId),
+          eq(movimientos_inventario.producto_id, producto_id),
+        );
+
+    const movimientos = await db
+      .select({
+        id: movimientos_inventario.id,
+        tipo: movimientos_inventario.tipo,
+        cantidad: movimientos_inventario.cantidad,
+        costo_unitario: movimientos_inventario.costo_unitario,
+        referencia_tipo: movimientos_inventario.referencia_tipo,
+        referencia_id: movimientos_inventario.referencia_id,
+        observaciones: movimientos_inventario.observaciones,
+        created_at: movimientos_inventario.created_at,
+        bodega: { id: bodegas.id, nombre: bodegas.nombre },
+      })
+      .from(movimientos_inventario)
+      .innerJoin(bodegas, eq(movimientos_inventario.bodega_id, bodegas.id))
+      .where(condicion)
+      .orderBy(movimientos_inventario.created_at);
+
+    // Calcular saldo acumulado
+    let saldo = 0;
+    const kardex = movimientos.map((m) => {
+      const cant = Number(m.cantidad);
+      const delta = m.tipo === "salida" ? -cant : cant;
+      saldo += delta;
+      return { ...m, delta, saldo_acumulado: saldo };
+    });
+
+    res.json({ producto, kardex });
+  } catch (err) {
+    console.error("Error en GET /inventario/kardex:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // GET /api/inventario/movimientos — historial completo
 router.get("/movimientos", async (req, res) => {
   try {

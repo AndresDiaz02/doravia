@@ -55,8 +55,9 @@ const NAV_GASTOS = [
 
 // Ítems que requieren feature "inventario" (Raíz y superior)
 const NAV_INVENTARIO = [
-  { to: "/bodegas",    label: "Bodegas",    icon: Warehouse },
-  { to: "/inventario", label: "Inventario", icon: Package },
+  { to: "/bodegas",           label: "Bodegas",    icon: Warehouse },
+  { to: "/inventario",        label: "Inventario", icon: Package },
+  { to: "/inventario/kardex", label: "Kardex",     icon: TrendingUp },
 ];
 
 // Ítems que requieren facturacion_ilimitada (Raíz y superior)

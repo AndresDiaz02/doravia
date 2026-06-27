@@ -8,6 +8,10 @@ export type MetodoPagoPOS = (typeof METODOS_PAGO_POS)[number];
 
 export const ESTADOS_TURNO = ["abierto", "cerrado"] as const;
 export const ESTADOS_VENTA_POS = ["completada", "anulada"] as const;
+export const ESTADOS_DIAN_POS = ["pendiente_envio", "enviado", "anulado"] as const;
+export const TIPOS_DOCUMENTO_POS = ["factura_electronica", "tiquete_pos"] as const;
+export type EstadoDianPOS = (typeof ESTADOS_DIAN_POS)[number];
+export type TipoDocumentoPOS = (typeof TIPOS_DOCUMENTO_POS)[number];
 
 // Cajas registradoras del tenant
 export const cajas_pos = pgTable("cajas_pos", {
@@ -52,6 +56,15 @@ export const ventas_pos = pgTable("ventas_pos", {
   monto_recibido: numeric("monto_recibido", { precision: 14, scale: 2 }),
   vuelto: numeric("vuelto", { precision: 14, scale: 2 }),
   estado: varchar("estado", { length: 20 }).notNull().default("completada"),
+  tipo_documento: varchar("tipo_documento", { length: 30 }).$type<TipoDocumentoPOS>().notNull().default("tiquete_pos"),
+  // Estado DIAN — completamente independiente del estado de la venta
+  estado_dian: varchar("estado_dian", { length: 30 }).$type<EstadoDianPOS>().notNull().default("pendiente_envio"),
+  fecha_limite_envio: timestamp("fecha_limite_envio", { withTimezone: true }),
+  enviado_en: timestamp("enviado_en", { withTimezone: true }),
+  // Auditoría de anulación (si estado_dian = "anulado")
+  anulado_por: uuid("anulado_por"),
+  anulado_en: timestamp("anulado_en", { withTimezone: true }),
+  anulado_motivo: text("anulado_motivo"),
   observaciones: text("observaciones"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

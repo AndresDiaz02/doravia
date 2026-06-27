@@ -78,7 +78,12 @@ export async function registrarTenant(input: RegistrarTenantInput) {
   const planFin = new Date(ahora);
   planFin.setFullYear(planFin.getFullYear() + 1); // suscripción anual
 
+  const pruebaFin = new Date(ahora);
+  pruebaFin.setDate(pruebaFin.getDate() + 15); // 15 días de prueba gratuita
+
   const password_hash = await bcrypt.hash(input.password, 12);
+
+  const esPlanGratis = input.plan_slug === "origen"; // Origen no necesita prueba, es gratis permanente
 
   const { tenant, user } = await db.transaction(async (tx) => {
     const [tenant] = await tx
@@ -89,6 +94,8 @@ export async function registrarTenant(input: RegistrarTenantInput) {
         plan_id: plan.id,
         plan_starts_at: ahora,
         plan_ends_at: planFin,
+        en_prueba: !esPlanGratis,
+        prueba_ends_at: esPlanGratis ? null : pruebaFin,
       })
       .returning();
 

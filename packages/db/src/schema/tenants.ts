@@ -23,6 +23,9 @@ export const tenants = pgTable("tenants", {
   // Features adicionales habilitadas sobre el plan base (add-ons)
   addons: jsonb("addons").$type<Partial<Record<string, boolean>>>().default({}),
   onboarding_completado: boolean("onboarding_completado").notNull().default(false),
+  // Prueba gratuita de 15 días
+  en_prueba: boolean("en_prueba").notNull().default(true),
+  prueba_ends_at: timestamp("prueba_ends_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

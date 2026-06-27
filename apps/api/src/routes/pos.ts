@@ -476,50 +476,23 @@ router.patch("/ventas/:id/anular", async (req, res) => {
     .where(and(eq(ventas_pos.id, req.params.id), eq(ventas_pos.tenant_id, req.tenantId)));
 
   if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
-  if (venta.estado === "anulada") return res.status(422).json({ error: "Esta venta ya está anulada." });
-
-  const items = await db
-    .select()
-    .from(items_venta_pos)
-    .where(eq(items_venta_pos.venta_id, venta.id));
+  if (venta.estado_dian === "anulado") return res.status(422).json({ error: "Esta venta ya está anulada." });
+  if (venta.estado_dian === "enviado") return res.status(422).json({ error: "Esta venta ya fue enviada a la DIAN y no puede anularse." });
 
   await db.transaction(async (tx) => {
-    // 1. Marcar como anulada
+    // Anulación fiscal — NO revierte inventario (regla de negocio: inventario y documento DIAN son independientes)
     await tx
       .update(ventas_pos)
-      .set({ estado: "anulada", observaciones: motivo ? `ANULADA: ${motivo}` : "ANULADA" })
+      .set({
+        estado: "anulada",
+        estado_dian: "anulado",
+        anulado_por: req.userId,
+        anulado_en: new Date(),
+        anulado_motivo: motivo ?? null,
+      })
       .where(eq(ventas_pos.id, venta.id));
 
-    // 2. Revertir stock (bodega principal)
-    const [bodegaPrincipal] = await tx
-      .select({ id: bodegas.id })
-      .from(bodegas)
-      .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
-      .limit(1);
-
-    if (bodegaPrincipal) {
-      for (const item of items) {
-        if (!item.producto_id) continue;
-        await tx
-          .update(productos)
-          .set({ stock_actual: sql`COALESCE(stock_actual, 0) + ${Number(item.cantidad)}` })
-          .where(eq(productos.id, item.producto_id));
-
-        await tx.insert(movimientos_inventario).values({
-          tenant_id: req.tenantId,
-          producto_id: item.producto_id,
-          bodega_id: bodegaPrincipal.id,
-          tipo: "entrada",
-          cantidad: String(item.cantidad),
-          costo_unitario: String(item.precio_unitario),
-          referencia_tipo: "ajuste",
-          referencia_id: venta.id,
-          observaciones: `Devolución por anulación ${venta.numero}`,
-        });
-      }
-    }
-
-    // 3. Restar del acumulado del turno
+    // Restar del acumulado del turno
     await tx
       .update(turnos_pos)
       .set({ total_ventas: sql`total_ventas - ${Number(venta.total)}` })
@@ -615,6 +588,69 @@ router.get("/reportes", async (req, res) => {
     por_hora: porHora.map((total, hora) => ({ hora, total })),
     fecha: fecha ?? ahora.toISOString().slice(0, 10),
   });
+});
+
+// ── Ciclo de revisión DIAN ────────────────────────────────────────────────────
+
+// GET /api/pos/cierre-dian — ventas pendientes de envío a la DIAN
+router.get("/cierre-dian", async (req, res) => {
+  try {
+    const ventas = await db
+      .select({
+        id: ventas_pos.id,
+        numero: ventas_pos.numero,
+        total: ventas_pos.total,
+        tipo_documento: ventas_pos.tipo_documento,
+        estado_dian: ventas_pos.estado_dian,
+        fecha_limite_envio: ventas_pos.fecha_limite_envio,
+        created_at: ventas_pos.created_at,
+        nombre_cliente: ventas_pos.nombre_cliente,
+      })
+      .from(ventas_pos)
+      .where(and(
+        eq(ventas_pos.tenant_id, req.tenantId),
+        eq(ventas_pos.estado_dian, "pendiente_envio"),
+      ))
+      .orderBy(ventas_pos.created_at);
+
+    const total = ventas.reduce((s, v) => s + Number(v.total), 0);
+    res.json({ ventas, total, cantidad: ventas.length });
+  } catch (err) {
+    console.error("Error en GET /pos/cierre-dian:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/pos/cierre-dian/enviar — marcar lote como enviado a la DIAN
+router.post("/cierre-dian/enviar", async (req, res) => {
+  try {
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Se requiere un array 'ids' con los IDs de ventas a enviar." });
+    }
+
+    const ahora = new Date();
+
+    // Solo actualizar ventas que pertenezcan al tenant y estén pendientes
+    let actualizadas = 0;
+    for (const id of ids) {
+      const [result] = await db
+        .update(ventas_pos)
+        .set({ estado_dian: "enviado", enviado_en: ahora })
+        .where(and(
+          eq(ventas_pos.id, id),
+          eq(ventas_pos.tenant_id, req.tenantId),
+          eq(ventas_pos.estado_dian, "pendiente_envio"),
+        ))
+        .returning({ id: ventas_pos.id });
+      if (result) actualizadas++;
+    }
+
+    res.json({ actualizadas, mensaje: `${actualizadas} ventas marcadas como enviadas a la DIAN.` });
+  } catch (err) {
+    console.error("Error en POST /pos/cierre-dian/enviar:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
 });
 
 export default router;

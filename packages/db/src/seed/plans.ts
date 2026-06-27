@@ -212,7 +212,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       gastos:     true,
       pos:        true,
     },
-    precio_anual_cop: 590_000,
+    precio_anual_cop: 480_000,
   },
   {
     slug: "punto_plus",

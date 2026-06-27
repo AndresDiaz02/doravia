@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Para Contadores — Doravia</title>
+<meta name="description" content="Doravia facilita el trabajo de los contadores: reportes completos, libro diario, auxiliares, balance de prueba y estado de resultados listos para exportar.">
+<link rel="canonical" href="https://doraviasoft.com/contadores">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .cont-features{ display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:900px; margin:0 auto 60px; }
+  .cont-feat{ background:#26304A; border-radius:18px; padding:26px 28px; display:flex; gap:14px; align-items:flex-start; }
+  .cont-feat-icon{ font-size:22px; flex-shrink:0; margin-top:2px; }
+  .cont-feat-title{ font-size:15px; font-weight:700; color:#fff; margin-bottom:6px; }
+  .cont-feat-desc{ font-size:13px; color:#9FA8C0; line-height:1.5; }
+  .cont-planes{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:900px; margin:0 auto; }
+  .cont-plan{ background:#26304A; border-radius:20px; padding:28px 24px; text-align:center; }
+  .cont-plan-badge{ font-size:11px; font-weight:700; letter-spacing:1px; padding:4px 12px; border-radius:20px; display:inline-block; margin-bottom:14px; }
+  .cont-plan-name{ font-family:'Lora',serif; font-weight:700; font-size:20px; color:#fff; margin-bottom:8px; }
+  .cont-plan-desc{ font-size:13px; color:#9FA8C0; line-height:1.5; margin-bottom:18px; }
+  .cont-plan-link{ display:inline-block; font-size:13px; font-weight:700; padding:10px 22px; border-radius:30px; }
+  @media(max-width:700px){
+    .cont-features{ grid-template-columns:1fr; }
+    .cont-planes{ grid-template-columns:1fr; max-width:380px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg></div>
+      <span class="logo-text">Doravia</span>
+    </a>
+    <nav>
+      <a href="/origen">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores" class="active">Contadores</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="https://app.doraviasoft.com/login" class="btn-login">Iniciar sesión</a>
+      <a href="https://wa.me/573000000000" class="btn-cta-small">Hablar con ventas</a>
+    </div>
+    <button class="mobile-toggle" aria-label="Menú">☰</button>
+  </div>
+</header>
+
+<!-- PAGE HERO -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-hero-eyebrow">🧮 PARA CONTADORES</div>
+    <h1>Hacemos más fácil<br><em>tu trabajo</em></h1>
+    <p>Doravia genera reportes completos y consistentes, para que dejes de perseguir información dispersa en hojas de cálculo de tus clientes.</p>
+  </div>
+</section>
+
+<!-- FUNCIONES PARA CONTADORES -->
+<section class="contadores-section" style="padding:100px 0 80px;">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow" style="color:var(--yellow);">HERRAMIENTAS</div>
+      <h2 style="color:#fff;">Todo lo que necesitas, listo para trabajar</h2>
+      <p style="color:#B8C0D6;">Tus clientes registran en Doravia y tú accedes a los reportes que necesitas, cuando los necesitas.</p>
+    </div>
+
+    <div class="cont-features">
+      <div class="cont-feat">
+        <div class="cont-feat-icon">📊</div>
+        <div>
+          <div class="cont-feat-title">Balance General y Estado de Resultados</div>
+          <div class="cont-feat-desc">Reportes financieros completos, listos para exportar a Excel en cualquier momento.</div>
+        </div>
+      </div>
+      <div class="cont-feat">
+        <div class="cont-feat-icon">📋</div>
+        <div>
+          <div class="cont-feat-title">Libro Diario y Mayor</div>
+          <div class="cont-feat-desc">Todos los asientos contables ordenados cronológicamente. Mayor detallado por cuenta.</div>
+        </div>
+      </div>
+      <div class="cont-feat">
+        <div class="cont-feat-icon">🔢</div>
+        <div>
+          <div class="cont-feat-title">Balance de Prueba</div>
+          <div class="cont-feat-desc">Verificación de cuadratura automática. Débitos = créditos, siempre verificado.</div>
+        </div>
+      </div>
+      <div class="cont-feat">
+        <div class="cont-feat-icon">📂</div>
+        <div>
+          <div class="cont-feat-title">Auxiliares contables</div>
+          <div class="cont-feat-desc">Mayor detallado por cuenta con saldo acumulado por movimiento.</div>
+        </div>
+      </div>
+      <div class="cont-feat">
+        <div class="cont-feat-icon">📄</div>
+        <div>
+          <div class="cont-feat-title">Retenciones</div>
+          <div class="cont-feat-desc">Retenciones en la fuente e IVA configurables por porcentaje. Aplicación automática en facturas.</div>
+        </div>
+      </div>
+      <div class="cont-feat">
+        <div class="cont-feat-icon">🔒</div>
+        <div>
+          <div class="cont-feat-title">Períodos contables con bloqueo</div>
+          <div class="cont-feat-desc">Cierra el período y bloquea cualquier modificación en fechas pasadas. Integridad garantizada.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROL CONTADOR -->
+<section style="background:#fff; padding:80px 0;">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">ACCESO DE CONTADOR</div>
+      <h2 style="color:var(--navy);">Acceso de solo lectura para tu trabajo</h2>
+      <p>El administrador de la empresa puede darte acceso como Contador — puedes consultar y exportar todo sin riesgo de modificar nada.</p>
+    </div>
+
+    <div style="max-width:680px;margin:0 auto;background:var(--cream);border-radius:22px;padding:38px 40px;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;gap:14px;align-items:center;font-size:15px;color:var(--carbon);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">✓</div>
+          Consulta reportes y libros contables
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:15px;color:var(--carbon);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">✓</div>
+          Exporta a Excel para tu trabajo
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:15px;color:var(--carbon);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">✓</div>
+          Ve todos los movimientos y asientos
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:15px;color:var(--gray);">
+          <div style="width:28px;height:28px;border-radius:50%;background:#E8E3DC;color:var(--gray);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">×</div>
+          No puede modificar ni eliminar registros
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLANES RECOMENDADOS -->
+<section class="erp-section" style="padding:80px 0 100px;">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">¿QUÉ RECOMENDAR A TUS CLIENTES?</div>
+      <h2>Un plan para cada tamaño de empresa</h2>
+      <p>Dependiendo de la complejidad del negocio, estos son los planes que más recomiendan los contadores.</p>
+    </div>
+
+    <div class="cont-planes">
+      <div class="cont-plan">
+        <div class="cont-plan-badge" style="background:rgba(255,201,74,0.15);color:var(--yellow);">BÁSICO</div>
+        <div class="cont-plan-name">Origen</div>
+        <div class="cont-plan-desc">Para clientes que solo necesitan facturar. Gratis hasta 12 docs/año.</div>
+        <a href="/origen" class="cont-plan-link" style="background:var(--navy);color:#fff;">Ver Origen →</a>
+      </div>
+      <div class="cont-plan" style="border:1.5px solid rgba(255,201,74,0.3);">
+        <div class="cont-plan-badge" style="background:rgba(26,122,76,0.15);color:#5FD691;">MÁS RECOMENDADO</div>
+        <div class="cont-plan-name">ERP Semilla</div>
+        <div class="cont-plan-desc">Para empresas que necesitan inventario, gastos y contabilidad completa.</div>
+        <a href="/erp" class="cont-plan-link" style="background:var(--green);color:#fff;">Ver ERP →</a>
+      </div>
+      <div class="cont-plan">
+        <div class="cont-plan-badge" style="background:rgba(255,107,94,0.15);color:var(--coral);">PARA TIENDAS</div>
+        <div class="cont-plan-name">Punto</div>
+        <div class="cont-plan-desc">Para clientes con punto de venta físico. Con cierre DIAN mensual.</div>
+        <a href="/punto" class="cont-plan-link" style="background:var(--coral);color:#fff;">Ver Punto →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">PREGUNTAS FRECUENTES</div>
+      <h2 style="color:var(--navy);">Lo que preguntan los contadores</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-question">¿El contador puede acceder a todos los reportes? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Sí, el rol Contador tiene acceso de solo lectura a todos los reportes financieros, libros contables, auxiliares, balance de prueba y estado de resultados.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">¿La contabilidad la genera el sistema automáticamente? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Sí, cada factura, gasto o movimiento genera sus asientos contables automáticamente. El contador puede revisarlos, pero no tiene que registrarlos manualmente.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">¿Puedo tener acceso a varios clientes con una sola cuenta? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Próximamente tendremos un programa de aliados para contadores con acceso multi-empresa. Por ahora, cada empresa te da acceso por separado.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-final" id="contacto">
+  <div class="container">
+    <h2>¿Eres contador?</h2>
+    <p>Escríbenos y te contamos cómo Doravia puede facilitar el trabajo con tus clientes.</p>
+    <a href="https://wa.me/573000000000" class="btn-primary" style="font-size:16px;padding:18px 36px;">Hablar con nosotros →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">Doravia</div>
+    <div class="footer-links">
+      <a href="/origen">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores">Contadores</a>
+    </div>
+    <div class="footer-text">© 2026 Doravia · Bogotá, Colombia</div>
+  </div>
+</footer>
+
+<script>
+  const toggle=document.querySelector('.mobile-toggle');
+  const nav=document.querySelector('nav');
+  if(toggle){toggle.addEventListener('click',()=>{const v=nav.style.display==='flex';nav.style.display=v?'none':'flex';nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;';});}
+  document.querySelectorAll('.faq-question').forEach(q=>{q.addEventListener('click',()=>{const item=q.closest('.faq-item');const was=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!was)item.classList.add('open');});});
+</script>
+</body>
+</html>

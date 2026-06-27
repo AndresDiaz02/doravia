@@ -3,707 +3,205 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Doravia — Facturación Electrónica, ERP y POS para empresas en Colombia</title>
-<meta name="description" content="El ecosistema de Doravia: facturación electrónica, ERP administrativo y punto de venta, todo conectado. Empieza con lo que necesitas hoy y crece sin cambiar de sistema.">
-<meta name="keywords" content="ERP Colombia, software administrativo, software contable, facturación electrónica, sistema POS, software para inventarios, ERP para PYMES">
-<meta property="og:title" content="Doravia — Facturación, ERP y POS en un solo ecosistema">
-<meta property="og:description" content="Empieza con facturación electrónica, administra tu empresa con el ERP, o agiliza tu punto de venta — todo conectado, todo Doravia.">
-<meta property="og:type" content="website">
+<title>Doravia — Facturación Electrónica, ERP y POS para Colombia</title>
+<meta name="description" content="Doravia: facturación electrónica, ERP administrativo y punto de venta, todo conectado. Empieza con lo que necesitas hoy y crece sin cambiar de sistema.">
+<link rel="canonical" href="https://doraviasoft.com/">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --navy:#1A2238; --navy-light:#2E3A5C; --navy-deep:#0F1424;
-    --yellow:#FFC94A; --coral:#FF6B5E; --cream:#FAF6EE;
-    --carbon:#2D2A26; --gray:#6B6358;
-    --green:#1A7A4C;
-  }
-  *{ box-sizing:border-box; margin:0; padding:0; }
-  html{ scroll-behavior:smooth; }
-  body{ font-family:'Poppins',sans-serif; color:var(--carbon); background:var(--cream); overflow-x:hidden; }
-  h1,h2,h3{ font-family:'Lora',serif; }
-  a{ text-decoration:none; color:inherit; }
-  .container{ max-width:1200px; margin:0 auto; padding:0 32px; }
-  section{ position:relative; }
-  .section-eyebrow{ font-size:13px; font-weight:700; letter-spacing:2px; color:var(--coral); margin-bottom:18px; }
-  .section-head{ text-align:center; max-width:700px; margin:0 auto 60px; }
-  .section-head h2{ font-size:clamp(30px, 3.6vw, 44px); color:var(--navy); margin-bottom:16px; line-height:1.2; }
-  .section-head p{ font-size:16.5px; color:var(--gray); line-height:1.6; }
-
-  /* ============ HEADER ============ */
-  header{
-    position:fixed; top:0; left:0; width:100%; z-index:100;
-    background:rgba(250,246,238,0.8); backdrop-filter:blur(14px);
-    border-bottom:1px solid rgba(26,34,56,0.06);
-  }
-  .header-inner{ max-width:1200px; margin:0 auto; padding:16px 32px; display:flex; align-items:center; justify-content:space-between; }
-  .logo{ display:flex; align-items:center; gap:10px; }
-  .logo-mark{ width:32px; height:32px; border-radius:50%; background:var(--navy); display:flex; align-items:center; justify-content:center; }
-  .logo-mark svg{ width:17px; height:17px; }
-  .logo-text{ font-family:'Lora',serif; font-weight:700; font-size:20px; color:var(--navy); }
-  nav{ display:flex; gap:30px; align-items:center; }
-  nav a{ font-size:14px; font-weight:500; color:var(--navy); opacity:0.75; }
-  nav a:hover{ opacity:1; }
-  .nav-actions{ display:flex; gap:12px; align-items:center; }
-  .btn-login{ font-size:13.5px; font-weight:600; color:var(--navy); padding:9px 18px; border-radius:30px; border:1.5px solid rgba(26,34,56,0.18); }
-  .btn-cta-small{ font-size:13.5px; font-weight:700; color:#fff; background:var(--coral); padding:10px 20px; border-radius:30px; box-shadow:0 6px 16px rgba(255,107,94,0.3); }
-  .mobile-toggle{ display:none; font-size:22px; color:var(--navy); cursor:pointer; }
-
-  /* ============ HERO ============ */
-  .hero{ min-height:92vh; display:flex; align-items:center; background:var(--navy); position:relative; overflow:hidden; padding-top:90px; }
-  .hero-bg-glow{ position:absolute; top:-20%; right:-10%; width:60%; height:140%; background:radial-gradient(circle, rgba(255,201,74,0.10) 0%, transparent 65%); pointer-events:none; }
-  .hero-inner{ max-width:1200px; margin:0 auto; padding:0 32px; text-align:center; width:100%; }
-  .hero-eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:1.5px; color:var(--yellow); background:rgba(255,201,74,0.1); padding:8px 18px; border-radius:30px; margin-bottom:30px; }
-  .hero-title{ font-size:clamp(34px, 4.6vw, 56px); font-weight:700; color:#fff; line-height:1.18; margin-bottom:24px; max-width:820px; margin-left:auto; margin-right:auto; }
-  .hero-title em{ color:var(--yellow); font-style:normal; }
-  .hero-sub{ font-size:18px; line-height:1.65; color:#B8C0D6; max-width:600px; margin:0 auto 40px; }
-  .hero-actions{ display:flex; gap:16px; align-items:center; justify-content:center; flex-wrap:wrap; }
-  .btn-primary{ font-size:15.5px; font-weight:700; color:#fff; background:var(--coral); padding:16px 32px; border-radius:30px; box-shadow:0 10px 28px rgba(255,107,94,0.35); display:inline-flex; align-items:center; gap:10px; }
-  .btn-secondary{ font-size:15px; font-weight:600; color:#fff; padding:16px 26px; border-radius:30px; border:1.5px solid rgba(255,255,255,0.25); }
-  .hero-lines{ display:flex; gap:40px; justify-content:center; margin-top:56px; flex-wrap:wrap; }
-  .hero-line-item{ display:flex; align-items:center; gap:10px; font-size:14px; color:#D5DAE8; }
-  .hero-line-emoji{ font-size:18px; }
-
-  /* ============ COMPARATIVA ============ */
-  .comparativa-section{ background:#fff; padding:110px 0; }
-  .comparativa-list{ max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:0; }
-  .comparativa-row{ display:flex; align-items:center; gap:28px; padding:26px 0; border-bottom:1px solid rgba(26,34,56,0.08); }
-  .comparativa-row:last-child{ border-bottom:none; }
-  .comparativa-need{ flex:1; font-size:16px; color:var(--carbon); font-weight:500; }
-  .comparativa-arrow{ font-size:20px; color:var(--coral); flex-shrink:0; }
-  .comparativa-product{
-    flex-shrink:0; width:170px; text-align:center; padding:12px 18px; border-radius:30px;
-    font-family:'Lora',serif; font-weight:700; font-size:16px; color:#fff;
-  }
-
-  /* ============ ORIGEN ============ */
-  .origen-section{ background:var(--navy); padding:110px 0; position:relative; overflow:hidden; }
-  .origen-section::before{ content:''; position:absolute; top:-20%; left:-10%; width:50%; height:120%; background:radial-gradient(circle, rgba(255,201,74,0.08) 0%, transparent 65%); pointer-events:none; }
-  .origen-card{ max-width:760px; margin:0 auto; background:#26304A; border-radius:28px; padding:48px 56px; position:relative; }
-
-  .origen-slider-wrap{ margin-bottom:36px; }
-  .origen-slider-label{ display:flex; justify-content:space-between; font-size:13px; color:#9FA8C0; margin-bottom:14px; }
-  .origen-slider{ width:100%; -webkit-appearance:none; height:8px; border-radius:10px; background:#1A2238; outline:none; cursor:pointer; }
-  .origen-slider::-webkit-slider-thumb{ -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:var(--yellow); border:4px solid #26304A; box-shadow:0 2px 8px rgba(0,0,0,0.3); cursor:pointer; }
-  .origen-slider::-moz-range-thumb{ width:26px; height:26px; border-radius:50%; background:var(--yellow); border:4px solid #26304A; cursor:pointer; }
-  .origen-marks{ display:flex; justify-content:space-between; margin-top:10px; font-size:11px; color:#6B7694; }
-
-  .origen-result{ text-align:center; margin-bottom:36px; }
-  .origen-result-docs{ font-size:15px; color:#D5DAE8; margin-bottom:8px; }
-  .origen-result-price{ font-family:'Lora',serif; font-weight:700; font-size:46px; color:var(--yellow); }
-  .origen-result-price span{ font-size:15px; color:#9FA8C0; font-weight:400; }
-  .origen-free-tag{ display:inline-block; background:rgba(26,122,76,0.15); color:#5FD691; font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px; margin-top:10px; }
-
-  .origen-features{ display:grid; grid-template-columns:1fr 1fr; gap:13px; margin-bottom:32px; }
-  .origen-feat{ display:flex; gap:9px; align-items:center; font-size:13.5px; color:#D5DAE8; }
-  .origen-feat svg{ width:14px; height:14px; flex-shrink:0; }
-
-  .origen-cta{ text-align:center; }
-  .origen-crosslink{
-    max-width:760px; margin:44px auto 0; background:rgba(255,201,74,0.07);
-    border:1px solid rgba(255,201,74,0.2); border-radius:18px; padding:26px 30px;
-    text-align:center;
-  }
-  .origen-crosslink p{ font-size:15px; color:#E8D9A8; margin-bottom:16px; }
-
-  /* ============ ERP SECTION ============ */
-  .erp-section{ background:#fff; padding:110px 0; }
-  .erp-plans-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:20px; max-width:1200px; margin:0 auto; }
-  .erp-plan{ border-radius:22px; padding:30px 24px; position:relative; display:flex; flex-direction:column; transition:transform 0.25s; }
-  .erp-plan:hover{ transform:translateY(-5px); }
-  .erp-plan.featured{ transform:scale(1.03); box-shadow:0 22px 46px rgba(26,34,56,0.16); }
-  .erp-plan-badge{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--navy); color:var(--yellow); font-size:10.5px; font-weight:800; letter-spacing:1px; padding:5px 14px; border-radius:20px; white-space:nowrap; }
-  .erp-plan-name{ font-family:'Lora',serif; font-weight:700; font-size:23px; margin-bottom:8px; }
-  .erp-plan-ideal{ font-size:12px; line-height:1.5; margin-bottom:18px; min-height:48px; }
-  .erp-plan-price{ font-family:'Lora',serif; font-weight:700; font-size:24px; margin-bottom:20px; }
-  .erp-plan-price span{ font-size:11px; font-weight:400; opacity:0.7; }
-  .erp-plan-feats{ display:flex; flex-direction:column; gap:9px; margin-bottom:24px; flex-grow:1; }
-  .erp-plan-feat{ display:flex; gap:7px; align-items:flex-start; font-size:12px; line-height:1.4; }
-  .erp-plan-feat svg{ width:12px; height:12px; flex-shrink:0; margin-top:1px; }
-  .erp-plan-btn{ display:block; text-align:center; padding:11px; border-radius:30px; font-size:12.5px; font-weight:700; }
-  .erp-includes-row{ max-width:900px; margin:60px auto 0; display:flex; justify-content:center; gap:36px; flex-wrap:wrap; }
-  .erp-includes-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray); }
-
-  /* ============ POS SECTION ============ */
-  .pos-section{ background:var(--navy); padding:110px 0; position:relative; overflow:hidden; }
-  .pos-section::before{ content:''; position:absolute; bottom:-20%; right:-10%; width:55%; height:120%; background:radial-gradient(circle, rgba(255,107,94,0.10) 0%, transparent 65%); pointer-events:none; }
-  .pos-plans-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:26px; max-width:820px; margin:0 auto; }
-  .pos-plan-card{ background:#26304A; border-radius:24px; padding:38px 34px; transition:transform 0.25s; }
-  .pos-plan-card.pos-featured{ background:#2E3A5C; border:1.5px solid rgba(255,201,74,0.35); }
-  .pos-plan-card:hover{ transform:translateY(-5px); }
-  .pos-plan-badge{ display:inline-block; background:var(--yellow); color:var(--navy); font-size:10.5px; font-weight:800; letter-spacing:1px; padding:4px 12px; border-radius:20px; margin-bottom:14px; }
-  .pos-plan-name{ font-family:'Lora',serif; font-weight:700; font-size:24px; color:#fff; margin-bottom:6px; }
-  .pos-plan-ideal{ font-size:12.5px; color:#9FA8C0; line-height:1.5; margin-bottom:22px; min-height:42px; }
-  .pos-plan-price{ font-family:'Lora',serif; font-weight:700; font-size:32px; color:var(--yellow); margin-bottom:24px; }
-  .pos-plan-price span{ font-size:13px; color:#9FA8C0; font-weight:400; }
-  .pos-plan-feats{ display:flex; flex-direction:column; gap:11px; margin-bottom:28px; }
-  .pos-plan-feat{ display:flex; gap:9px; align-items:flex-start; font-size:13.5px; color:#D5DAE8; }
-  .pos-plan-feat svg{ width:14px; height:14px; flex-shrink:0; margin-top:2px; }
-  .pos-plan-btn{ display:block; text-align:center; padding:13px; border-radius:30px; font-size:14px; font-weight:700; background:var(--coral); color:#fff; }
-  .pos-crosslink{ max-width:820px; margin:40px auto 0; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:18px; padding:24px 28px; text-align:center; }
-  .pos-crosslink p{ font-size:14.5px; color:#D5DAE8; margin-bottom:16px; }
-
-  /* ============ DIFERENCIALES ============ */
-  .diferenciales-section{ background:var(--cream); padding:110px 0; }
-  .diferenciales-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; max-width:1000px; margin:0 auto; }
-  .diferencial-item{ background:#fff; border-radius:18px; padding:28px 24px; display:flex; gap:14px; align-items:flex-start; box-shadow:0 1px 3px rgba(26,34,56,0.05); }
-  .diferencial-icon{ width:30px; height:30px; border-radius:50%; background:var(--navy); color:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-  .diferencial-text{ font-size:14.5px; color:var(--carbon); font-weight:500; line-height:1.4; }
-
-  /* ============ MIGRACIÓN ============ */
-  .migration-section{ background:var(--navy); padding:120px 0; position:relative; overflow:hidden; }
-  .migration-section::before{ content:''; position:absolute; top:-20%; left:-10%; width:50%; height:120%; background:radial-gradient(circle, rgba(255,201,74,0.08) 0%, transparent 65%); pointer-events:none; }
-  .migration-card{ max-width:920px; margin:0 auto; background:#26304A; border-radius:28px; padding:56px 60px; display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; position:relative; }
-  .migration-card h3{ font-size:30px; color:#fff; margin-bottom:16px; line-height:1.25; }
-  .migration-card p{ font-size:15px; color:#B8C0D6; line-height:1.65; margin-bottom:28px; }
-  .migration-list{ display:flex; flex-direction:column; gap:14px; }
-  .migration-item{ display:flex; gap:12px; align-items:center; font-size:15px; color:#fff; font-weight:500; }
-  .migration-icon{ width:28px; height:28px; border-radius:50%; background:var(--yellow); color:var(--navy); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
-  .migration-free-tag{ display:inline-block; margin-top:8px; background:rgba(26,122,76,0.15); color:#5FD691; font-size:12.5px; font-weight:700; padding:6px 16px; border-radius:20px; }
-
-  /* ============ CONTADORES ============ */
-  .contadores-section{ background:var(--navy); padding:110px 0; position:relative; overflow:hidden; }
-  .contadores-section::before{ content:''; position:absolute; top:-20%; right:-10%; width:50%; height:120%; background:radial-gradient(circle, rgba(255,201,74,0.08) 0%, transparent 65%); pointer-events:none; }
-  .contadores-grid{ display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; max-width:1000px; margin:0 auto; }
-  .contadores-content h2{ font-size:clamp(28px, 3.4vw, 38px); color:#fff; margin-bottom:18px; line-height:1.25; }
-  .contadores-content p{ font-size:15.5px; color:#B8C0D6; line-height:1.65; margin-bottom:28px; }
-  .contadores-points{ display:flex; flex-direction:column; gap:16px; }
-  .contadores-point{ display:flex; gap:12px; align-items:flex-start; }
-  .contadores-point-icon{ font-size:20px; flex-shrink:0; }
-  .contadores-point-text{ font-size:14px; color:#D5DAE8; line-height:1.5; }
-  .contadores-badge{ background:#26304A; border-radius:22px; padding:36px 32px; text-align:center; }
-  .contadores-badge-icon{ font-size:40px; margin-bottom:16px; }
-  .contadores-badge h4{ font-size:18px; color:#fff; margin-bottom:10px; }
-  .contadores-badge p{ font-size:13px; color:#9FA8C0; line-height:1.5; }
-
-  /* ============ CASOS DE USO ============ */
-  .casos-section{ background:var(--cream); padding:100px 0; }
-  .casos-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; max-width:1000px; margin:0 auto; }
-  .caso-item{ background:#fff; border-radius:16px; padding:24px 18px; text-align:center; box-shadow:0 1px 3px rgba(26,34,56,0.05); }
-  .caso-emoji{ font-size:26px; margin-bottom:10px; }
-  .caso-name{ font-size:13px; font-weight:600; color:var(--navy); }
-
-  /* ============ TESTIMONIOS ============ */
-  .testimonials-section{ background:#fff; padding:110px 0; }
-  .testimonials-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:22px; }
-  .testimonial-card{ background:var(--cream); border-radius:20px; padding:30px 26px; display:flex; flex-direction:column; }
-  .testimonial-stars{ color:var(--yellow); font-size:14px; margin-bottom:16px; letter-spacing:2px; }
-  .testimonial-quote{ font-size:14px; color:var(--carbon); line-height:1.6; margin-bottom:22px; flex-grow:1; }
-  .testimonial-author{ display:flex; gap:12px; align-items:center; }
-  .testimonial-avatar{ width:40px; height:40px; border-radius:50%; background:var(--navy); color:var(--yellow); display:flex; align-items:center; justify-content:center; font-family:'Lora',serif; font-weight:700; font-size:14px; flex-shrink:0; }
-  .testimonial-name{ font-size:13.5px; font-weight:700; color:var(--navy); }
-  .testimonial-meta{ font-size:11.5px; color:var(--gray); }
-
-  /* ============ FAQ ============ */
-  .faq-section{ background:var(--cream); padding:110px 0; }
-  .faq-list{ max-width:760px; margin:0 auto; }
-  .faq-item{ border-bottom:1px solid rgba(26,34,56,0.1); padding:24px 0; }
-  .faq-question{ display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:16px; font-weight:600; color:var(--navy); }
-  .faq-question-icon{ font-size:18px; color:var(--coral); flex-shrink:0; margin-left:16px; transition:transform 0.25s; }
-  .faq-item.open .faq-question-icon{ transform:rotate(45deg); }
-  .faq-answer{ font-size:14px; color:var(--gray); line-height:1.6; max-height:0; overflow:hidden; transition:max-height 0.3s ease, margin-top 0.3s ease; }
-  .faq-item.open .faq-answer{ max-height:200px; margin-top:12px; }
-
-  /* ============ CTA FINAL ============ */
-  .cta-final{ background:linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%); padding:110px 0; text-align:center; position:relative; overflow:hidden; }
-  .cta-final::before{ content:''; position:absolute; top:-30%; left:50%; transform:translateX(-50%); width:800px; height:800px; border-radius:50%; background:radial-gradient(circle, rgba(255,107,94,0.12) 0%, transparent 60%); }
-  .cta-final h2{ font-size:clamp(30px, 4vw, 44px); color:#fff; margin-bottom:18px; position:relative; }
-  .cta-final p{ font-size:17px; color:#B8C0D6; max-width:500px; margin:0 auto 40px; position:relative; }
-
-  footer{ background:var(--navy-deep); padding:44px 0; }
-  .footer-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
-  .footer-logo{ font-family:'Lora',serif; font-weight:700; color:#fff; font-size:17px; }
-  .footer-text{ font-size:12.5px; color:#6B7694; }
-
-  @media (max-width: 900px){
-    nav{ display:none; }
-    .mobile-toggle{ display:block; }
-    .nav-actions{ display:none; }
-    .erp-plans-grid{ grid-template-columns:1fr; max-width:380px; margin:0 auto; }
-    .erp-plan.featured{ transform:none; }
-    .pos-plans-grid{ grid-template-columns:1fr; max-width:380px; margin:0 auto; }
-    .migration-card{ grid-template-columns:1fr; padding:36px 28px; }
-    .contadores-grid{ grid-template-columns:1fr; gap:36px; }
-    .casos-grid{ grid-template-columns:repeat(2, 1fr); }
-    .testimonials-grid{ grid-template-columns:1fr; }
-    .hero-lines{ gap:20px; }
-  }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <header>
-    <div class="header-inner">
-      <div class="logo">
-        <div class="logo-mark">
-          <svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg>
-        </div>
-        <span class="logo-text">Doravia</span>
-      </div>
-      <nav>
-        <a href="#origen">Facturación</a>
-        <a href="#erp">ERP</a>
-        <a href="#pos">Punto</a>
-        <a href="#contadores">Contadores</a>
-        <a href="#contacto">Contacto</a>
-      </nav>
-      <div class="nav-actions">
-        <a href="https://merry-mousse-d79419.netlify.app/login" class="btn-login">Iniciar sesión</a>
-        <a href="#contacto" class="btn-cta-small">Hablar con ventas</a>
-      </div>
-      <div class="mobile-toggle">☰</div>
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg></div>
+      <span class="logo-text">Doravia</span>
+    </a>
+    <nav>
+      <a href="/origen" class="active">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores">Contadores</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="https://app.doraviasoft.com/login" class="btn-login">Iniciar sesión</a>
+      <a href="https://wa.me/573000000000" class="btn-cta-small">Hablar con ventas</a>
     </div>
-  </header>
+    <button class="mobile-toggle" aria-label="Menú">☰</button>
+  </div>
+</header>
 
-  <!-- ============ HERO ============ -->
-  <section class="hero">
-    <div class="hero-bg-glow"></div>
-    <div class="hero-inner">
-      <div class="hero-eyebrow">✨ Un ecosistema, no solo un software</div>
-      <h1 class="hero-title">La forma más fácil de<br><em>administrar tu empresa</em></h1>
-      <p class="hero-sub">Factura electrónicamente, controla tu inventario, administra compras y toma mejores decisiones — todo desde una sola plataforma.</p>
-      <div class="hero-actions">
-        <a href="#comparativa" class="btn-primary">Encuentra tu producto →</a>
-        <a href="#contacto" class="btn-secondary">Hablar por WhatsApp</a>
-      </div>
-      <div class="hero-lines">
-        <div class="hero-line-item"><span class="hero-line-emoji">📋</span> Cumple con la DIAN</div>
-        <div class="hero-line-item"><span class="hero-line-emoji">📱</span> Administra tu empresa</div>
-        <div class="hero-line-item"><span class="hero-line-emoji">🏪</span> Agiliza tus ventas</div>
-      </div>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-glow"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow">✨ Un ecosistema, no solo un software</div>
+    <h1 class="hero-title">La forma más fácil de<br><em>administrar tu empresa</em></h1>
+    <p class="hero-sub">Factura electrónicamente, controla tu inventario, administra compras y toma mejores decisiones — todo desde una sola plataforma.</p>
+    <div class="hero-actions">
+      <a href="#que-necesito" class="btn-primary">¿Qué necesito? →</a>
+      <a href="https://wa.me/573000000000" class="btn-secondary">Hablar por WhatsApp</a>
     </div>
-  </section>
-
-  <!-- ============ COMPARATIVA ============ -->
-  <section class="comparativa-section" id="comparativa">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow">EMPECEMOS POR LO IMPORTANTE</div>
-        <h2>¿Qué solución necesita tu empresa?</h2>
-        <p>Encuentra tu producto en segundos, sin confusiones.</p>
-      </div>
-      <div class="comparativa-list">
-        <a href="#origen" style="text-decoration:none;">
-          <div class="comparativa-row">
-            <div class="comparativa-need">Solo necesito cumplir con la DIAN</div>
-            <div class="comparativa-arrow">→</div>
-            <div class="comparativa-product" style="background:var(--navy);">📄 Origen</div>
-          </div>
-        </a>
-        <a href="#erp" style="text-decoration:none;">
-          <div class="comparativa-row">
-            <div class="comparativa-need">Quiero administrar completamente mi empresa</div>
-            <div class="comparativa-arrow">→</div>
-            <div class="comparativa-product" style="background:#A8763E;">🌱 ERP</div>
-          </div>
-        </a>
-        <a href="#pos" style="text-decoration:none;">
-          <div class="comparativa-row">
-            <div class="comparativa-need">Quiero agilizar las ventas en mi establecimiento</div>
-            <div class="comparativa-arrow">→</div>
-            <div class="comparativa-product" style="background:var(--coral);">🏪 Punto</div>
-          </div>
-        </a>
-        <a href="#pos" style="text-decoration:none;">
-          <div class="comparativa-row">
-            <div class="comparativa-need">Tengo varias cajas y mayor operación</div>
-            <div class="comparativa-arrow">→</div>
-            <div class="comparativa-product" style="background:#2E3A5C;">🏬 Punto Plus</div>
-          </div>
-        </a>
-      </div>
+    <div class="hero-lines">
+      <div class="hero-line-item"><span class="hero-line-emoji">📋</span> Cumple con la DIAN</div>
+      <div class="hero-line-item"><span class="hero-line-emoji">📱</span> Administra tu empresa</div>
+      <div class="hero-line-item"><span class="hero-line-emoji">🏪</span> Agiliza tus ventas</div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ============ ORIGEN ============ -->
-  <section class="origen-section" id="origen">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow" style="color:var(--yellow);">📄 FACTURACIÓN ELECTRÓNICA</div>
-        <h2 style="color:#fff;">Origen</h2>
-        <p style="color:#B8C0D6;">Cumple con la DIAN desde el primer día. Un solo producto: elige cuántos documentos necesitas, el resto es exactamente igual.</p>
+<!-- ¿QUÉ NECESITO? -->
+<section class="comparativa-section" id="que-necesito">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">ENCUENTRA TU PRODUCTO</div>
+      <h2>¿Qué necesita tu negocio?</h2>
+      <p>Tres productos distintos, un solo ecosistema. Elige el que se ajusta a donde estás hoy.</p>
+    </div>
+    <div class="comparativa-list">
+      <a href="/origen">
+        <div class="comparativa-row">
+          <div class="comparativa-need">Solo necesito facturar electrónicamente a la DIAN</div>
+          <div class="comparativa-arrow">→</div>
+          <div class="comparativa-product" style="background:var(--navy);">📄 Origen</div>
+        </div>
+      </a>
+      <a href="/erp">
+        <div class="comparativa-row">
+          <div class="comparativa-need">Quiero administrar toda mi empresa: compras, inventario, gastos y contabilidad</div>
+          <div class="comparativa-arrow">→</div>
+          <div class="comparativa-product" style="background:var(--green);">🌱 ERP</div>
+        </div>
+      </a>
+      <a href="/punto">
+        <div class="comparativa-row">
+          <div class="comparativa-need">Quiero agilizar las ventas en mi establecimiento (tienda, minimercado, ferretería…)</div>
+          <div class="comparativa-arrow">→</div>
+          <div class="comparativa-product" style="background:var(--coral);">🏪 Punto</div>
+        </div>
+      </a>
+      <a href="/punto">
+        <div class="comparativa-row">
+          <div class="comparativa-need">Tengo varias cajas y mayor volumen de ventas</div>
+          <div class="comparativa-arrow">→</div>
+          <div class="comparativa-product" style="background:#2E3A5C;">🏬 Punto Plus</div>
+        </div>
+      </a>
+      <a href="/contadores">
+        <div class="comparativa-row">
+          <div class="comparativa-need">Soy contador y quiero recomendar software a mis clientes</div>
+          <div class="comparativa-arrow">→</div>
+          <div class="comparativa-product" style="background:#7B4FBF;">🧮 Contadores</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCTOS -->
+<section class="products-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">NUESTROS PRODUCTOS</div>
+      <h2>Empieza con lo que necesitas hoy</h2>
+      <p>Todos los productos comparten la misma plataforma y los mismos datos — crecer no significa empezar de cero.</p>
+    </div>
+    <div class="products-grid">
+      <div class="product-card">
+        <div class="product-card-icon">📄</div>
+        <div class="product-card-name">Origen</div>
+        <div class="product-card-desc">Facturación electrónica DIAN para empresas y personas naturales. Empieza gratis con 12 documentos al año, sin tarjeta de crédito.</div>
+        <a href="/origen" class="product-card-link" style="background:var(--navy);color:#fff;">Ver Origen →</a>
       </div>
-
-      <div class="origen-card">
-        <div class="origen-slider-wrap">
-          <div class="origen-slider-label"><span>Documentos al año</span><span id="origenDocsLabel">12</span></div>
-          <input type="range" min="0" max="4" value="0" step="1" class="origen-slider" id="origenSlider">
-          <div class="origen-marks"><span>12</span><span>24</span><span>60</span><span>120</span><span>300</span></div>
-        </div>
-
-        <div class="origen-result">
-          <div class="origen-result-price" id="origenPrice">Gratis</div>
-          <div id="origenFreeTag" class="origen-free-tag">Para siempre, sin costo</div>
-        </div>
-
-        <div class="origen-features">
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Facturación electrónica</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Notas crédito</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Clientes ilimitados</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Productos y servicios</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multipago</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Envío automático por correo</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Cumplimiento DIAN</div>
-          <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> PDF e historial</div>
-        </div>
-
-        <div style="text-align:center; font-size:14px; color:#9FA8C0; margin-bottom:28px;">Solo pagas por la cantidad de documentos que realmente necesitas.</div>
-
-        <div class="origen-cta">
-          <a href="#contacto" class="btn-primary" id="origenBtn">Empezar gratis →</a>
-        </div>
+      <div class="product-card">
+        <div class="product-card-icon">🌱</div>
+        <div class="product-card-name">ERP</div>
+        <div class="product-card-desc">Sistema administrativo completo: inventario, compras, gastos, contabilidad, cartera y reportes financieros.</div>
+        <a href="/erp" class="product-card-link" style="background:var(--green);color:#fff;">Ver ERP →</a>
       </div>
-
-      <div class="origen-crosslink">
-        <p>¿Necesitas controlar inventario, compras y gastos?</p>
-        <a href="#erp" class="btn-secondary" style="border-color:rgba(255,201,74,0.4); color:#fff;">Conoce Doravia ERP →</a>
+      <div class="product-card">
+        <div class="product-card-icon">🏪</div>
+        <div class="product-card-name">Punto</div>
+        <div class="product-card-desc">Punto de venta ágil para tiendas. Cobra rápido, emite tiquetes electrónicos y lleva tu inventario al día con cada venta.</div>
+        <a href="/punto" class="product-card-link" style="background:var(--coral);color:#fff;">Ver Punto →</a>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ============ ERP ============ -->
-  <section class="erp-section" id="erp">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow">🌱 ERP — ADMINISTRA TU EMPRESA</div>
-        <h2>Controla tu negocio sin usar Excel</h2>
-        <p>Desde Semilla, ya tienes todo lo necesario para administrar tu empresa. Sube de nivel solo cuando tu negocio lo necesite.</p>
+<!-- DIFERENCIALES -->
+<section class="diferenciales-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">POR QUÉ DORAVIA</div>
+      <h2>Diseñado para empresas colombianas</h2>
+      <p>No es un software extranjero adaptado — es un sistema pensado desde cero para la realidad del negocio colombiano.</p>
+    </div>
+    <div class="diferenciales-grid">
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Implementación incluida en todos los planes</div></div>
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Migración gratuita desde cualquier sistema</div></div>
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Soporte directo por WhatsApp, sin chatbots</div></div>
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Cumplimiento DIAN incluido desde el primer día</div></div>
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Crece sin cambiar de plataforma</div></div>
+      <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Precios transparentes, sin sorpresas al renovar</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIOS -->
+<section class="testimonials-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow" style="color:var(--coral);">CASOS DE ÉXITO</div>
+      <h2 style="color:var(--navy);">Negocios que ya confían en Doravia</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-quote">"Antes llevábamos el inventario en cuadernos. Con Doravia eso cambió desde el primer mes."</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">JM</div><div><div class="testimonial-name">Juan Martínez</div><div class="testimonial-meta">Ferretería · Bogotá</div></div></div>
       </div>
-
-      <div class="erp-plans-grid">
-        <div class="erp-plan featured" style="background:#F0E6D2;">
-          <div class="erp-plan-badge">★ MÁS VENDIDO</div>
-          <div class="erp-plan-name" style="color:#3D3120;">Semilla</div>
-          <div class="erp-plan-ideal" style="color:#5C4C36;"><b>Ideal para:</b> empresas que quieren dejar Excel y administrar correctamente su negocio.</div>
-          <div class="erp-plan-price" style="color:#3D3120;">Desde $730.000<span style="color:#7A6748;">/año</span></div>
-          <div class="erp-plan-feats" style="color:#3D3120;">
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Cumple con la DIAN desde el primer día</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Nunca vuelvas a perder el control de tus productos</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Controla tus costos y toma mejores decisiones</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Facilita el trabajo de tu contador</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Conoce cuánto gana realmente tu empresa</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#A8763E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Importa y exporta a Excel</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=semilla" class="erp-plan-btn" style="background:#A8763E; color:#fff;">Elegir Semilla</a>
-        </div>
-
-        <div class="erp-plan" style="background:#E8DCC8;">
-          <div class="erp-plan-name" style="color:#2E2317;">Raíz</div>
-          <div class="erp-plan-ideal" style="color:#54453188;"><b>Ideal para:</b> empresas que están creciendo y necesitan controlar más usuarios y bodegas.</div>
-          <div class="erp-plan-price" style="color:#2E2317;">Desde $1.150.000<span style="color:#6E5A3D;">/año</span></div>
-          <div class="erp-plan-feats" style="color:#2E2317;">
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Todo lo de Semilla, más:</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Más usuarios y bodegas</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Roles y permisos por persona</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4530" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Dashboard con tus números clave</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=raiz" class="erp-plan-btn" style="background:#5C4530; color:#fff;">Elegir Raíz</a>
-        </div>
-
-        <div class="erp-plan" style="background:var(--yellow);">
-          <div class="erp-plan-name" style="color:#2C3A1E;">Brote</div>
-          <div class="erp-plan-ideal" style="color:#48562F;"><b>Ideal para:</b> empresas que requieren automatización e integraciones.</div>
-          <div class="erp-plan-price" style="color:#2C3A1E;">Desde $1.680.000<span style="color:#5C6B3D;">/año</span></div>
-          <div class="erp-plan-feats" style="color:#2C3A1E;">
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Todo lo de Raíz, más:</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> API para conectar otros sistemas</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Automatizaciones de procesos</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#2C3A1E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes avanzados</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=brote" class="erp-plan-btn" style="background:#2C3A1E; color:var(--yellow);">Elegir Brote</a>
-        </div>
-
-        <div class="erp-plan" style="background:var(--coral);">
-          <div class="erp-plan-name" style="color:#fff;">Cosecha</div>
-          <div class="erp-plan-ideal" style="color:#FFE3DD;"><b>Ideal para:</b> empresas con operaciones complejas.</div>
-          <div class="erp-plan-price" style="color:#fff;">Desde $2.320.000<span style="color:#FFE3DD;">/año</span></div>
-          <div class="erp-plan-feats" style="color:#fff;">
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Todo lo de Brote, más:</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multiempresa y multisucursal</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Business Intelligence</div>
-            <div class="erp-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Auditoría completa</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=cosecha" class="erp-plan-btn" style="background:var(--navy); color:#fff;">Elegir Cosecha</a>
-        </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-quote">"Lo que más valoro es el soporte. Hablo directo con alguien que entiende mi negocio, no con un chatbot."</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">CR</div><div><div class="testimonial-name">Carolina Restrepo</div><div class="testimonial-meta">Comercio textil · Medellín</div></div></div>
       </div>
-
-      <div class="erp-includes-row">
-        <div class="erp-includes-item">✓ Implementación incluida</div>
-        <div class="erp-includes-item">✓ Configuración inicial</div>
-        <div class="erp-includes-item">✓ Capacitación de tu equipo</div>
-        <div class="erp-includes-item">✓ Soporte continuo</div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-quote">"La implementación fue acompañada de principio a fin. No me sentí solo en ningún momento."</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">DA</div><div><div class="testimonial-name">Daniel Acosta</div><div class="testimonial-meta">Minimercado · Cali</div></div></div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ============ PUNTO ============ -->
-  <section class="pos-section" id="pos">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow" style="color:var(--coral);">🏪 PUNTO — AGILIZA TUS VENTAS</div>
-        <h2 style="color:#fff;">Vende más rápido, sin filas eternas</h2>
-        <p style="color:#B8C0D6;">Para tiendas, papelerías, joyerías, ferreterías, minimercados y licoreras que necesitan cobrar rápido y mantener su inventario al día.</p>
-      </div>
+<!-- CTA -->
+<section class="cta-final" id="contacto">
+  <div class="container">
+    <h2>¿Listo para empezar?</h2>
+    <p>Cuéntanos qué necesita tu negocio y te ayudamos a elegir el producto correcto — sin compromiso.</p>
+    <a href="https://wa.me/573000000000" class="btn-primary" style="font-size:16px;padding:18px 36px;">Hablar por WhatsApp →</a>
+  </div>
+</section>
 
-      <div class="pos-plans-grid">
-        <div class="pos-plan-card">
-          <div class="pos-plan-name">Punto</div>
-          <div class="pos-plan-ideal">Ideal para: tiendas, papelerías, joyerías, ferreterías, minimercados y licoreras con un solo punto de caja.</div>
-          <div class="pos-plan-price">$480.000<span>/año</span></div>
-          <div class="pos-plan-feats">
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Cumple con la DIAN desde el primer día</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Tiquete electrónico para tu impresora</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Inventario al día con cada venta</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> 1 caja, 2 usuarios, 1 bodega</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multipago y control de caja</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes de ventas y gastos</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=punto" class="pos-plan-btn">Elegir Punto</a>
-        </div>
-
-        <div class="pos-plan-card pos-featured">
-          <div class="pos-plan-badge">PARA VARIOS CAJEROS</div>
-          <div class="pos-plan-name">Punto Plus</div>
-          <div class="pos-plan-ideal">Ideal para: supermercados, tiendas con varios cajeros y negocios de alto volumen.</div>
-          <div class="pos-plan-price">$840.000<span>/año</span></div>
-          <div class="pos-plan-feats">
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Todo lo de Punto, más:</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multi-caja y usuarios ilimitados</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> 3 bodegas</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Arqueos y control de cajeros</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Apertura/cierre de varias cajas</div>
-            <div class="pos-plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reportes avanzados</div>
-          </div>
-          <a href="https://merry-mousse-d79419.netlify.app/register?plan=punto_plus" class="pos-plan-btn">Elegir Punto Plus</a>
-        </div>
-      </div>
-
-      <div class="pos-crosslink">
-        <p>¿Necesitas administrar compras, proveedores, gastos y obtener reportes financieros?</p>
-        <a href="#erp" class="btn-secondary">Conocer ERP →</a>
-      </div>
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">Doravia</div>
+    <div class="footer-links">
+      <a href="/origen">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores">Contadores</a>
     </div>
-  </section>
+    <div class="footer-text">© 2026 Doravia · Bogotá, Colombia</div>
+  </div>
+</footer>
 
-  <!-- ============ DIFERENCIALES ============ -->
-  <section class="diferenciales-section">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow">NUESTROS DIFERENCIALES</div>
-        <h2 style="color:var(--navy);">¿Por qué elegir Doravia?</h2>
-        <p>La mejor relación entre precio, facilidad de uso y soporte.</p>
-      </div>
-      <div class="diferenciales-grid">
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Renovaciones transparentes</div></div>
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Implementación incluida</div></div>
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Migración gratuita</div></div>
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Plataforma intuitiva</div></div>
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Soporte cercano</div></div>
-        <div class="diferencial-item"><div class="diferencial-icon">✓</div><div class="diferencial-text">Evoluciona junto con tu empresa</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MIGRACIÓN GRATUITA ============ -->
-  <section class="migration-section">
-    <div class="container">
-      <div class="migration-card">
-        <div>
-          <h3>Cambiar de software nunca fue tan fácil</h3>
-          <p>Migramos toda tu información para que empieces a trabajar desde el primer día.</p>
-          <div class="migration-free-tag" style="display:inline-block; margin-bottom:24px;">Todo sin costo</div><br>
-          <a href="#contacto" class="btn-primary">Solicitar migración →</a>
-        </div>
-        <div class="migration-list">
-          <div class="migration-item"><div class="migration-icon">✓</div> Clientes</div>
-          <div class="migration-item"><div class="migration-icon">✓</div> Productos</div>
-          <div class="migration-item"><div class="migration-icon">✓</div> Inventario</div>
-          <div class="migration-item"><div class="migration-icon">✓</div> Proveedores</div>
-          <div class="migration-item"><div class="migration-icon">✓</div> Configuración inicial</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ CONTADORES ============ -->
-  <section class="contadores-section" id="contadores">
-    <div class="container">
-      <div class="contadores-grid">
-        <div class="contadores-content">
-          <div class="section-eyebrow" style="color:var(--yellow);">PARA CONTADORES</div>
-          <h2>Hacemos más fácil tu trabajo, no más complicado</h2>
-          <p>Doravia genera reportes completos y consistentes, para que dejes de perseguir información dispersa en hojas de cálculo de tus clientes.</p>
-          <div class="contadores-points">
-            <div class="contadores-point"><div class="contadores-point-icon">📊</div><div class="contadores-point-text">Reportes financieros completos, listos para exportar.</div></div>
-            <div class="contadores-point"><div class="contadores-point-icon">⚡</div><div class="contadores-point-text">Implementación sencilla, sin curva de aprendizaje larga.</div></div>
-            <div class="contadores-point"><div class="contadores-point-icon">🤝</div><div class="contadores-point-text">Próximamente: programa de aliados para contadores.</div></div>
-          </div>
-        </div>
-        <div class="contadores-badge">
-          <div class="contadores-badge-icon">🧮</div>
-          <h4>¿Eres contador?</h4>
-          <p>Escríbenos y te contamos cómo Doravia puede facilitar el trabajo con tus clientes.</p>
-          <a href="#contacto" class="btn-primary" style="margin-top:20px; display:inline-flex;">Hablar con nosotros →</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ CASOS DE USO ============ -->
-  <section class="casos-section">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow">CASOS DE USO</div>
-        <h2 style="color:var(--navy);">Hecho para negocios como el tuyo</h2>
-      </div>
-      <div class="casos-grid">
-        <div class="caso-item"><div class="caso-emoji">💎</div><div class="caso-name">Joyerías</div></div>
-        <div class="caso-item"><div class="caso-emoji">🏪</div><div class="caso-name">Tiendas</div></div>
-        <div class="caso-item"><div class="caso-emoji">🔧</div><div class="caso-name">Ferreterías</div></div>
-        <div class="caso-item"><div class="caso-emoji">📝</div><div class="caso-name">Papelerías</div></div>
-        <div class="caso-item"><div class="caso-emoji">🏗️</div><div class="caso-name">Arquitectura</div></div>
-        <div class="caso-item"><div class="caso-emoji">⚙️</div><div class="caso-name">Ingeniería</div></div>
-        <div class="caso-item"><div class="caso-emoji">🩺</div><div class="caso-name">Consultorios</div></div>
-        <div class="caso-item"><div class="caso-emoji">🍽️</div><div class="caso-name">Restaurantes</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ TESTIMONIOS ============ -->
-  <section class="testimonials-section">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow" style="color:var(--coral);">CASOS DE ÉXITO</div>
-        <h2 style="color:var(--navy);">Negocios que ya confían en Doravia</h2>
-        <p>Ejemplos del tipo de resultado que buscamos para cada cliente.</p>
-      </div>
-      <div class="testimonials-grid">
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <div class="testimonial-quote">"Antes llevábamos el inventario en cuadernos. Con Doravia eso cambió desde el primer mes."</div>
-          <div class="testimonial-author"><div class="testimonial-avatar">JM</div><div><div class="testimonial-name">Juan Martínez</div><div class="testimonial-meta">Ferretería · Bogotá</div></div></div>
-        </div>
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <div class="testimonial-quote">"Lo que más valoro es el soporte. Hablo directo con alguien que entiende mi negocio, no con un chatbot."</div>
-          <div class="testimonial-author"><div class="testimonial-avatar">CR</div><div><div class="testimonial-name">Carolina Restrepo</div><div class="testimonial-meta">Comercio textil · Medellín</div></div></div>
-        </div>
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <div class="testimonial-quote">"La implementación fue acompañada de principio a fin. No me sentí solo en ningún momento."</div>
-          <div class="testimonial-author"><div class="testimonial-avatar">DA</div><div><div class="testimonial-name">Daniel Acosta</div><div class="testimonial-meta">Minimercado · Cali</div></div></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ FAQ ============ -->
-  <section class="faq-section">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-eyebrow">PREGUNTAS FRECUENTES</div>
-        <h2 style="color:var(--navy);">Lo que más nos preguntan</h2>
-      </div>
-      <div class="faq-list">
-        <div class="faq-item">
-          <div class="faq-question">¿La implementación está incluida? <span class="faq-question-icon">+</span></div>
-          <div class="faq-answer">Sí, en todos los productos: Origen, ERP y Punto. Incluye configuración inicial y capacitación, sin costo adicional.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">¿Puedo migrar desde otro software? <span class="faq-question-icon">+</span></div>
-          <div class="faq-answer">Sí, sin costo. Migramos tus productos, clientes, inventario y proveedores desde el sistema que uses hoy.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">¿Puedo empezar con Origen y crecer después? <span class="faq-question-icon">+</span></div>
-          <div class="faq-answer">Sí. Origen, ERP y Punto están pensados para crecer contigo — puedes empezar con uno y añadir otro cuando tu negocio lo necesite.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">¿Qué soporte ofrecen? <span class="faq-question-icon">+</span></div>
-          <div class="faq-answer">Soporte directo por WhatsApp, con tiempos de respuesta cortos en todos los productos.</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-question">¿Cuánto tarda la implementación? <span class="faq-question-icon">+</span></div>
-          <div class="faq-answer">Depende de la complejidad de tu negocio. La mayoría de implementaciones toman entre 1 y 3 semanas desde el diagnóstico inicial.</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ CTA FINAL ============ -->
-  <section class="cta-final" id="contacto">
-    <div class="container">
-      <h2>¿Listo para empezar?</h2>
-      <p>Cuéntanos qué necesita tu negocio y te ayudamos a elegir el producto correcto — sin compromiso.</p>
-      <a href="https://wa.me/573000000000" class="btn-primary" style="font-size:16px; padding:18px 36px;">Hablar por WhatsApp →</a>
-    </div>
-  </section>
-
-  <footer>
-    <div class="container footer-inner">
-      <div class="footer-logo">Doravia</div>
-      <div class="footer-text">© 2026 Doravia · Bogotá, Colombia</div>
-    </div>
-  </footer>
-
-  <script>
-    const ERP_URL = 'https://merry-mousse-d79419.netlify.app';
-    const POS_URL = 'https://stirring-longma-af504d.netlify.app';
-
-    const origenData = [
-      { docs: '12',  price: 'Gratis',    tag: 'Para siempre, sin costo', isFree: true,  slug: 'origen'     },
-      { docs: '24',  price: '$99.900',   tag: null, isFree: false, slug: 'origen_24'  },
-      { docs: '60',  price: '$169.900',  tag: null, isFree: false, slug: 'origen_60'  },
-      { docs: '120', price: '$249.900',  tag: null, isFree: false, slug: 'origen_120' },
-      { docs: '300', price: '$329.900',  tag: null, isFree: false, slug: 'origen_300' },
-    ];
-    const slider    = document.getElementById('origenSlider');
-    const docsLabel = document.getElementById('origenDocsLabel');
-    const priceEl   = document.getElementById('origenPrice');
-    const freeTagEl = document.getElementById('origenFreeTag');
-    const btnEl     = document.getElementById('origenBtn');
-
-    function updateOrigen(){
-      const d = origenData[slider.value];
-      docsLabel.textContent = d.docs;
-      priceEl.innerHTML = d.isFree ? d.price : `${d.price}<span>/año</span>`;
-      if(d.tag){
-        freeTagEl.style.display = 'inline-block';
-        freeTagEl.textContent = d.tag;
-      } else {
-        freeTagEl.style.display = 'none';
-      }
-      btnEl.textContent = d.isFree ? 'Empezar gratis →' : 'Elegir este plan →';
-      btnEl.href = ERP_URL + '/register?plan=' + d.slug;
-    }
-    slider.addEventListener('input', updateOrigen);
-    updateOrigen();
-
-    document.querySelectorAll('.faq-question').forEach(q => {
-      q.addEventListener('click', () => {
-        const item = q.closest('.faq-item');
-        const wasOpen = item.classList.contains('open');
-        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-        if(!wasOpen) item.classList.add('open');
-      });
-    });
-
-    const toggle = document.querySelector('.mobile-toggle');
-    const nav    = document.querySelector('nav');
-    if(toggle){
-      toggle.addEventListener('click', () => {
-        const isVisible = nav.style.display === 'flex';
-        nav.style.display = isVisible ? 'none' : 'flex';
-        nav.style.flexDirection = 'column';
-        nav.style.position = 'absolute';
-        nav.style.top = '60px';
-        nav.style.left = '0';
-        nav.style.right = '0';
-        nav.style.background = 'rgba(250,246,238,0.98)';
-        nav.style.padding = '24px';
-        nav.style.gap = '18px';
-        nav.style.boxShadow = '0 12px 24px rgba(26,34,56,0.08)';
-      });
-    }
-  </script>
-
+<script>
+  const toggle = document.querySelector('.mobile-toggle');
+  const nav = document.querySelector('nav');
+  if(toggle){ toggle.addEventListener('click',()=>{ const v=nav.style.display==='flex'; nav.style.display=v?'none':'flex'; nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;'; }); }
+  document.querySelectorAll('.faq-question').forEach(q=>{ q.addEventListener('click',()=>{ const item=q.closest('.faq-item'); const was=item.classList.contains('open'); document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open')); if(!was)item.classList.add('open'); }); });
+</script>
 </body>
 </html>

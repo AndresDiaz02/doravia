@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origen — Facturación Electrónica DIAN | Doravia</title>
+<meta name="description" content="Facturación electrónica para Colombia. Empieza gratis con 12 documentos al año. Sin tarjeta de crédito, sin contratos. Cumple con la DIAN desde el primer día.">
+<link rel="canonical" href="https://doraviasoft.com/origen">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg></div>
+      <span class="logo-text">Doravia</span>
+    </a>
+    <nav>
+      <a href="/origen" class="active">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores">Contadores</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="https://app.doraviasoft.com/login" class="btn-login">Iniciar sesión</a>
+      <a href="https://wa.me/573000000000" class="btn-cta-small">Hablar con ventas</a>
+    </div>
+    <button class="mobile-toggle" aria-label="Menú">☰</button>
+  </div>
+</header>
+
+<!-- PAGE HERO -->
+<section class="page-hero">
+  <div class="page-hero::before"></div>
+  <div class="page-hero-inner">
+    <div class="page-hero-eyebrow">📄 FACTURACIÓN ELECTRÓNICA</div>
+    <h1>Cumple con la DIAN<br><em>desde el primer día</em></h1>
+    <p>Factura electrónicamente, emite notas crédito y envíalas automáticamente a tus clientes. Empieza gratis, paga solo si necesitas más.</p>
+  </div>
+</section>
+
+<!-- SLIDER DE PRECIO -->
+<section class="origen-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow" style="color:var(--yellow);">UN SOLO PRODUCTO, UN SOLO PRECIO</div>
+      <h2 style="color:#fff;">Elige cuántos documentos necesitas</h2>
+      <p style="color:#B8C0D6;">El precio depende únicamente del volumen. Todo lo demás está incluido siempre.</p>
+    </div>
+
+    <div class="origen-card">
+      <div class="origen-slider-wrap">
+        <div class="origen-slider-label"><span>Documentos al año</span><span id="origenDocsLabel">12</span></div>
+        <input type="range" min="0" max="4" value="0" step="1" class="origen-slider" id="origenSlider">
+        <div class="origen-marks"><span>12</span><span>24</span><span>60</span><span>120</span><span>300</span></div>
+      </div>
+      <div class="origen-result">
+        <div class="origen-result-price" id="origenPrice">Gratis</div>
+        <div id="origenFreeTag" class="origen-free-tag">Para siempre, sin costo</div>
+      </div>
+      <div class="origen-features">
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Facturas electrónicas DIAN</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Notas crédito</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Clientes ilimitados</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Productos y servicios</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Multipago (efectivo, tarjeta, PSE)</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Envío automático por correo</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> PDF descargable e historial</div>
+        <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Retenciones (IVA, fuente)</div>
+      </div>
+      <div style="text-align:center;font-size:14px;color:#9FA8C0;margin-bottom:28px;">Solo pagas por los documentos que realmente necesitas. Nada más.</div>
+      <div class="origen-cta">
+        <a href="#" class="btn-primary" id="origenBtn">Empezar gratis →</a>
+      </div>
+    </div>
+
+    <div class="crosslink-box">
+      <p>¿Necesitas controlar inventario, compras, gastos y tener contabilidad completa?</p>
+      <a href="/erp" class="btn-secondary" style="border-color:rgba(255,201,74,0.4);color:#fff;">Conoce Doravia ERP →</a>
+    </div>
+  </div>
+</section>
+
+<!-- MIGRACIÓN -->
+<section class="migration-section">
+  <div class="container">
+    <div class="migration-card">
+      <div>
+        <h3>Cambiar de software nunca fue tan fácil</h3>
+        <p>Migramos toda tu información para que empieces a trabajar desde el primer día.</p>
+        <div class="migration-free-tag" style="display:inline-block;margin-bottom:24px;">Todo sin costo</div><br>
+        <a href="https://wa.me/573000000000" class="btn-primary">Solicitar migración →</a>
+      </div>
+      <div class="migration-list">
+        <div class="migration-item"><div class="migration-icon">✓</div> Clientes</div>
+        <div class="migration-item"><div class="migration-icon">✓</div> Productos y servicios</div>
+        <div class="migration-item"><div class="migration-icon">✓</div> Resolución DIAN</div>
+        <div class="migration-item"><div class="migration-icon">✓</div> Configuración inicial</div>
+        <div class="migration-item"><div class="migration-icon">✓</div> Capacitación incluida</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">PREGUNTAS FRECUENTES</div>
+      <h2 style="color:var(--navy);">Lo que más nos preguntan sobre Origen</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-question">¿Qué incluye el plan gratuito? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">12 documentos al año (facturas + notas crédito), acceso completo a todas las funciones, soporte incluido. Sin tarjeta de crédito.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">¿Puedo cambiar de plan cuando quiera? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Sí, en cualquier momento. Si te quedas sin documentos durante el año, puedes subir de volumen con un solo clic.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">¿Cómo se tramita la resolución DIAN? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Nosotros te acompañamos en todo el proceso de habilitación ante la DIAN. Incluido en la implementación sin costo adicional.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">¿Funciona para personas naturales y empresas? <span class="faq-question-icon">+</span></div>
+        <div class="faq-answer">Sí, Origen funciona tanto para personas naturales responsables de IVA como para sociedades de cualquier tipo.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-final" id="contacto">
+  <div class="container">
+    <h2>Empieza hoy, es gratis</h2>
+    <p>Sin tarjeta de crédito. Sin contratos. Sin letra pequeña.</p>
+    <a href="https://app.doraviasoft.com/register?plan=origen" class="btn-primary" style="font-size:16px;padding:18px 36px;">Crear cuenta gratis →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">Doravia</div>
+    <div class="footer-links">
+      <a href="/origen">Facturación</a>
+      <a href="/erp">ERP</a>
+      <a href="/punto">Punto</a>
+      <a href="/contadores">Contadores</a>
+    </div>
+    <div class="footer-text">© 2026 Doravia · Bogotá, Colombia</div>
+  </div>
+</footer>
+
+<script>
+  const ERP_URL = 'https://app.doraviasoft.com';
+  const origenData = [
+    {docs:'12', price:'Gratis', tag:'Para siempre, sin costo', isFree:true, slug:'origen'},
+    {docs:'24', price:'$99.900', tag:null, isFree:false, slug:'origen_24'},
+    {docs:'60', price:'$169.900', tag:null, isFree:false, slug:'origen_60'},
+    {docs:'120', price:'$249.900', tag:null, isFree:false, slug:'origen_120'},
+    {docs:'300', price:'$329.900', tag:null, isFree:false, slug:'origen_300'},
+  ];
+  const slider=document.getElementById('origenSlider');
+  const docsLabel=document.getElementById('origenDocsLabel');
+  const priceEl=document.getElementById('origenPrice');
+  const freeTagEl=document.getElementById('origenFreeTag');
+  const btnEl=document.getElementById('origenBtn');
+  function updateOrigen(){
+    const d=origenData[slider.value];
+    docsLabel.textContent=d.docs;
+    priceEl.innerHTML=d.isFree?d.price:`${d.price}<span>/año</span>`;
+    if(d.tag){freeTagEl.style.display='inline-block';freeTagEl.textContent=d.tag;}else{freeTagEl.style.display='none';}
+    btnEl.textContent=d.isFree?'Empezar gratis →':'Elegir este plan →';
+    btnEl.href=ERP_URL+'/register?plan='+d.slug;
+  }
+  slider.addEventListener('input',updateOrigen);
+  updateOrigen();
+  const toggle=document.querySelector('.mobile-toggle');
+  const nav=document.querySelector('nav');
+  if(toggle){toggle.addEventListener('click',()=>{const v=nav.style.display==='flex';nav.style.display=v?'none':'flex';nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;';});}
+  document.querySelectorAll('.faq-question').forEach(q=>{q.addEventListener('click',()=>{const item=q.closest('.faq-item');const was=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!was)item.classList.add('open');});});
+</script>
+</body>
+</html>

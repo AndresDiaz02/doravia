@@ -18,6 +18,7 @@ import {
   Package,
   PackagePlus,
   Receipt,
+  Send,
   Settings,
   ShoppingCart,
   TrendingUp,
@@ -203,9 +204,12 @@ export function AppLayout() {
 
           <div className="my-2 border-t border-gray-100" />
 
-          {/* Admin de cajas — solo si tiene POS */}
+          {/* Admin de cajas y cierre DIAN — solo si tiene POS */}
           {(plan?.features as Record<string, boolean> | undefined)?.pos === true && (
-            <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />
+            <>
+              <NavItem to="/pos/cajas"       label="Cajas POS"    icon={Monitor}   isActive={active("/pos/cajas")} />
+              <NavItem to="/pos/cierre-dian" label="Cierre DIAN"  icon={Send}      isActive={active("/pos/cierre-dian")} />
+            </>
           )}
 
           {/* Botón POS — abre la app de POS en nueva pestaña con el token */}

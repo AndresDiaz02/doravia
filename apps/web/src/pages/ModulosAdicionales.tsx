@@ -50,7 +50,7 @@ const PLANES_POS: PlanPOS[] = [
   {
     slug: "punto",
     nombre: "Punto",
-    precio: 480_000,
+    precio: 590_000,
     features: ["1 caja", "2 usuarios", "1 bodega", "Ventas, fiados e historial", "Reportes del día"],
   },
   {

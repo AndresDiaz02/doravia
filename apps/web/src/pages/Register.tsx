@@ -16,7 +16,7 @@ const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
   raiz:        { nombre: "Raíz",        precio: "$1.150.000 / año" },
   brote:       { nombre: "Brote",       precio: "$1.680.000 / año" },
   cosecha:     { nombre: "Cosecha",     precio: "$2.320.000 / año" },
-  punto:       { nombre: "Punto",       precio: "$480.000 / año" },
+  punto:       { nombre: "Punto",       precio: "$590.000 / año" },
   punto_plus:  { nombre: "Punto Plus",  precio: "$840.000 / año" },
 };
 

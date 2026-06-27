@@ -31,6 +31,8 @@ export interface TenantInfo {
   nit: string;
   plan_ends_at: string;
   onboarding_completado: boolean;
+  en_prueba: boolean;
+  prueba_ends_at: string | null;
 }
 
 interface MeResponse {

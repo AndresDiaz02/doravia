@@ -32,6 +32,7 @@ import PeriodosContables from "./pages/PeriodosContables";
 import ConfiguracionEmpresa from "./pages/ConfiguracionEmpresa";
 import AdminCajas from "./pages/AdminCajas";
 import CierreDian from "./pages/CierreDian";
+import BalancePrueba from "./pages/BalancePrueba";
 import ModulosAdicionales from "./pages/ModulosAdicionales";
 import ResultadoPago from "./pages/ResultadoPago";
 import Onboarding from "./pages/Onboarding";
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/configuracion/empresa" element={<ConfiguracionEmpresa />} />
               <Route path="/pos/cajas" element={<AdminCajas />} />
               <Route path="/pos/cierre-dian" element={<CierreDian />} />
+              <Route path="/contabilidad/balance-prueba" element={<BalancePrueba />} />
               <Route path="/configuracion/modulos" element={<ModulosAdicionales />} />
             </Route>
           </Route>

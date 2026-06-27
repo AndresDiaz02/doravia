@@ -42,6 +42,7 @@ const NAV_BASE = [
   { to: "/notas-credito", label: "Notas crédito", icon: FileX },
   { to: "/productos",    label: "Productos",    icon: Package },
   { to: "/contabilidad", label: "Contabilidad", icon: BookOpen },
+  { to: "/contabilidad/balance-prueba", label: "Balance de Prueba", icon: TrendingUp },
 ];
 
 // Ítems que requieren feature "cotizaciones" (Semilla+)

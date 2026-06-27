@@ -119,6 +119,74 @@ router.get("/cuentas", async (req, res) => {
 
 // ── Reportes nivel 2 (Raíz y superior) ────────────────────────────────────────
 
+// GET /api/contabilidad/balance-prueba?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get("/balance-prueba", requireAccountingLevel(2), async (req, res) => {
+  try {
+    const hoy = new Date().toISOString().split("T")[0];
+    const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
+    const hasta = (req.query.hasta as string | undefined) ?? hoy;
+
+    const filas = await db
+      .select({
+        codigo: cuentas_contables.codigo,
+        nombre: cuentas_contables.nombre,
+        tipo: cuentas_contables.tipo,
+        naturaleza: cuentas_contables.naturaleza,
+        debitos: sql<string>`COALESCE(SUM(${lineas_asiento.debito}), 0)`,
+        creditos: sql<string>`COALESCE(SUM(${lineas_asiento.credito}), 0)`,
+      })
+      .from(lineas_asiento)
+      .innerJoin(asientos_contables, eq(lineas_asiento.asiento_id, asientos_contables.id))
+      .innerJoin(cuentas_contables, eq(lineas_asiento.cuenta_id, cuentas_contables.id))
+      .where(
+        and(
+          eq(asientos_contables.tenant_id, req.tenantId),
+          gte(asientos_contables.fecha, desde),
+          lte(asientos_contables.fecha, hasta),
+          or(eq(cuentas_contables.tenant_id, req.tenantId), isNull(cuentas_contables.tenant_id)),
+        ),
+      )
+      .groupBy(
+        cuentas_contables.codigo,
+        cuentas_contables.nombre,
+        cuentas_contables.tipo,
+        cuentas_contables.naturaleza,
+      )
+      .orderBy(cuentas_contables.codigo);
+
+    const cuentas = filas.map((f) => {
+      const d = Number(f.debitos);
+      const c = Number(f.creditos);
+      const saldo = f.naturaleza === "debito" ? d - c : c - d;
+      return {
+        codigo: f.codigo,
+        nombre: f.nombre,
+        tipo: f.tipo,
+        naturaleza: f.naturaleza,
+        debitos: d,
+        creditos: c,
+        saldo_debito:  saldo >= 0 && f.naturaleza === "debito"  ? saldo : saldo > 0 ? saldo : 0,
+        saldo_credito: saldo >= 0 && f.naturaleza === "credito" ? saldo : saldo < 0 ? Math.abs(saldo) : 0,
+      };
+    });
+
+    const totalDebitos  = cuentas.reduce((s, f) => s + f.debitos, 0);
+    const totalCreditos = cuentas.reduce((s, f) => s + f.creditos, 0);
+    const totalSaldoD   = cuentas.reduce((s, f) => s + f.saldo_debito, 0);
+    const totalSaldoC   = cuentas.reduce((s, f) => s + f.saldo_credito, 0);
+
+    res.json({
+      desde,
+      hasta,
+      cuentas,
+      totales: { debitos: totalDebitos, creditos: totalCreditos, saldo_debito: totalSaldoD, saldo_credito: totalSaldoC },
+    });
+  } catch (err) {
+    console.error("Error en GET /balance-prueba:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // GET /api/contabilidad/balance-general?corte=YYYY-MM-DD
 router.get("/balance-general", requireAccountingLevel(2), async (req, res) => {
   try {

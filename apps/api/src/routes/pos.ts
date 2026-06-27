@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum } from "drizzle-orm";
 import { users } from "@workspace/db";
-import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado } from "../services/contabilidad.service.js";
+import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 
 const router = Router();
 
@@ -199,6 +199,12 @@ router.post("/ventas", async (req, res) => {
 
   if (!turno_id || !caja_id || !items?.length) {
     return res.status(400).json({ error: "Faltan campos requeridos." });
+  }
+
+  try {
+    await verificarPeriodoAbierto(req.tenantId, new Date());
+  } catch (err) {
+    return res.status(422).json({ error: (err as Error).message });
   }
 
   // Verifica turno abierto

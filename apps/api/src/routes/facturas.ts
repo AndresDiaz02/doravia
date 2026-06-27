@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { crearFactura } from "../services/factura.service.js";
-import { crearAsientoFactura } from "../services/contabilidad.service.js";
+import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
 import { PlanLimitError } from "@workspace/shared";
@@ -144,6 +144,7 @@ router.post("/", async (req, res) => {
   }
 
   try {
+    await verificarPeriodoAbierto(req.tenantId, new Date());
     const factura = await crearFactura(req.tenant, { cliente_id, items, fecha_vencimiento, observaciones });
     res.status(201).json(factura);
   } catch (err) {

@@ -2,6 +2,31 @@ import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_con
 import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado } from "@workspace/db";
 
+/**
+ * Verifica que la fecha no caiga dentro de un período contable cerrado.
+ * Lanza un Error si el período está cerrado — el llamador debe capturarlo y devolver 422.
+ */
+export async function verificarPeriodoAbierto(tenantId: string, fecha: Date | string): Promise<void> {
+  const fechaStr = typeof fecha === "string" ? fecha.slice(0, 10) : fecha.toISOString().slice(0, 10);
+
+  const [periodoCerrado] = await db
+    .select({ nombre: periodos_contables.nombre })
+    .from(periodos_contables)
+    .where(
+      and(
+        eq(periodos_contables.tenant_id, tenantId),
+        eq(periodos_contables.estado, "cerrado"),
+        lte(periodos_contables.fecha_inicio, fechaStr),
+        gte(periodos_contables.fecha_fin, fechaStr),
+      ),
+    )
+    .limit(1);
+
+  if (periodoCerrado) {
+    throw new Error(`El período contable "${periodoCerrado.nombre}" está cerrado. No se pueden registrar documentos en fechas dentro de un período cerrado.`);
+  }
+}
+
 // Códigos PUC usados en asientos automáticos
 const CODIGOS = {
   CLIENTES: "1305",

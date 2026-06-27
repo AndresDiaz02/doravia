@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, gastos, proveedores } from "@workspace/db";
 import { eq, and, desc, isNull, lt } from "drizzle-orm";
-import { crearAsientoGasto } from "../services/contabilidad.service.js";
+import { crearAsientoGasto, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
 
 const router = Router();
@@ -148,6 +148,12 @@ router.post("/", requireNotContador, async (req, res) => {
   const montoNum = Number(monto);
   const ivaNum = Number(iva ?? 0);
   const total = Number((montoNum + ivaNum).toFixed(2));
+
+  try {
+    await verificarPeriodoAbierto(req.tenantId, fecha as string);
+  } catch (err) {
+    return res.status(422).json({ error: (err as Error).message });
+  }
 
   const [nuevo] = await db
     .insert(gastos)

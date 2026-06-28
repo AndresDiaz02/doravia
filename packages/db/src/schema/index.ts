@@ -20,4 +20,6 @@ export * from "./pos.ts";
 export * from "./audit_log.ts";
 export * from "./gastos_internos.ts";
 export * from "./comisiones_contador.ts";
+export * from "./retencion_seguimiento.ts";
+export * from "./leads_doravia.ts";
 

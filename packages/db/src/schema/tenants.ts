@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, timestamp, text, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, boolean, timestamp, text, jsonb, integer } from "drizzle-orm/pg-core";
 import { plans } from "./plans.ts";
 
 export const tenants = pgTable("tenants", {
@@ -23,6 +23,10 @@ export const tenants = pgTable("tenants", {
   // Features adicionales habilitadas sobre el plan base (add-ons)
   addons: jsonb("addons").$type<Partial<Record<string, boolean>>>().default({}),
   onboarding_completado: boolean("onboarding_completado").notNull().default(false),
+  // ── Métricas de adquisición para el panel fundadores ─────────────────────
+  fuente_adquisicion: varchar("fuente_adquisicion", { length: 50 }),
+  cac_cop: integer("cac_cop"),
+  ultimo_pago_confirmado_at: timestamp("ultimo_pago_confirmado_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

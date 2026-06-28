@@ -275,7 +275,7 @@ export default function Gastos() {
       </div>
 
       {tab === "gastos" && (
-        <GastosTabla gastos={gastos} onAprobar={aprobar} onPagar={pagar} />
+        <GastosTabla gastos={gastos} onAprobar={aprobar} onPagar={pagar} isContador={isContador} />
       )}
 
       {tab === "cuentas_por_pagar" && (
@@ -410,11 +410,12 @@ export default function Gastos() {
   );
 }
 
-function GastosTabla({ gastos, onAprobar, onPagar, destacar }: {
+function GastosTabla({ gastos, onAprobar, onPagar, destacar, isContador }: {
   gastos: Gasto[];
   onAprobar: (id: string) => void;
   onPagar: (id: string) => void;
   destacar?: boolean;
+  isContador?: boolean;
 }) {
   const CATEGORIA_LABEL: Record<string, string> = {
     arrendamiento: "Arrendamiento",
@@ -436,7 +437,7 @@ function GastosTabla({ gastos, onAprobar, onPagar, destacar }: {
       <Card>
         <CardContent className="py-16 flex flex-col items-center gap-2 text-gray-500">
           <Receipt className="w-12 h-12 text-gray-300" />
-          <p>No hay gastos registrados.</p>
+          <p>{isContador ? "Aún no hay gastos registrados en el sistema." : "No hay gastos registrados."}</p>
         </CardContent>
       </Card>
     );

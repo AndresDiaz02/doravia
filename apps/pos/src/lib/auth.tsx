@@ -25,9 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Si viene desde el ERP con ?token=xxx en la URL, lo guardamos y limpiamos la URL
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("token");
+    // Si viene desde el ERP con #token=xxx en el fragmento, lo guardamos y limpiamos la URL
+    // Usamos # en vez de ? para que el token no llegue al servidor ni quede en logs
+    const hash = window.location.hash.slice(1);
+    const hashParams = new URLSearchParams(hash);
+    const urlToken = hashParams.get("token");
     if (urlToken) {
       localStorage.setItem("pos_token", urlToken);
       window.history.replaceState({}, "", window.location.pathname);

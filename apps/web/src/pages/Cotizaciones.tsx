@@ -192,7 +192,9 @@ export default function Cotizaciones() {
         <Card>
           <CardContent className="py-16 flex flex-col items-center gap-3">
             <FileText className="w-12 h-12 text-gray-300" />
-            <p className="text-gray-500">No hay cotizaciones todavía.</p>
+            <p className="text-gray-500">
+              {isContador ? "Aún no hay cotizaciones registradas en el sistema." : "No hay cotizaciones todavía."}
+            </p>
             {!isContador && <Button onClick={() => setDialogOpen(true)}><Plus className="w-4 h-4 mr-1" /> Crear primera cotización</Button>}
           </CardContent>
         </Card>

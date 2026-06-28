@@ -230,7 +230,7 @@ export function AppLayout() {
             const posUrl = import.meta.env.VITE_POS_URL ?? "http://localhost:5174";
             return hasPos ? (
               <a
-                href={`${posUrl}?token=${encodeURIComponent(localStorage.getItem("access_token") ?? "")}`}
+                href={`${posUrl}#token=${encodeURIComponent(localStorage.getItem("access_token") ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-accent-blue hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"

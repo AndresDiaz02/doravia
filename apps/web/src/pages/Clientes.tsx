@@ -124,7 +124,7 @@ export function Clientes() {
           <p className="px-6 py-8 text-center text-sm text-gray-400">Cargando...</p>
         ) : filtrados.length === 0 ? (
           <p className="px-6 py-8 text-center text-sm text-gray-400">
-            {search ? "Sin resultados." : "Aún no tienes clientes."}
+            {search ? "Sin resultados." : isContador ? "Aún no hay clientes registrados en el sistema." : "Aún no tienes clientes."}
           </p>
         ) : (
           <table className="w-full text-sm">

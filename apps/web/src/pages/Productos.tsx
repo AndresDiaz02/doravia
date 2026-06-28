@@ -198,7 +198,9 @@ export function Productos() {
         {loading ? (
           <p className="px-6 py-8 text-center text-sm text-gray-400">Cargando...</p>
         ) : productos.length === 0 ? (
-          <p className="px-6 py-8 text-center text-sm text-gray-400">Sin productos registrados.</p>
+          <p className="px-6 py-8 text-center text-sm text-gray-400">
+            {isContador ? "Aún no hay productos registrados en el sistema." : "Sin productos registrados."}
+          </p>
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-gray-100 bg-gray-50">

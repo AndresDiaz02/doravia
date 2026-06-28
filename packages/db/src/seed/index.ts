@@ -3,6 +3,7 @@ import { db } from "../client.js";
 import { plans, cuentas_contables } from "../schema/index.js";
 import { PLAN_SEEDS } from "./plans.js";
 import { PUC_BASE } from "./cuentas_puc.js";
+import { seedDemo } from "./demo.js";
 
 async function seed() {
   console.log("Sembrando planes...");
@@ -31,6 +32,9 @@ async function seed() {
     .values(PUC_BASE.map((c) => ({ ...c, tenant_id: null })))
     .onConflictDoNothing(); // idempotente por código
   console.log(`✓ PUC: ${PUC_BASE.length} cuentas`);
+
+  console.log("Sembrando demo...");
+  await seedDemo();
 }
 
 seed()

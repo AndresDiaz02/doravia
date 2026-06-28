@@ -44,6 +44,7 @@ interface AuthCtx {
   plan: PlanInfo | null;
   tenant: TenantInfo | null;
   isLoading: boolean;
+  isContador: boolean;
   login: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -113,8 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTenant(null);
   }, []);
 
+  const isContador = user?.role === "contador";
+
   return (
-    <Ctx.Provider value={{ user, plan, tenant, isLoading, login, logout }}>
+    <Ctx.Provider value={{ user, plan, tenant, isLoading, isContador, login, logout }}>
       {children}
     </Ctx.Provider>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -17,6 +18,7 @@ interface Bodega {
 }
 
 export default function Bodegas() {
+  const { isContador } = useAuth();
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +98,11 @@ export default function Bodegas() {
           <h1 className="text-2xl font-semibold text-gray-900">Bodegas</h1>
           <p className="text-sm text-gray-500 mt-1">Gestión de almacenes y puntos de inventario</p>
         </div>
-        <Button onClick={abrirCrear}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva bodega
-        </Button>
+        {!isContador && (
+          <Button onClick={abrirCrear}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva bodega
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -112,9 +116,11 @@ export default function Bodegas() {
           <CardContent className="py-16 flex flex-col items-center text-center gap-3">
             <Warehouse className="w-12 h-12 text-gray-300" />
             <p className="text-gray-500">Todavía no hay bodegas registradas.</p>
-            <Button onClick={abrirCrear}>
-              <Plus className="w-4 h-4 mr-1" /> Crear primera bodega
-            </Button>
+            {!isContador && (
+              <Button onClick={abrirCrear}>
+                <Plus className="w-4 h-4 mr-1" /> Crear primera bodega
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

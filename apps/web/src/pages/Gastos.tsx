@@ -62,7 +62,7 @@ function hoy() {
 }
 
 export default function Gastos() {
-  const { plan } = useAuth();
+  const { plan, isContador } = useAuth();
   const puedeIA = (plan?.features as Record<string, boolean> | undefined)?.ia_asistente === true;
 
   const [tab, setTab] = useState<TabActiva>("gastos");
@@ -233,9 +233,11 @@ export default function Gastos() {
           <h1 className="text-2xl font-semibold text-gray-900">Gastos</h1>
           <p className="text-sm text-gray-500 mt-1">Control de egresos y cuentas por pagar</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo gasto
-        </Button>
+        {!isContador && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo gasto
+          </Button>
+        )}
       </div>
 
       {error && (

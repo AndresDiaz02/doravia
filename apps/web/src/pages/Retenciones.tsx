@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, Trash2, FileDown } from "lucide-react";
 import { apiFetch, ApiError, descargarExcel } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -40,6 +41,7 @@ const TIPOS_PREDEFINIDOS = [
 const emptyForm = { nombre: "", tipo: "retefuente" as "retefuente" | "reteiva" | "reteica", porcentaje: "" };
 
 export default function Retenciones() {
+  const { isContador } = useAuth();
   const [retenciones, setRetenciones] = useState<RetencionConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -114,10 +116,12 @@ export default function Retenciones() {
             <FileDown className="h-4 w-4" />
             {exportando ? "Exportando..." : "Certificado Excel"}
           </Button>
-          <Button onClick={() => openNew()}>
-            <Plus className="h-4 w-4" />
-            Nueva retención
-          </Button>
+          {!isContador && (
+            <Button onClick={() => openNew()}>
+              <Plus className="h-4 w-4" />
+              Nueva retención
+            </Button>
+          )}
         </div>
       </div>
 

@@ -56,7 +56,7 @@ const itemVacio = (): CotizacionItem => ({
 });
 
 export default function Cotizaciones() {
-  const { plan } = useAuth();
+  const { plan, isContador } = useAuth();
   const [searchParams] = useSearchParams();
   const puedeConvertir = (plan?.features as Record<string, boolean> | undefined)?.cotizacion_a_factura === true;
 
@@ -175,9 +175,11 @@ export default function Cotizaciones() {
           <h1 className="text-2xl font-semibold text-gray-900">Cotizaciones</h1>
           <p className="text-sm text-gray-500 mt-1">Crea y gestiona propuestas comerciales para tus clientes</p>
         </div>
-        <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva cotización
-        </Button>
+        {!isContador && (
+          <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva cotización
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -191,7 +193,7 @@ export default function Cotizaciones() {
           <CardContent className="py-16 flex flex-col items-center gap-3">
             <FileText className="w-12 h-12 text-gray-300" />
             <p className="text-gray-500">No hay cotizaciones todavía.</p>
-            <Button onClick={() => setDialogOpen(true)}><Plus className="w-4 h-4 mr-1" /> Crear primera cotización</Button>
+            {!isContador && <Button onClick={() => setDialogOpen(true)}><Plus className="w-4 h-4 mr-1" /> Crear primera cotización</Button>}
           </CardContent>
         </Card>
       ) : (

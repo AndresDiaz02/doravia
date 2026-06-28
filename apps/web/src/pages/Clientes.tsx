@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search, FileDown } from "lucide-react";
 import { apiFetchPaged, apiFetch, ApiError, descargarExcel } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -24,6 +25,7 @@ const TIPOS_DOC = ["CC", "NIT", "CE", "PPN", "TI"];
 const TIPOS_PERSONA = ["natural", "juridica"];
 
 export function Clientes() {
+  const { isContador } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -96,10 +98,12 @@ export function Clientes() {
             <FileDown className="h-4 w-4" />
             {exportando ? "Exportando..." : "Exportar Excel"}
           </Button>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Nuevo cliente
-          </Button>
+          {!isContador && (
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nuevo cliente
+            </Button>
+          )}
         </div>
       </div>
 

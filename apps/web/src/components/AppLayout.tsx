@@ -89,7 +89,7 @@ const CONFIG = [
 ];
 
 export function AppLayout() {
-  const { user, tenant, plan, logout } = useAuth();
+  const { user, tenant, plan, logout, isContador } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -209,7 +209,7 @@ export function AppLayout() {
           {/* Admin de cajas y cierre DIAN — solo si tiene POS */}
           {(plan?.features as Record<string, boolean> | undefined)?.pos === true && (
             <>
-              <NavItem to="/pos/cajas"       label="Cajas POS"    icon={Monitor}   isActive={active("/pos/cajas")} />
+              {!isContador && <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />}
               <NavItem to="/pos/cierre-dian" label="Cierre DIAN"  icon={Send}      isActive={active("/pos/cierre-dian")} />
             </>
           )}
@@ -243,7 +243,7 @@ export function AppLayout() {
 
           <div className="my-2 border-t border-gray-100" />
 
-          {CONFIG.map(({ to, label, icon: Icon }) => (
+          {!isContador && CONFIG.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
           ))}
 

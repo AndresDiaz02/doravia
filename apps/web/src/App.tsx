@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "./lib/auth";
+import { AuthProvider, useAuth } from "./lib/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/AppLayout";
 import { Login } from "./pages/Login";
@@ -38,6 +38,12 @@ import ModulosAdicionales from "./pages/ModulosAdicionales";
 import ResultadoPago from "./pages/ResultadoPago";
 import Onboarding from "./pages/Onboarding";
 
+/** Redirige al contador fuera de rutas de escritura/administración. */
+function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
+  const { isContador } = useAuth();
+  return isContador ? <Navigate to={to} replace /> : null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -55,7 +61,7 @@ export default function App() {
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/clientes/:id" element={<ClienteDetalle />} />
               <Route path="/facturas" element={<Facturas />} />
-              <Route path="/facturas/nueva" element={<FacturaNueva />} />
+              <Route path="/facturas/nueva" element={<><SoloEscritura to="/facturas" /><FacturaNueva /></>} />
               <Route path="/facturas/:id" element={<FacturaDetalle />} />
               <Route path="/productos" element={<Productos />} />
               <Route path="/contabilidad" element={<Contabilidad />} />
@@ -70,18 +76,18 @@ export default function App() {
               <Route path="/ensamble" element={<Ensamble />} />
               <Route path="/cartera" element={<Cartera />} />
               <Route path="/planes" element={<UpgradePlan />} />
-              <Route path="/usuarios" element={<Usuarios />} />
-              <Route path="/configuracion/dian" element={<ResolucionesDian />} />
+              <Route path="/usuarios" element={<><SoloEscritura /><Usuarios /></>} />
+              <Route path="/configuracion/dian" element={<><SoloEscritura /><ResolucionesDian /></>} />
               <Route path="/retenciones" element={<Retenciones />} />
               <Route path="/notas-credito" element={<NotasCredito />} />
               <Route path="/notas-credito/:id" element={<NotaCreditoDetalle />} />
               <Route path="/periodos-contables" element={<PeriodosContables />} />
-              <Route path="/configuracion/empresa" element={<ConfiguracionEmpresa />} />
-              <Route path="/pos/cajas" element={<AdminCajas />} />
+              <Route path="/configuracion/empresa" element={<><SoloEscritura /><ConfiguracionEmpresa /></>} />
+              <Route path="/pos/cajas" element={<><SoloEscritura /><AdminCajas /></>} />
               <Route path="/pos/cierre-dian" element={<CierreDian />} />
               <Route path="/contabilidad/balance-prueba" element={<BalancePrueba />} />
               <Route path="/contabilidad/auxiliares" element={<Auxiliares />} />
-              <Route path="/configuracion/modulos" element={<ModulosAdicionales />} />
+              <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
             </Route>
           </Route>
 

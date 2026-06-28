@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Lock, LockOpen, Plus } from "lucide-react";
 import { apiFetch, ApiError, fecha } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -19,6 +20,7 @@ interface Periodo {
 }
 
 export default function PeriodosContables() {
+  const { isContador } = useAuth();
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -70,10 +72,12 @@ export default function PeriodosContables() {
           <h1 className="text-xl font-semibold text-gray-900">Períodos contables</h1>
           <p className="text-sm text-gray-500 mt-0.5">Cierra un período para proteger sus asientos y evitar modificaciones accidentales.</p>
         </div>
-        <Button onClick={() => setOpenDialog(true)}>
-          <Plus className="h-4 w-4" />
-          Nuevo período
-        </Button>
+        {!isContador && (
+          <Button onClick={() => setOpenDialog(true)}>
+            <Plus className="h-4 w-4" />
+            Nuevo período
+          </Button>
+        )}
       </div>
 
       <Card>

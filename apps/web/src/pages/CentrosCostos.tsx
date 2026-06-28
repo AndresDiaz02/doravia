@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiFetch, cop } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -25,6 +26,7 @@ interface ReporteCentro {
 const emptyForm = { codigo: "", nombre: "", descripcion: "" };
 
 export default function CentrosCostos() {
+  const { isContador } = useAuth();
   const [centros, setCentros] = useState<CentroCosto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +108,11 @@ export default function CentrosCostos() {
           <h1 className="text-2xl font-semibold text-gray-900">Centros de costos</h1>
           <p className="text-sm text-gray-500 mt-1">Distribuye gastos e ingresos por área, proyecto o sucursal</p>
         </div>
-        <Button onClick={() => abrir()}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo centro
-        </Button>
+        {!isContador && (
+          <Button onClick={() => abrir()}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo centro
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -122,7 +126,7 @@ export default function CentrosCostos() {
           <CardContent className="py-16 flex flex-col items-center gap-3">
             <Building className="w-12 h-12 text-gray-300" />
             <p className="text-gray-500">No hay centros de costos. Crea el primero para empezar a distribuir gastos.</p>
-            <Button onClick={() => abrir()}><Plus className="w-4 h-4 mr-1" /> Crear centro</Button>
+            {!isContador && <Button onClick={() => abrir()}><Plus className="w-4 h-4 mr-1" /> Crear centro</Button>}
           </CardContent>
         </Card>
       ) : (

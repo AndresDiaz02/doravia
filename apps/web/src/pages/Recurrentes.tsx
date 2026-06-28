@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { apiFetch, cop, fecha } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -53,6 +54,7 @@ const itemVacio = (): ItemLinea => ({
 });
 
 export default function Recurrentes() {
+  const { isContador } = useAuth();
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -196,9 +198,11 @@ export default function Recurrentes() {
             Genera facturas automáticamente según la frecuencia configurada.
           </p>
         </div>
-        <Button onClick={abrirCrear}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva plantilla
-        </Button>
+        {!isContador && (
+          <Button onClick={abrirCrear}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva plantilla
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -213,7 +217,7 @@ export default function Recurrentes() {
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
             <CalendarClock className="w-12 h-12 text-gray-300" />
             <p className="text-gray-500">Todavía no hay plantillas de facturación recurrente.</p>
-            <Button onClick={abrirCrear}><Plus className="w-4 h-4 mr-1" /> Crear primera plantilla</Button>
+            {!isContador && <Button onClick={abrirCrear}><Plus className="w-4 h-4 mr-1" /> Crear primera plantilla</Button>}
           </CardContent>
         </Card>
       ) : (

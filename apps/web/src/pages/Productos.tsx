@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Plus, Upload, Download } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -29,6 +30,7 @@ const emptyForm = {
 };
 
 export function Productos() {
+  const { isContador } = useAuth();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -166,10 +168,12 @@ export function Productos() {
             {importando ? "Importando..." : "Importar Excel"}
           </Button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => void handleImportar(e)} />
-          <Button onClick={openNew}>
-            <Plus className="h-4 w-4" />
-            Nuevo
-          </Button>
+          {!isContador && (
+            <Button onClick={openNew}>
+              <Plus className="h-4 w-4" />
+              Nuevo
+            </Button>
+          )}
         </div>
       </div>
 

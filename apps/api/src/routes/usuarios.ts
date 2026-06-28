@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, users, USER_ROLES } from "@workspace/db";
+import { db, users, user_accesos, USER_ROLES } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
@@ -115,6 +115,102 @@ router.patch("/:id", async (req, res) => {
 
   const { password_hash: _, ...sinHash } = actualizado;
   res.json(sinHash);
+});
+
+// GET /api/usuarios/externos — lista de contadores externos vinculados a esta empresa
+router.get("/externos", async (req, res) => {
+  const accesos = await db
+    .select({
+      id: user_accesos.id,
+      user_id: user_accesos.user_id,
+      role: user_accesos.role,
+      created_at: user_accesos.created_at,
+      nombre: users.nombre,
+      email: users.email,
+      activo: users.activo,
+    })
+    .from(user_accesos)
+    .innerJoin(users, eq(user_accesos.user_id, users.id))
+    .where(eq(user_accesos.tenant_id, req.tenantId));
+
+  res.json(accesos);
+});
+
+// POST /api/usuarios/vincular-externo — vincula un usuario existente como contador/rol externo
+router.post("/vincular-externo", async (req, res) => {
+  const { email, role = "contador" } = req.body as { email?: string; role?: string };
+
+  if (!email) return res.status(400).json({ error: "Campo requerido: email." });
+
+  if (!(USER_ROLES as readonly string[]).includes(role)) {
+    return res.status(400).json({ error: `Rol inválido. Opciones: ${USER_ROLES.join(", ")}.` });
+  }
+
+  // Buscar usuario por email (en cualquier tenant)
+  const [usuarioExterno] = await db
+    .select({ id: users.id, nombre: users.nombre, email: users.email, tenant_id: users.tenant_id, activo: users.activo })
+    .from(users)
+    .where(eq(users.email, email.toLowerCase().trim()))
+    .limit(1);
+
+  if (!usuarioExterno) {
+    return res.status(404).json({
+      error: "No existe un usuario con ese correo en Doravia. Pídele que se registre primero, o créalo como usuario interno.",
+      code: "USER_NOT_FOUND",
+    });
+  }
+
+  if (!usuarioExterno.activo) {
+    return res.status(422).json({ error: "Ese usuario está inactivo." });
+  }
+
+  if (usuarioExterno.tenant_id === req.tenantId) {
+    return res.status(422).json({ error: "Ese usuario ya pertenece a esta empresa." });
+  }
+
+  // Verificar que no esté ya vinculado
+  const [yaVinculado] = await db
+    .select({ id: user_accesos.id })
+    .from(user_accesos)
+    .where(and(eq(user_accesos.user_id, usuarioExterno.id), eq(user_accesos.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (yaVinculado) {
+    return res.status(422).json({ error: "Este usuario ya tiene acceso a esta empresa." });
+  }
+
+  const [nuevo] = await db
+    .insert(user_accesos)
+    .values({
+      user_id: usuarioExterno.id,
+      tenant_id: req.tenantId,
+      role: role as "admin" | "contador" | "vendedor" | "operario",
+      invitado_por: req.userId,
+    })
+    .returning();
+
+  res.status(201).json({
+    id: nuevo.id,
+    user_id: usuarioExterno.id,
+    nombre: usuarioExterno.nombre,
+    email: usuarioExterno.email,
+    role: nuevo.role,
+    created_at: nuevo.created_at,
+  });
+});
+
+// DELETE /api/usuarios/externo/:accesoId — revoca el acceso externo
+router.delete("/externo/:accesoId", async (req, res) => {
+  const [acceso] = await db
+    .select({ id: user_accesos.id })
+    .from(user_accesos)
+    .where(and(eq(user_accesos.id, req.params.accesoId), eq(user_accesos.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!acceso) return res.status(404).json({ error: "Acceso no encontrado." });
+
+  await db.delete(user_accesos).where(eq(user_accesos.id, acceso.id));
+  res.json({ ok: true });
 });
 
 export default router;

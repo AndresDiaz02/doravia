@@ -33,21 +33,32 @@ export interface TenantInfo {
   onboarding_completado: boolean;
 }
 
+export interface EmpresaAcceso {
+  tenant_id: string;
+  tenant_nombre: string;
+  nit: string;
+  role: string;
+  es_activa: boolean;
+}
+
 interface MeResponse {
   user: AuthUser;
   plan: PlanInfo;
   tenant: TenantInfo;
+  empresas: EmpresaAcceso[];
 }
 
 interface AuthCtx {
   user: AuthUser | null;
   plan: PlanInfo | null;
   tenant: TenantInfo | null;
+  empresas: EmpresaAcceso[];
   isLoading: boolean;
   isContador: boolean;
   isVendedor: boolean;
   login: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  cambiarEmpresa: (tenantId: string) => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -56,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [plan, setPlan] = useState<PlanInfo | null>(null);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [empresas, setEmpresas] = useState<EmpresaAcceso[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMe = useCallback(async () => {
@@ -64,17 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setPlan(data.plan);
       setTenant(data.tenant);
+      setEmpresas(data.empresas ?? []);
     } catch {
       setUser(null);
       setPlan(null);
       setTenant(null);
+      setEmpresas([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Token desde URL (landing page post-registro plan Origen)
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get("token");
     const urlRefresh = params.get("refresh");
@@ -113,13 +126,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPlan(null);
     setTenant(null);
+    setEmpresas([]);
   }, []);
+
+  const cambiarEmpresa = useCallback(
+    async (tenantId: string) => {
+      const data = await apiFetch<{ accessToken: string; refreshToken: string }>(
+        "/api/auth/cambiar-empresa",
+        { method: "POST", body: JSON.stringify({ tenantId }) },
+      );
+      localStorage.setItem("access_token", data.accessToken);
+      localStorage.setItem("refresh_token", data.refreshToken);
+      await loadMe();
+    },
+    [loadMe],
+  );
 
   const isContador = user?.role === "contador";
   const isVendedor = user?.role === "vendedor";
 
   return (
-    <Ctx.Provider value={{ user, plan, tenant, isLoading, isContador, isVendedor, login, logout }}>
+    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, login, logout, cambiarEmpresa }}>
       {children}
     </Ctx.Provider>
   );

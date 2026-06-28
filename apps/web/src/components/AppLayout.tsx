@@ -1,4 +1,4 @@
-import { type ElementType, useState, type FormEvent } from "react";
+import { type ElementType, useState, type FormEvent, useRef, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -89,7 +89,20 @@ const CONFIG = [
 ];
 
 export function AppLayout() {
-  const { user, tenant, plan, logout, isContador, isVendedor } = useAuth();
+  const { user, tenant, plan, empresas, logout, isContador, isVendedor, cambiarEmpresa } = useAuth();
+  const [showEmpresaMenu, setShowEmpresaMenu] = useState(false);
+  const [cambiando, setCambiando] = useState(false);
+  const empresaMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (empresaMenuRef.current && !empresaMenuRef.current.contains(e.target as Node)) {
+        setShowEmpresaMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   const location = useLocation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -135,17 +148,61 @@ export function AppLayout() {
       {/* Sidebar */}
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-doravia-border bg-doravia-surface">
         {/* Cabecera empresa */}
-        <div className="flex items-center gap-2.5 border-b border-gray-100 px-4 py-4">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-gradient-cold text-white">
-            <Building2 className="h-4 w-4" />
+        <div className="relative border-b border-gray-100 px-4 py-4" ref={empresaMenuRef}>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-gradient-cold text-white">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-gray-900">{tenant?.nombre}</p>
+              <Link to="/planes" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
+                {plan?.nombre}
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            {empresas.length > 1 && (
+              <button
+                onClick={() => setShowEmpresaMenu((v) => !v)}
+                className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                title="Cambiar empresa"
+              >
+                <ChevronRight className={`h-4 w-4 transition-transform ${showEmpresaMenu ? "rotate-90" : ""}`} />
+              </button>
+            )}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">{tenant?.nombre}</p>
-            <Link to="/planes" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
-              {plan?.nombre}
-              <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
+
+          {/* Dropdown de empresas */}
+          {showEmpresaMenu && empresas.length > 1 && (
+            <div className="absolute left-2 right-2 top-full z-50 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+              <p className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-100">Cambiar empresa</p>
+              {empresas.map((emp) => (
+                <button
+                  key={emp.tenant_id}
+                  disabled={emp.es_activa || cambiando}
+                  onClick={async () => {
+                    if (emp.es_activa) return;
+                    setCambiando(true);
+                    setShowEmpresaMenu(false);
+                    try {
+                      await cambiarEmpresa(emp.tenant_id);
+                      navigate("/dashboard", { replace: true });
+                    } finally {
+                      setCambiando(false);
+                    }
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2.5 text-left text-sm transition-colors",
+                    emp.es_activa
+                      ? "bg-action/5 text-action font-medium cursor-default"
+                      : "text-gray-700 hover:bg-gray-50 cursor-pointer",
+                  )}
+                >
+                  <p className="font-medium truncate">{emp.tenant_nombre}</p>
+                  <p className="text-xs text-gray-400">{emp.role === "contador" ? "Contador" : emp.role === "admin" ? "Admin" : emp.role}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Navegación */}

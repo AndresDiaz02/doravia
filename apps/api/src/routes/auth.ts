@@ -8,6 +8,9 @@ import {
   refreshAccessToken,
   logout,
   cambiarPassword,
+  selectEmpresa,
+  cambiarEmpresa,
+  getEmpresasUsuario,
 } from "../services/auth.service.js";
 
 const router = Router();
@@ -116,15 +119,18 @@ router.get("/me", authenticate, async (req, res) => {
       created_at: users.created_at,
     })
     .from(users)
-    .where(and(eq(users.id, req.userId), eq(users.tenant_id, req.tenantId)))
+    .where(eq(users.id, req.userId))
     .limit(1);
 
   if (!user) return res.status(404).json({ error: "Usuario no encontrado." });
 
   const plan = req.tenant.plan;
 
+  // Lista de todas las empresas a las que el usuario tiene acceso
+  const empresas = await getEmpresasUsuario(req.userId, req.tenantId);
+
   res.json({
-    user,
+    user: { ...user, role: req.userRole }, // role puede ser diferente si es acceso externo
     tenant: {
       id: req.tenant.id,
       nombre: req.tenant.nombre,
@@ -141,7 +147,36 @@ router.get("/me", authenticate, async (req, res) => {
       max_facturas_mes: plan.max_facturas_mes,
       accounting_level: plan.accounting_level,
     },
+    empresas,
   });
+});
+
+// POST /api/auth/select-empresa — elige empresa tras login multi-empresa
+router.post("/select-empresa", async (req, res) => {
+  const { selectionToken, tenantId } = req.body as { selectionToken?: string; tenantId?: string };
+  if (!selectionToken || !tenantId) {
+    return res.status(400).json({ error: "Campos requeridos: selectionToken, tenantId." });
+  }
+  try {
+    const resultado = await selectEmpresa(selectionToken, tenantId);
+    res.json(resultado);
+  } catch (err) {
+    if (err instanceof Error) return res.status(401).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/cambiar-empresa — cambia de empresa estando autenticado
+router.post("/cambiar-empresa", authenticate, async (req, res) => {
+  const { tenantId } = req.body as { tenantId?: string };
+  if (!tenantId) return res.status(400).json({ error: "Campo requerido: tenantId." });
+  try {
+    const resultado = await cambiarEmpresa(req.userId, tenantId);
+    res.json(resultado);
+  } catch (err) {
+    if (err instanceof Error) return res.status(403).json({ error: err.message });
+    throw err;
+  }
 });
 
 export default router;

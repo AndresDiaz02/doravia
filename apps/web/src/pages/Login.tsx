@@ -1,21 +1,47 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { Building2, ChevronRight } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
-interface LoginResponse {
+interface EmpresaOpcion {
+  tenant_id: string;
+  tenant_nombre: string;
+  nit: string;
+  role: string;
+}
+
+interface LoginSingleResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+interface LoginMultiResponse {
+  requiresEmpresaSelect: true;
+  selectionToken: string;
+  empresas: EmpresaOpcion[];
+}
+
+type LoginResponse = LoginSingleResponse | LoginMultiResponse;
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: "Administrador",
+  contador: "Contador",
+  vendedor: "Vendedor",
+  operario: "Operario",
+};
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
+  const [selectionToken, setSelectionToken] = useState("");
+  const [eligiendo, setEligiendo] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -28,8 +54,14 @@ export function Login() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      await login(data.accessToken, data.refreshToken);
-      navigate("/dashboard", { replace: true });
+
+      if ("requiresEmpresaSelect" in data) {
+        setEmpresas(data.empresas);
+        setSelectionToken(data.selectionToken);
+      } else {
+        await login(data.accessToken, data.refreshToken);
+        navigate("/dashboard", { replace: true });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado.");
     } finally {
@@ -37,6 +69,77 @@ export function Login() {
     }
   }
 
+  async function handleElegirEmpresa(tenantId: string) {
+    setEligiendo(true);
+    setError(null);
+    try {
+      const data = await apiFetch<LoginSingleResponse>("/api/auth/select-empresa", {
+        method: "POST",
+        body: JSON.stringify({ selectionToken, tenantId }),
+      });
+      await login(data.accessToken, data.refreshToken);
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error al seleccionar empresa.");
+      if (err instanceof ApiError && err.message.includes("expiró")) {
+        setEmpresas([]);
+        setSelectionToken("");
+      }
+    } finally {
+      setEligiendo(false);
+    }
+  }
+
+  // ── Picker de empresa ──────────────────────────────────────────────────────
+  if (empresas.length > 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Doravia</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Selecciona la empresa con la que deseas trabajar
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+            {empresas.map((empresa) => (
+              <button
+                key={empresa.tenant_id}
+                onClick={() => void handleElegirEmpresa(empresa.tenant_id)}
+                disabled={eligiendo}
+                className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-gray-50 transition-colors disabled:opacity-50 first:rounded-t-lg last:rounded-b-lg"
+              >
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-action to-action/70 text-white">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{empresa.tenant_nombre}</p>
+                  <p className="text-sm text-gray-400">
+                    NIT {empresa.nit} · {ROLE_LABEL[empresa.role] ?? empresa.role}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
+
+          <button
+            onClick={() => { setEmpresas([]); setSelectionToken(""); setError(null); }}
+            className="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600"
+          >
+            ← Volver
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Formulario de login ────────────────────────────────────────────────────
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
@@ -80,7 +183,6 @@ export function Login() {
             </Button>
           </form>
         </div>
-
       </div>
     </div>
   );

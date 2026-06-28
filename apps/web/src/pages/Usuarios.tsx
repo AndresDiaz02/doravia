@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { UserPlus, AlertCircle } from "lucide-react";
+import { UserPlus, AlertCircle, Link2, Trash2 } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -18,6 +18,16 @@ interface Usuario {
   created_at: string;
 }
 
+interface UsuarioExterno {
+  id: string;
+  user_id: string;
+  nombre: string;
+  email: string;
+  role: string;
+  activo: boolean;
+  created_at: string;
+}
+
 const ROLES = ["admin", "contador", "vendedor", "operario"] as const;
 const ROLE_LABEL: Record<string, string> = {
   admin: "Administrador",
@@ -29,20 +39,28 @@ const ROLE_LABEL: Record<string, string> = {
 export function Usuarios() {
   const { user, plan } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [externos, setExternos] = useState<UsuarioExterno[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [openExterno, setOpenExterno] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorExterno, setErrorExterno] = useState<string | null>(null);
   const [form, setForm] = useState({ email: "", nombre: "", password: "", role: "operario" });
+  const [formExterno, setFormExterno] = useState({ email: "", role: "contador" });
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
   useEffect(() => {
-    void apiFetch<Usuario[]>("/api/usuarios")
-      .then(setUsuarios)
-      .finally(() => setLoading(false));
+    void Promise.all([
+      apiFetch<Usuario[]>("/api/usuarios"),
+      apiFetch<UsuarioExterno[]>("/api/usuarios/externos"),
+    ]).then(([u, e]) => {
+      setUsuarios(u);
+      setExternos(e);
+    }).finally(() => setLoading(false));
   }, []);
 
   async function handleSave(e: FormEvent) {
@@ -73,6 +91,30 @@ export function Usuarios() {
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? actualizado : x)));
   }
 
+  async function handleVincularExterno(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorExterno(null);
+    try {
+      const nuevo = await apiFetch<UsuarioExterno>("/api/usuarios/vincular-externo", {
+        method: "POST",
+        body: JSON.stringify(formExterno),
+      });
+      setExternos((prev) => [...prev, nuevo]);
+      setOpenExterno(false);
+      setFormExterno({ email: "", role: "contador" });
+    } catch (err) {
+      setErrorExterno(err instanceof ApiError ? err.message : "Error inesperado.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDesvincular(accesoId: string) {
+    await apiFetch(`/api/usuarios/externo/${accesoId}`, { method: "DELETE" });
+    setExternos((prev) => prev.filter((e) => e.id !== accesoId));
+  }
+
   const activos = usuarios.filter((u) => u.activo).length;
   const maxUsuarios = plan?.max_usuarios;
 
@@ -87,13 +129,22 @@ export function Usuarios() {
             </p>
           )}
         </div>
-        <Button
-          onClick={() => { setError(null); setOpen(true); }}
-          disabled={maxUsuarios !== null && activos >= (maxUsuarios ?? 0)}
-        >
-          <UserPlus className="h-4 w-4" />
-          Invitar usuario
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => { setErrorExterno(null); setOpenExterno(true); }}
+          >
+            <Link2 className="h-4 w-4" />
+            Vincular contador externo
+          </Button>
+          <Button
+            onClick={() => { setError(null); setOpen(true); }}
+            disabled={maxUsuarios !== null && activos >= (maxUsuarios ?? 0)}
+          >
+            <UserPlus className="h-4 w-4" />
+            Invitar usuario
+          </Button>
+        </div>
       </div>
 
       {maxUsuarios != null && activos >= maxUsuarios && (
@@ -159,6 +210,45 @@ export function Usuarios() {
         )}
       </Card>
 
+      {/* Sección: contadores externos vinculados */}
+      {externos.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 mb-2">Contadores externos vinculados</h2>
+          <Card>
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-100 bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">Nombre</th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">Correo</th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-500">Rol</th>
+                  <th className="px-6 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {externos.map((e) => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 font-medium text-gray-900">{e.nombre}</td>
+                    <td className="px-6 py-3 text-gray-600">{e.email}</td>
+                    <td className="px-6 py-3">
+                      <Badge variant="blue">{ROLE_LABEL[e.role] ?? e.role}</Badge>
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <button
+                        onClick={() => void handleDesvincular(e.id)}
+                        className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 ml-auto"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Desvincular
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
+
       <Dialog open={open} onClose={() => setOpen(false)} title="Invitar usuario">
         <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
           <div className="space-y-1.5">
@@ -218,6 +308,46 @@ export function Usuarios() {
             </Button>
             <Button type="submit" disabled={saving}>
               {saving ? "Creando..." : "Crear usuario"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog open={openExterno} onClose={() => setOpenExterno(false)} title="Vincular contador externo">
+        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">
+          El contador debe tener una cuenta activa en Doravia. Después de vincularlo, podrá cambiar entre esta empresa y la suya al iniciar sesión.
+        </div>
+        <form onSubmit={(e) => void handleVincularExterno(e)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="email_ext">Correo electrónico del contador</Label>
+            <Input
+              id="email_ext"
+              type="email"
+              required
+              placeholder="contador@suempresa.com"
+              value={formExterno.email}
+              onChange={(e) => setFormExterno((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Rol en esta empresa</Label>
+            <select
+              value={formExterno.role}
+              onChange={(e) => setFormExterno((f) => ({ ...f, role: e.target.value }))}
+              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="contador">Contador (solo lectura)</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          {errorExterno && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{errorExterno}</p>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setOpenExterno(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Vinculando..." : "Vincular"}
             </Button>
           </div>
         </form>

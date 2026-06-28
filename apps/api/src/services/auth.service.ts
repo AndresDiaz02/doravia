@@ -1,11 +1,12 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, users, tenants, plans, refresh_tokens } from "@workspace/db";
-import { eq, and, isNull } from "drizzle-orm";
-import type { User, Tenant, Plan } from "@workspace/db";
+import { db, users, tenants, plans, refresh_tokens, user_accesos } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import type { User } from "@workspace/db";
 
-const ACCESS_TTL_SECONDS = 60 * 60;          // 1 hora
+const ACCESS_TTL_SECONDS = 60 * 60;   // 1 hora
 const REFRESH_TTL_DAYS = 30;
+const SELECTION_TTL_SECONDS = 60 * 5; // 5 minutos para elegir empresa
 
 function jwtSecret(): string {
   const s = process.env.JWT_SECRET;
@@ -22,16 +23,26 @@ export interface AccessPayload {
   type: "access";
 }
 
+export interface SelectionPayload {
+  sub: string;
+  type: "selection";
+}
+
 // ── Helpers JWT ──────────────────────────────────────────────────────────────
 
-function signAccessToken(user: User, tenantId: string): string {
+function signAccessToken(user: User, tenantId: string, role?: string): string {
   const payload: AccessPayload = {
     sub: user.id,
     tenantId,
-    role: user.role,
+    role: role ?? user.role,
     type: "access",
   };
   return jwt.sign(payload, jwtSecret(), { expiresIn: ACCESS_TTL_SECONDS });
+}
+
+function signSelectionToken(userId: string): string {
+  const payload: SelectionPayload = { sub: userId, type: "selection" };
+  return jwt.sign(payload, jwtSecret(), { expiresIn: SELECTION_TTL_SECONDS });
 }
 
 export function verifyAccessToken(token: string): AccessPayload {
@@ -47,7 +58,7 @@ async function createRefreshToken(userId: string, tenantId: string): Promise<str
     .values({ user_id: userId, tenant_id: tenantId, expires_at: expiresAt })
     .returning();
 
-  return row.id; // el UUID del refresh token es el token en sí
+  return row.id;
 }
 
 // ── Registro ─────────────────────────────────────────────────────────────────
@@ -62,28 +73,20 @@ export interface RegistrarTenantInput {
 }
 
 export async function registrarTenant(input: RegistrarTenantInput) {
-  // Validar plan
   const [plan] = await db.select().from(plans).where(eq(plans.slug, input.plan_slug)).limit(1);
   if (!plan) throw new Error(`Plan no encontrado: ${input.plan_slug}.`);
 
-  // NIT único
   const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, input.nit)).limit(1);
   if (nitExistente) throw new Error("Ya existe una empresa registrada con ese NIT.");
 
-  // Email único
   const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (emailExistente) throw new Error("Ya existe un usuario con ese correo electrónico.");
 
   const ahora = new Date();
   const planFin = new Date(ahora);
-  planFin.setFullYear(planFin.getFullYear() + 1); // suscripción anual
-
-  const pruebaFin = new Date(ahora);
-  pruebaFin.setDate(pruebaFin.getDate() + 15); // 15 días de prueba gratuita
+  planFin.setFullYear(planFin.getFullYear() + 1);
 
   const password_hash = await bcrypt.hash(input.password, 12);
-
-  const esPlanGratis = input.plan_slug === "origen"; // Origen no necesita prueba, es gratis permanente
 
   const { tenant, user } = await db.transaction(async (tx) => {
     const [tenant] = await tx
@@ -126,7 +129,6 @@ export async function login(email: string, password: string) {
     .where(and(eq(users.email, email), eq(users.activo, true)))
     .limit(1);
 
-  // Comparación en tiempo constante — siempre hacer hash aunque el user no exista
   const hashParaComparar = user?.password_hash ?? "$2a$12$placeholder.hash.to.prevent.timing.attacks.xxxxxxxxxx";
   const valida = await bcrypt.compare(password, hashParaComparar);
 
@@ -134,18 +136,161 @@ export async function login(email: string, password: string) {
     throw new Error("Correo electrónico o contraseña incorrectos.");
   }
 
+  // Buscar accesos adicionales a otras empresas
+  const accesosExtra = await db
+    .select({ tenant_id: user_accesos.tenant_id, role: user_accesos.role })
+    .from(user_accesos)
+    .where(eq(user_accesos.user_id, user.id));
+
+  const todasLasEntradas = [
+    { tenant_id: user.tenant_id, role: user.role as string },
+    ...accesosExtra.map((a) => ({ tenant_id: a.tenant_id, role: a.role as string })),
+  ];
+
+  if (todasLasEntradas.length === 1) {
+    // Una sola empresa — flujo normal
+    const [tenant] = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.id, user.tenant_id), eq(tenants.activo, true)))
+      .limit(1);
+    if (!tenant) throw new Error("La empresa está inactiva. Contacta a soporte.");
+
+    const accessToken = signAccessToken(user, tenant.id);
+    const refreshToken = await createRefreshToken(user.id, tenant.id);
+    return { user: sinHash(user), tenant, accessToken, refreshToken };
+  }
+
+  // Múltiples empresas — devolver lista para selección
+  const tenantRows = await db
+    .select({ id: tenants.id, nombre: tenants.nombre, nit: tenants.nit, activo: tenants.activo })
+    .from(tenants)
+    .where(inArray(tenants.id, todasLasEntradas.map((e) => e.tenant_id)));
+
+  const empresas = tenantRows
+    .filter((t) => t.activo)
+    .map((t) => ({
+      tenant_id: t.id,
+      tenant_nombre: t.nombre,
+      nit: t.nit,
+      role: todasLasEntradas.find((e) => e.tenant_id === t.id)?.role ?? user.role,
+    }));
+
+  return {
+    requiresEmpresaSelect: true as const,
+    selectionToken: signSelectionToken(user.id),
+    empresas,
+  };
+}
+
+// ── Seleccionar empresa (paso 2 del login multi-empresa) ─────────────────────
+
+export async function selectEmpresa(selectionToken: string, tenantId: string) {
+  let payload: SelectionPayload;
+  try {
+    payload = jwt.verify(selectionToken, jwtSecret()) as SelectionPayload;
+  } catch {
+    throw new Error("El tiempo para seleccionar empresa expiró. Vuelve a iniciar sesión.");
+  }
+  if (payload.type !== "selection") throw new Error("Token inválido.");
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, payload.sub), eq(users.activo, true)))
+    .limit(1);
+  if (!user) throw new Error("Usuario no encontrado.");
+
+  let role = user.role as string;
+  if (user.tenant_id !== tenantId) {
+    const [acceso] = await db
+      .select({ role: user_accesos.role })
+      .from(user_accesos)
+      .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, tenantId)))
+      .limit(1);
+    if (!acceso) throw new Error("No tienes acceso a esa empresa.");
+    role = acceso.role;
+  }
+
   const [tenant] = await db
     .select()
     .from(tenants)
-    .where(and(eq(tenants.id, user.tenant_id), eq(tenants.activo, true)))
+    .where(and(eq(tenants.id, tenantId), eq(tenants.activo, true)))
     .limit(1);
+  if (!tenant) throw new Error("Empresa inactiva o no encontrada.");
 
-  if (!tenant) throw new Error("La empresa está inactiva. Contacta a soporte.");
-
-  const accessToken = signAccessToken(user, tenant.id);
+  const accessToken = signAccessToken(user, tenant.id, role);
   const refreshToken = await createRefreshToken(user.id, tenant.id);
 
   return { user: sinHash(user), tenant, accessToken, refreshToken };
+}
+
+// ── Cambiar empresa (usuario ya autenticado) ──────────────────────────────────
+
+export async function cambiarEmpresa(userId: string, tenantId: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, userId), eq(users.activo, true)))
+    .limit(1);
+  if (!user) throw new Error("Usuario no encontrado.");
+
+  let role = user.role as string;
+  if (user.tenant_id !== tenantId) {
+    const [acceso] = await db
+      .select({ role: user_accesos.role })
+      .from(user_accesos)
+      .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, tenantId)))
+      .limit(1);
+    if (!acceso) throw new Error("No tienes acceso a esa empresa.");
+    role = acceso.role;
+  }
+
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(and(eq(tenants.id, tenantId), eq(tenants.activo, true)))
+    .limit(1);
+  if (!tenant) throw new Error("Empresa no encontrada o inactiva.");
+
+  const accessToken = signAccessToken(user, tenant.id, role);
+  const refreshToken = await createRefreshToken(user.id, tenant.id);
+
+  return { user: sinHash(user), tenant, accessToken, refreshToken };
+}
+
+// ── Listar todas las empresas accesibles ─────────────────────────────────────
+
+export async function getEmpresasUsuario(userId: string, currentTenantId: string) {
+  const [user] = await db
+    .select({ id: users.id, tenant_id: users.tenant_id, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) return [];
+
+  const accesosExtra = await db
+    .select({ tenant_id: user_accesos.tenant_id, role: user_accesos.role })
+    .from(user_accesos)
+    .where(eq(user_accesos.user_id, userId));
+
+  const todasLasEntradas = [
+    { tenant_id: user.tenant_id, role: user.role as string },
+    ...accesosExtra.map((a) => ({ tenant_id: a.tenant_id, role: a.role as string })),
+  ];
+
+  const tenantRows = await db
+    .select({ id: tenants.id, nombre: tenants.nombre, nit: tenants.nit })
+    .from(tenants)
+    .where(inArray(tenants.id, todasLasEntradas.map((e) => e.tenant_id)));
+
+  return tenantRows.map((t) => ({
+    tenant_id: t.id,
+    tenant_nombre: t.nombre,
+    nit: t.nit,
+    role: todasLasEntradas.find((e) => e.tenant_id === t.id)?.role ?? user.role,
+    es_activa: t.id === currentTenantId,
+  }));
 }
 
 // ── Refresh ──────────────────────────────────────────────────────────────────
@@ -166,16 +311,25 @@ export async function refreshAccessToken(tokenId: string) {
     .from(users)
     .where(and(eq(users.id, token.user_id), eq(users.activo, true)))
     .limit(1);
-
   if (!user) throw new Error("Usuario no encontrado o inactivo.");
 
-  // Rotar: revocar el token usado y emitir uno nuevo (previene reutilización)
+  // Preservar el rol correcto para el tenant del token
+  let role = user.role as string;
+  if (user.tenant_id !== token.tenant_id) {
+    const [acceso] = await db
+      .select({ role: user_accesos.role })
+      .from(user_accesos)
+      .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, token.tenant_id)))
+      .limit(1);
+    if (acceso) role = acceso.role;
+  }
+
   await db
     .update(refresh_tokens)
     .set({ revoked_at: new Date() })
     .where(eq(refresh_tokens.id, token.id));
 
-  const accessToken = signAccessToken(user, token.tenant_id);
+  const accessToken = signAccessToken(user, token.tenant_id, role);
   const newRefreshToken = await createRefreshToken(user.id, token.tenant_id);
 
   return { accessToken, refreshToken: newRefreshToken };

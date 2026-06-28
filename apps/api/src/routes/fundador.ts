@@ -9,6 +9,16 @@ import { eq, and, gte, lte, max, count, desc, sql } from "drizzle-orm";
 
 const router = Router();
 
+// POST /api/fundador/verify-pin — valida el PIN de acceso al panel
+// Si FUNDADOR_PIN no está configurado, devuelve ok sin verificar (PIN desactivado)
+router.post("/verify-pin", (req, res) => {
+  const { pin } = req.body as { pin?: string };
+  const fundadorPin = process.env.FUNDADOR_PIN;
+  if (!fundadorPin) return res.json({ ok: true });
+  if (pin === fundadorPin) return res.json({ ok: true });
+  return res.status(403).json({ error: "PIN incorrecto." });
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function calcularRiesgo(d: {

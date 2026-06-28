@@ -162,6 +162,12 @@ router.post("/factura/:facturaId", async (req, res) => {
         .where(and(eq(cuentas_contables.codigo, "4135"), eq(cuentas_contables.tenant_id, req.tenantId)))
         .limit(1);
 
+      const [cuentaIva] = await tx
+        .select({ id: cuentas_contables.id })
+        .from(cuentas_contables)
+        .where(and(eq(cuentas_contables.codigo, "2408"), eq(cuentas_contables.tenant_id, req.tenantId)))
+        .limit(1);
+
       if (cxc && ventas) {
         const [asiento] = await tx
           .insert(asientos_contables)
@@ -174,11 +180,18 @@ router.post("/factura/:facturaId", async (req, res) => {
           })
           .returning();
 
-        await tx.insert(lineas_asiento).values([
-          { asiento_id: asiento.id, cuenta_id: ventas.id,  debito: String(subtotal), credito: "0",       descripcion: `NC ${numero}` },
-          { asiento_id: asiento.id, cuenta_id: cxc.id,     debito: "0",             credito: String(total), descripcion: `NC ${numero}` },
-        ]);
+        type Linea = { asiento_id: string; cuenta_id: string; debito: string; credito: string; descripcion: string };
+        const lineas: Linea[] = [
+          { asiento_id: asiento.id, cuenta_id: ventas.id, debito: String(subtotal), credito: "0",          descripcion: `NC ${numero}` },
+          { asiento_id: asiento.id, cuenta_id: cxc.id,    debito: "0",             credito: String(total), descripcion: `NC ${numero}` },
+        ];
 
+        // Partida doble: débito ventas + débito IVA = crédito CxC (total = subtotal + iva_total) ✓
+        if (cuentaIva && iva_total > 0) {
+          lineas.push({ asiento_id: asiento.id, cuenta_id: cuentaIva.id, debito: String(iva_total), credito: "0", descripcion: `IVA NC ${numero}` });
+        }
+
+        await tx.insert(lineas_asiento).values(lineas);
         await tx.update(notas_credito).set({ asiento_id: asiento.id }).where(eq(notas_credito.id, n.id));
       }
 

@@ -71,6 +71,15 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   if (resolucion.consecutivo_actual > resolucion.consecutivo_hasta) {
     throw new Error("La resolución DIAN ha agotado su rango de consecutivos. Solicita una nueva resolución.");
   }
+  const hoy = new Date();
+  const fechaDesde = new Date(resolucion.fecha_desde);
+  const fechaHasta = new Date(resolucion.fecha_hasta);
+  if (hoy < fechaDesde || hoy > fechaHasta) {
+    throw new Error(
+      `La resolución DIAN ${resolucion.numero_resolucion} no está vigente. ` +
+      `Vigencia: ${resolucion.fecha_desde} – ${resolucion.fecha_hasta}.`
+    );
+  }
 
   // Calcular totales de items
   const itemsCalculados = input.items.map((item) => ({ ...item, ...calcularItem(item) }));

@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { authenticate } from "./middleware/auth.js";
 import { requirePlanFeature, requireAccountingLevel } from "./middleware/require-plan-feature.js";
 import { PlanLimitError, PlanFeatureError } from "@workspace/shared";
@@ -38,6 +40,10 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,h
   .split(",")
   .map((o) => o.trim());
 
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
@@ -46,10 +52,19 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de acceso. Intenta de nuevo en 15 minutos." },
+});
 
 // ── Sin auth ────────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.use("/api/auth/login", loginRateLimit);
 app.use("/api/auth", authRouter);
 
 // ── Fase 1 — Semilla (todos los planes) ─────────────────────────────────────

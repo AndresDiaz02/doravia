@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
 
@@ -13,6 +13,12 @@ interface Producto {
   unidad: string;
 }
 
+interface Cliente {
+  id: string;
+  nombre: string;
+  nit_cedula: string;
+}
+
 interface ItemCarrito {
   producto: Producto;
   cantidad: number;
@@ -24,6 +30,7 @@ interface PreCuenta {
   id: string;
   items: ItemCarrito[];
   nombre: string;
+  clienteNombre: string;
   creadaAt: Date;
 }
 
@@ -44,13 +51,24 @@ const METODOS = [
 
 export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerrarTurno: _onCerrarTurno }: Props) {
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
+  // Cliente seleccionado
+  const [clienteNombre, setClienteNombre] = useState("");
+  const [clienteId, setClienteId] = useState<string | null>(null);
+  const [clienteQuery, setClienteQuery] = useState("");
+  const [showClienteSug, setShowClienteSug] = useState(false);
+  // Descuento activo por ítem
+  const [descuentoEditId, setDescuentoEditId] = useState<string | null>(null);
+  // Pre-cuentas
   const [showPreCuentas, setShowPreCuentas] = useState(false);
+  // Pago
   const [showPago, setShowPago] = useState(false);
   const [metodoPago, setMetodoPago] = useState("efectivo");
   const [montoRecibido, setMontoRecibido] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [ultimaVenta, setUltimaVenta] = useState<{ numero: string; total: number; vuelto: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +76,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
 
   useEffect(() => {
     void apiFetch<Producto[]>("/api/pos/productos").then(setProductos);
+    void apiFetch<{ data: Cliente[] }>("/api/clientes?limit=500").then((r) => setClientes(r.data));
   }, []);
 
   const productosVisibles = busqueda.trim()
@@ -66,6 +85,13 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
         return p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
       }).slice(0, 24)
     : productos;
+
+  const clientesFiltrados = clienteQuery.trim().length >= 2
+    ? clientes.filter((c) =>
+        c.nombre.toLowerCase().includes(clienteQuery.toLowerCase()) ||
+        c.nit_cedula.includes(clienteQuery)
+      ).slice(0, 6)
+    : [];
 
   const totalCarrito = carrito.reduce((s, i) => {
     const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
@@ -76,6 +102,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
     s + i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100), 0);
 
   const ivaCarrito = totalCarrito - subtotalCarrito;
+  const descuentoTotal = carrito.reduce((s, i) =>
+    s + i.cantidad * i.precio_unitario * (i.descuento_pct / 100), 0);
 
   function agregarProducto(p: Producto) {
     setCarrito((prev) => {
@@ -97,16 +125,28 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
     setCarrito((prev) => prev.map((i) => i.producto.id === id ? { ...i, cantidad: valor } : i));
   }
 
+  function setDescuento(id: string, pct: number) {
+    const valor = Math.max(0, Math.min(100, pct));
+    setCarrito((prev) => prev.map((i) => i.producto.id === id ? { ...i, descuento_pct: valor } : i));
+  }
+
   function eliminarItem(id: string) {
     setCarrito((prev) => prev.filter((i) => i.producto.id !== id));
+    if (descuentoEditId === id) setDescuentoEditId(null);
   }
 
   function pausarVenta() {
     if (carrito.length === 0) return;
     const nombre = `Mesa ${preCuentas.length + 1}`;
-    setPreCuentas((prev) => [...prev, { id: crypto.randomUUID(), items: carrito, nombre, creadaAt: new Date() }]);
+    setPreCuentas((prev) => [...prev, {
+      id: crypto.randomUUID(), items: carrito, nombre,
+      clienteNombre, creadaAt: new Date()
+    }]);
     setCarrito([]);
     setBusqueda("");
+    setClienteNombre("");
+    setClienteId(null);
+    setClienteQuery("");
   }
 
   function retomarPreCuenta(pc: PreCuenta) {
@@ -115,6 +155,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
       pausarVenta();
     }
     setCarrito(pc.items);
+    setClienteNombre(pc.clienteNombre);
     setPreCuentas((prev) => prev.filter((p) => p.id !== pc.id));
     setShowPreCuentas(false);
   }
@@ -155,9 +196,12 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
         body: JSON.stringify({
           turno_id: turnoId,
           caja_id: cajaId,
+          cliente_id: clienteId ?? undefined,
+          nombre_cliente: clienteNombre || undefined,
           metodo_pago: metodoPago,
           monto_recibido: metodoPago === "efectivo" ? Number(montoRecibido) : null,
           vuelto: metodoPago === "efectivo" ? vuelto : null,
+          observaciones: observaciones.trim() || undefined,
           items,
         }),
       });
@@ -165,12 +209,23 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
       setUltimaVenta({ numero: venta.numero, total: Number(venta.total), vuelto });
       setCarrito([]);
       setShowPago(false);
+      setClienteNombre("");
+      setClienteId(null);
+      setClienteQuery("");
+      setObservaciones("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al procesar la venta.");
     } finally {
       setProcesando(false);
     }
   }
+
+  const handleClienteSelect = useCallback((c: Cliente) => {
+    setClienteNombre(c.nombre);
+    setClienteId(c.id);
+    setClienteQuery(c.nombre);
+    setShowClienteSug(false);
+  }, []);
 
   return (
     <div className="h-full flex overflow-hidden bg-[#0B0E1A]">
@@ -250,16 +305,56 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
 
       {/* ── Panel derecho: carrito ── */}
       <div className="flex flex-col w-[42%] bg-[#0B0E1A]">
+        {/* Campo cliente */}
+        <div className="px-3 pt-2.5 pb-2 border-b border-slate-800 relative">
+          <div className="relative">
+            <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-600" />
+            <input
+              type="text"
+              value={clienteQuery}
+              onChange={(e) => {
+                setClienteQuery(e.target.value);
+                setClienteNombre(e.target.value);
+                setClienteId(null);
+                setShowClienteSug(true);
+              }}
+              onFocus={() => setShowClienteSug(true)}
+              onBlur={() => setTimeout(() => setShowClienteSug(false), 150)}
+              placeholder="Cliente (opcional)"
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500/60"
+            />
+            {clienteQuery && (
+              <button
+                onClick={() => { setClienteQuery(""); setClienteNombre(""); setClienteId(null); }}
+                className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {showClienteSug && clientesFiltrados.length > 0 && (
+            <div className="absolute left-3 right-3 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden">
+              {clientesFiltrados.map((c) => (
+                <button
+                  key={c.id}
+                  onMouseDown={() => handleClienteSelect(c)}
+                  className="w-full px-3 py-2 text-left hover:bg-slate-700 transition-colors"
+                >
+                  <p className="text-sm text-white font-medium">{c.nombre}</p>
+                  <p className="text-xs text-slate-500">{c.nit_cedula}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Header carrito */}
-        <div className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Carrito {carrito.length > 0 && `· ${carrito.reduce((s, i) => s + i.cantidad, 0)} items`}
+            Carrito {carrito.length > 0 && `· ${carrito.reduce((s, i) => s + i.cantidad, 0)} ítems`}
           </span>
           {carrito.length > 0 && (
-            <button
-              onClick={() => setCarrito([])}
-              className="text-xs text-slate-600 hover:text-red-400 transition-colors"
-            >
+            <button onClick={() => setCarrito([])} className="text-xs text-slate-600 hover:text-red-400 transition-colors">
               Vaciar
             </button>
           )}
@@ -277,41 +372,76 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
               {carrito.map((item) => {
                 const baseItem = item.cantidad * item.precio_unitario * (1 - item.descuento_pct / 100);
                 const totalItem = baseItem * (1 + Number(item.producto.iva_pct) / 100);
+                const editandoDesc = descuentoEditId === item.producto.id;
                 return (
-                  <div key={item.producto.id} className="px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white leading-tight truncate">{item.producto.nombre}</p>
-                      <p className="text-xs text-slate-500">{cop(item.precio_unitario)} c/u</p>
+                  <div key={item.producto.id} className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white leading-tight truncate">{item.producto.nombre}</p>
+                        <p className="text-xs text-slate-500">{cop(item.precio_unitario)} c/u</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => cambiarCantidad(item.producto.id, -1)}
+                          className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <input
+                          type="number" min="0.5" step="0.5"
+                          value={item.cantidad}
+                          onChange={(e) => setCantidadDirecta(item.producto.id, Number(e.target.value))}
+                          className="w-9 text-center text-xs font-bold bg-slate-800 border border-slate-700 rounded-lg py-1 text-white focus:outline-none focus:border-violet-500"
+                        />
+                        <button
+                          onClick={() => cambiarCantidad(item.producto.id, 1)}
+                          className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <div className="text-right flex-shrink-0 w-16">
+                        <p className="text-sm font-semibold text-white">{cop(totalItem)}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => setDescuentoEditId(editandoDesc ? null : item.producto.id)}
+                          className={cn(
+                            "w-6 h-6 rounded-lg flex items-center justify-center transition-colors",
+                            item.descuento_pct > 0
+                              ? "bg-amber-900/60 border border-amber-700/60 text-amber-400"
+                              : "bg-slate-800 border border-slate-700 text-slate-600 hover:text-slate-300 hover:border-slate-500"
+                          )}
+                          title="Descuento"
+                        >
+                          <Percent className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => eliminarItem(item.producto.id)}
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-700 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => cambiarCantidad(item.producto.id, -1)}
-                        className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <input
-                        type="number" min="0.5" step="0.5"
-                        value={item.cantidad}
-                        onChange={(e) => setCantidadDirecta(item.producto.id, Number(e.target.value))}
-                        className="w-10 text-center text-sm font-semibold bg-slate-800 border border-slate-700 rounded-lg py-1 text-white focus:outline-none focus:border-violet-500"
-                      />
-                      <button
-                        onClick={() => cambiarCantidad(item.producto.id, 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <div className="text-right flex-shrink-0 w-20">
-                      <p className="text-sm font-semibold text-white">{cop(totalItem)}</p>
-                    </div>
-                    <button
-                      onClick={() => eliminarItem(item.producto.id)}
-                      className="text-slate-700 hover:text-red-400 transition-colors flex-shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {editandoDesc && (
+                      <div className="mt-1.5 flex items-center gap-2 pl-1">
+                        <label className="text-xs text-slate-500 flex-shrink-0">Descuento %</label>
+                        <input
+                          type="number" min="0" max="100" step="1"
+                          autoFocus
+                          value={item.descuento_pct}
+                          onChange={(e) => setDescuento(item.producto.id, Number(e.target.value))}
+                          onBlur={() => setDescuentoEditId(null)}
+                          className="w-16 text-center text-sm font-semibold bg-slate-800 border border-amber-700/60 rounded-lg py-1 text-amber-300 focus:outline-none focus:border-amber-500"
+                        />
+                        {item.descuento_pct > 0 && (
+                          <span className="text-xs text-slate-500">
+                            − {cop(item.cantidad * item.precio_unitario * (item.descuento_pct / 100))}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -320,11 +450,16 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
         </div>
 
         {/* Totales + acciones */}
-        <div className="border-t border-slate-800 p-4 flex-shrink-0 space-y-3 bg-[#0D1120]">
+        <div className="border-t border-slate-800 p-3 flex-shrink-0 space-y-2.5 bg-[#0D1120]">
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
               <span>Subtotal</span><span>{cop(subtotalCarrito)}</span>
             </div>
+            {descuentoTotal > 0 && (
+              <div className="flex justify-between text-xs text-amber-500">
+                <span>Descuento</span><span>− {cop(descuentoTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xs text-slate-500">
               <span>IVA</span><span>{cop(ivaCarrito)}</span>
             </div>
@@ -339,14 +474,14 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
               onClick={pausarVenta}
               disabled={carrito.length === 0}
               title="Pausar (pre-cuenta)"
-              className="w-11 h-11 rounded-xl border border-slate-700 bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-600 disabled:opacity-30 transition-colors flex-shrink-0"
+              className="w-10 h-10 rounded-xl border border-slate-700 bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-600 disabled:opacity-30 transition-colors flex-shrink-0"
             >
               <Pause className="h-4 w-4" />
             </button>
             <button
               onClick={abrirPago}
               disabled={carrito.length === 0}
-              className="flex-1 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-white font-bold text-base transition-colors"
+              className="flex-1 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-white font-bold text-sm transition-colors"
             >
               {carrito.length === 0 ? "Cobrar" : `Cobrar ${cop(totalCarrito)}`}
             </button>
@@ -376,10 +511,12 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
                 >
                   <div>
                     <p className="font-medium text-white text-sm">{pc.nombre}</p>
-                    <p className="text-xs text-slate-500">{pc.items.length} ítems</p>
+                    <p className="text-xs text-slate-500">
+                      {pc.clienteNombre || "Sin cliente"} · {pc.items.length} ítems
+                    </p>
                   </div>
                   <p className="font-bold text-emerald-400 text-sm">
-                    {cop(pc.items.reduce((s, i) => s + i.cantidad * i.precio_unitario * (1 + Number(i.producto.iva_pct) / 100), 0))}
+                    {cop(pc.items.reduce((s, i) => s + i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100) * (1 + Number(i.producto.iva_pct) / 100), 0))}
                   </p>
                 </button>
               ))}
@@ -393,7 +530,10 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-40">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-lg font-bold text-white">Cobrar</p>
+              <div>
+                <p className="text-lg font-bold text-white">Cobrar</p>
+                {clienteNombre && <p className="text-xs text-slate-500">{clienteNombre}</p>}
+              </div>
               <button onClick={() => setShowPago(false)} className="text-slate-500 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
 
@@ -438,6 +578,18 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
                 </div>
               </div>
             )}
+
+            {/* Observaciones */}
+            <div className="space-y-1">
+              <label className="text-xs text-slate-500">Observaciones (opcional)</label>
+              <textarea
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                rows={2}
+                placeholder="Notas de la venta..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 resize-none focus:outline-none focus:border-slate-500"
+              />
+            </div>
 
             {error && <p className="rounded-xl bg-red-950/60 border border-red-800/50 px-3 py-2 text-sm text-red-400">{error}</p>}
 

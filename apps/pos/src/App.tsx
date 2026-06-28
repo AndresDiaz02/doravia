@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShoppingCart, List, Clock, BarChart2, LogOut } from "lucide-react";
+import { ShoppingCart, List, Clock, LogOut } from "lucide-react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -8,7 +8,6 @@ import Venta from "./pages/Venta";
 import Fiados from "./pages/Fiados";
 import HistorialVentas from "./pages/HistorialVentas";
 import CierreTurno from "./pages/CierreTurno";
-import Reportes from "./pages/Reportes";
 
 interface TurnoActivo {
   turnoId: string;
@@ -16,13 +15,12 @@ interface TurnoActivo {
   cajaNombre: string;
 }
 
-type Vista = "venta" | "fiados" | "historial" | "reportes";
+type Vista = "venta" | "fiados" | "historial";
 
 const NAV_ITEMS: { id: Vista; label: string; icon: React.ReactNode }[] = [
   { id: "venta",     label: "Venta",     icon: <ShoppingCart className="h-4 w-4" /> },
   { id: "fiados",    label: "Fiados",    icon: <List className="h-4 w-4" /> },
   { id: "historial", label: "Historial", icon: <Clock className="h-4 w-4" /> },
-  { id: "reportes",  label: "Reportes",  icon: <BarChart2 className="h-4 w-4" /> },
 ];
 
 function AppInner() {
@@ -98,7 +96,6 @@ function AppInner() {
         {vista === "venta"     && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />}
         {vista === "fiados"    && <Fiados cajaId={turno.cajaId} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
-        {vista === "reportes"  && <Reportes />}
       </div>
 
       {showCierre && (

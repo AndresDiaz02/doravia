@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ShoppingCart, List, Clock, BarChart2, LogOut } from "lucide-react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,6 +18,13 @@ interface TurnoActivo {
 
 type Vista = "venta" | "fiados" | "historial" | "reportes";
 
+const NAV_ITEMS: { id: Vista; label: string; icon: React.ReactNode }[] = [
+  { id: "venta",     label: "Venta",     icon: <ShoppingCart className="h-4 w-4" /> },
+  { id: "fiados",    label: "Fiados",    icon: <List className="h-4 w-4" /> },
+  { id: "historial", label: "Historial", icon: <Clock className="h-4 w-4" /> },
+  { id: "reportes",  label: "Reportes",  icon: <BarChart2 className="h-4 w-4" /> },
+];
+
 function AppInner() {
   const { user, loading } = useAuth();
   const [turno, setTurno] = useState<TurnoActivo | null>(null);
@@ -29,8 +37,8 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-blue-700 flex items-center justify-center">
-        <div className="text-white text-lg font-medium">Cargando...</div>
+      <div className="min-h-screen bg-[#0B0E1A] flex items-center justify-center">
+        <div className="text-slate-400 text-sm">Cargando...</div>
       </div>
     );
   }
@@ -49,42 +57,48 @@ function AppInner() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#0B0E1A]">
       {/* Barra de navegación */}
-      <nav className="bg-blue-700 text-white px-4 py-0 flex items-center gap-1 flex-shrink-0 border-b border-blue-800">
-        <span className="font-bold text-sm mr-3 py-3 text-blue-100">{turno.cajaNombre}</span>
-        {([
-          { id: "venta",    label: "Venta"    },
-          { id: "fiados",   label: "Fiados"   },
-          { id: "historial",label: "Historial"},
-          { id: "reportes", label: "Reportes" },
-        ] as { id: Vista; label: string }[]).map(({ id, label }) => (
+      <nav className="bg-[#0B0E1A] border-b border-slate-800 px-4 flex items-center gap-1 flex-shrink-0 h-12">
+        {/* Logo */}
+        <div className="flex items-center gap-2 mr-4">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center">
+            <span className="text-white text-xs font-black">D</span>
+          </div>
+          <span className="text-slate-400 text-xs font-medium truncate max-w-[120px]">{turno.cajaNombre}</span>
+        </div>
+
+        {NAV_ITEMS.map(({ id, label, icon }) => (
           <button
             key={id}
             onClick={() => setVista(id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              vista === id ? "border-white text-white" : "border-transparent text-blue-200 hover:text-white"
+            className={`flex items-center gap-1.5 px-3 h-full text-sm font-medium border-b-2 transition-colors ${
+              vista === id
+                ? "border-violet-500 text-violet-400"
+                : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
+            {icon}
             {label}
           </button>
         ))}
+
         <div className="flex-1" />
+
         <button
           onClick={() => setShowCierre(true)}
-          className="text-xs text-blue-200 hover:text-white py-3 px-2"
+          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-950/40"
         >
+          <LogOut className="h-3.5 w-3.5" />
           Cerrar turno
         </button>
       </nav>
 
       <div className="flex-1 overflow-hidden">
-        {vista === "venta" && (
-          <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />
-        )}
-        {vista === "fiados" && <Fiados cajaId={turno.cajaId} />}
+        {vista === "venta"     && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />}
+        {vista === "fiados"    && <Fiados cajaId={turno.cajaId} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
-        {vista === "reportes" && <Reportes />}
+        {vista === "reportes"  && <Reportes />}
       </div>
 
       {showCierre && (

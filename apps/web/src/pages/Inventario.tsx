@@ -7,6 +7,8 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
 import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch } from "lucide-react";
+import { useAuth } from "../lib/auth";
+import { RecibirMercanciaIA } from "./RecibirMercanciaIA";
 
 interface StockItem {
   producto_id: string;
@@ -36,6 +38,8 @@ type TabActiva = "stock" | "movimientos";
 type TipoMovimiento = "entrada" | "salida" | "ajuste";
 
 export default function Inventario() {
+  const { plan, isContador } = useAuth();
+  const puedeIA = (plan?.features as Record<string, boolean> | undefined)?.ia_asistente === true;
   const [tab, setTab] = useState<TabActiva>("stock");
   const [stock, setStock] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -120,15 +124,22 @@ export default function Inventario() {
           <p className="text-sm text-gray-500 mt-1">Control de existencias por bodega</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => abrirDialog("salida")}>
-            <ArrowUp className="w-4 h-4 mr-1" /> Salida
-          </Button>
-          <Button variant="secondary" onClick={() => abrirDialog("ajuste")}>
-            <SlidersHorizontal className="w-4 h-4 mr-1" /> Ajuste
-          </Button>
-          <Button onClick={() => abrirDialog("entrada")}>
-            <ArrowDown className="w-4 h-4 mr-1" /> Entrada
-          </Button>
+          {puedeIA && !isContador && (
+            <RecibirMercanciaIA bodegas={bodegas} productos={productos} onSuccess={cargarDatos} />
+          )}
+          {!isContador && (
+            <>
+              <Button variant="secondary" onClick={() => abrirDialog("salida")}>
+                <ArrowUp className="w-4 h-4 mr-1" /> Salida
+              </Button>
+              <Button variant="secondary" onClick={() => abrirDialog("ajuste")}>
+                <SlidersHorizontal className="w-4 h-4 mr-1" /> Ajuste
+              </Button>
+              <Button onClick={() => abrirDialog("entrada")}>
+                <ArrowDown className="w-4 h-4 mr-1" /> Entrada
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

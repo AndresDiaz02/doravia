@@ -41,6 +41,86 @@ Reglas:
 - Si no puedes identificar un campo con certeza, usa null o 0
 - Responde SOLO el JSON, sin explicaciones adicionales`;
 
+export interface ItemCompraIA {
+  nombre: string;
+  codigo: string | null;
+  cantidad: number;
+  precio_costo: number;
+}
+
+export interface ResultadoAnalisisCompra {
+  proveedor_nombre: string | null;
+  proveedor_nit: string | null;
+  fecha: string | null;
+  confianza: "alta" | "media" | "baja";
+  items: ItemCompraIA[];
+}
+
+const SYSTEM_PROMPT_COMPRA = `Eres un asistente contable colombiano especializado en leer facturas de compra a proveedores.
+
+Extrae los datos y responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
+{
+  "proveedor_nombre": "nombre del proveedor emisor" o null,
+  "proveedor_nit": "NIT del proveedor sin DV" o null,
+  "fecha": "YYYY-MM-DD" o null,
+  "confianza": "alta"|"media"|"baja",
+  "items": [
+    {
+      "nombre": "nombre del producto o servicio",
+      "codigo": "código o referencia del ítem" o null,
+      "cantidad": número (unidades recibidas),
+      "precio_costo": número (precio unitario sin IVA)
+    }
+  ]
+}
+
+Reglas:
+- Extrae TODOS los ítems de la factura, uno por fila
+- precio_costo = precio unitario neto sin impuestos
+- cantidad debe ser positiva
+- confianza: alta = documento claro y completo, media = parcialmente legible, baja = incompleto
+- Responde SOLO el JSON, sin explicaciones`;
+
+export async function analizarCompraProveedor(
+  tenantId: string,
+  imagenBase64: string,
+  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+): Promise<ResultadoAnalisisCompra> {
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1024,
+    system: SYSTEM_PROMPT_COMPRA,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: mediaType, data: imagenBase64 },
+          },
+          { type: "text", text: "Analiza esta factura de compra y extrae todos los ítems en el formato JSON especificado." },
+        ],
+      },
+    ],
+  });
+
+  await db.insert(uso_ia).values({
+    tenant_id: tenantId,
+    tipo: "analizar_documento",
+    tokens_entrada: message.usage.input_tokens,
+    tokens_salida: message.usage.output_tokens,
+  });
+
+  const textContent = message.content.find((c) => c.type === "text");
+  if (!textContent || textContent.type !== "text") throw new Error("El modelo no devolvió respuesta.");
+
+  const raw = textContent.text.trim();
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No se pudo extraer datos. Intenta con una imagen más clara.");
+
+  return JSON.parse(jsonMatch[0]) as ResultadoAnalisisCompra;
+}
+
 export async function analizarDocumentoGasto(
   tenantId: string,
   imagenBase64: string,

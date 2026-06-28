@@ -1,5 +1,5 @@
 import { Router, type Response } from "express";
-import { db, movimientos_inventario, bodegas, productos } from "@workspace/db";
+import { db, movimientos_inventario, bodegas, productos, gastos } from "@workspace/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 
 const router = Router();
@@ -232,6 +232,101 @@ router.post("/ajuste", async (req, res) => {
   } catch (err) {
     console.error("Error en POST /inventario/ajuste:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/inventario/recibir-lote
+// Body: { bodega_id, items: [{producto_id, cantidad, precio_costo, nuevo_precio_venta?}],
+//         proveedor_nombre?, fecha?, observaciones?, crear_gasto? }
+router.post("/recibir-lote", async (req, res) => {
+  try {
+    const {
+      bodega_id,
+      items,
+      proveedor_nombre,
+      fecha,
+      observaciones,
+      crear_gasto = true,
+    } = req.body as {
+      bodega_id: string;
+      items: { producto_id: string; cantidad: number; precio_costo: number; nuevo_precio_venta?: number }[];
+      proveedor_nombre?: string;
+      fecha?: string;
+      observaciones?: string;
+      crear_gasto?: boolean;
+    };
+
+    if (!bodega_id || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "bodega_id e items son requeridos." });
+    }
+
+    const [bodega] = await db
+      .select({ id: bodegas.id })
+      .from(bodegas)
+      .where(and(eq(bodegas.id, bodega_id), eq(bodegas.tenant_id, req.tenantId)))
+      .limit(1);
+    if (!bodega) return res.status(404).json({ error: "Bodega no encontrada." });
+
+    const fechaUso = fecha ?? new Date().toISOString().slice(0, 10);
+    let totalCosto = 0;
+
+    for (const item of items) {
+      const { producto_id, cantidad, precio_costo, nuevo_precio_venta } = item;
+
+      const [prod] = await db
+        .select({ id: productos.id })
+        .from(productos)
+        .where(and(eq(productos.id, producto_id), eq(productos.tenant_id, req.tenantId)))
+        .limit(1);
+      if (!prod) return res.status(404).json({ error: `Producto ${producto_id} no encontrado.` });
+
+      await db.insert(movimientos_inventario).values({
+        tenant_id: req.tenantId,
+        bodega_id,
+        producto_id,
+        tipo: "entrada",
+        cantidad: String(cantidad),
+        costo_unitario: String(precio_costo),
+        referencia_tipo: "compra_proveedor",
+        observaciones: proveedor_nombre ? `Compra a ${proveedor_nombre}` : (observaciones ?? null),
+      });
+
+      totalCosto += cantidad * precio_costo;
+
+      if (nuevo_precio_venta != null && nuevo_precio_venta > 0) {
+        await db
+          .update(productos)
+          .set({ precio_venta: String(nuevo_precio_venta), precio_base: String(nuevo_precio_venta) })
+          .where(and(eq(productos.id, producto_id), eq(productos.tenant_id, req.tenantId)));
+      }
+    }
+
+    let gastoId: string | null = null;
+    if (crear_gasto && totalCosto > 0) {
+      const desc = proveedor_nombre
+        ? `Compra de mercancía — ${proveedor_nombre}`
+        : "Compra de mercancía (recepción con IA)";
+      const [nuevoGasto] = await db
+        .insert(gastos)
+        .values({
+          tenant_id: req.tenantId,
+          categoria: "compra_mercancia",
+          descripcion: desc,
+          monto: String(totalCosto),
+          iva: "0",
+          total: String(totalCosto),
+          fecha: fechaUso,
+          estado: "aprobado",
+          observaciones: observaciones ?? null,
+        })
+        .returning({ id: gastos.id });
+      gastoId = nuevoGasto.id;
+    }
+
+    return res.status(201).json({ ok: true, items_creados: items.length, total_costo: totalCosto, gasto_id: gastoId });
+  } catch (err) {
+    console.error("Error en POST /inventario/recibir-lote:", err);
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 

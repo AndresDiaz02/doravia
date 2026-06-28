@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX } from "lucide-react";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -81,6 +82,7 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 export function FacturaDetalle() {
+  const { isContador } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [factura, setFactura] = useState<Factura | null>(null);
@@ -235,19 +237,19 @@ export function FacturaDetalle() {
             <Download className="h-4 w-4" />
             {descargando ? "Generando…" : "Descargar PDF"}
           </Button>
-          {factura.estado === "aceptada" && !factura.pagada_at && (
+          {!isContador && factura.estado === "aceptada" && !factura.pagada_at && (
             <Button variant="secondary" onClick={() => void handleMarcarPagada()} disabled={marcandoPagada}>
               <CheckCircle className="h-4 w-4" />
               {marcandoPagada ? "Registrando…" : "Marcar como pagada"}
             </Button>
           )}
-          {factura.estado === "aceptada" && (
+          {!isContador && factura.estado === "aceptada" && (
             <Button variant="secondary" onClick={() => setOpenNC(true)}>
               <FileX className="h-4 w-4" />
               Nota crédito
             </Button>
           )}
-          {factura.estado === "borrador" && (
+          {!isContador && factura.estado === "borrador" && (
             <Button onClick={() => void handleReenviar()} disabled={reenviando}>
               <RefreshCw className={`h-4 w-4 ${reenviando ? "animate-spin" : ""}`} />
               {reenviando ? "Enviando..." : "Reenviar a DIAN"}

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { assertCanUseIA } from "../guards/plan-limits.js";
-import { analizarDocumentoGasto } from "../services/ia.service.js";
+import { analizarDocumentoGasto, analizarCompraProveedor } from "../services/ia.service.js";
 import { PlanLimitError } from "@workspace/shared";
 import { db, uso_ia } from "@workspace/db";
 import { eq, and, count, gte, lt } from "drizzle-orm";
@@ -54,6 +54,42 @@ router.post("/analizar-documento", async (req, res) => {
       return res.status(422).json({ error: err.message });
     }
     console.error("Error IA:", err);
+    return res.status(502).json({ error: "Error al procesar el documento con IA. Intenta de nuevo." });
+  }
+});
+
+// POST /api/ia/analizar-compra
+// Body: { imagen_base64, media_type }  — extrae ítems de factura de proveedor
+router.post("/analizar-compra", async (req, res) => {
+  try {
+    await assertCanUseIA(req.tenant);
+  } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return res.status(403).json({ error: err.message, code: err.code });
+    }
+    throw err;
+  }
+
+  const { imagen_base64, media_type } = req.body as { imagen_base64?: string; media_type?: string };
+
+  if (!imagen_base64 || typeof imagen_base64 !== "string") {
+    return res.status(400).json({ error: "imagen_base64 es requerido." });
+  }
+  if (!media_type || !(MEDIA_TYPES_PERMITIDOS as readonly string[]).includes(media_type)) {
+    return res.status(400).json({ error: `media_type debe ser: ${MEDIA_TYPES_PERMITIDOS.join(", ")}.` });
+  }
+  if (imagen_base64.length > 7_000_000) {
+    return res.status(400).json({ error: "La imagen no debe superar los 5 MB." });
+  }
+
+  try {
+    const resultado = await analizarCompraProveedor(req.tenantId, imagen_base64, media_type as MediaType);
+    return res.json(resultado);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No se pudo extraer")) {
+      return res.status(422).json({ error: err.message });
+    }
+    console.error("Error IA analizar-compra:", err);
     return res.status(502).json({ error: "Error al procesar el documento con IA. Intenta de nuevo." });
   }
 });

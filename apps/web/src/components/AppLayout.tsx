@@ -20,6 +20,7 @@ import {
   Receipt,
   Send,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   TrendingUp,
   UserCog,
@@ -316,6 +317,9 @@ export function AppLayout() {
 
           {user?.role === "admin" && (
             <NavItem to="/usuarios" label="Usuarios" icon={UserCog} isActive={active("/usuarios")} />
+          )}
+          {user?.role === "admin" && (
+            <NavItem to="/auditoria" label="Auditoría" icon={ShieldCheck} isActive={active("/auditoria")} />
           )}
         </nav>
 

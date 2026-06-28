@@ -37,6 +37,7 @@ import Auxiliares from "./pages/Auxiliares";
 import ModulosAdicionales from "./pages/ModulosAdicionales";
 import ResultadoPago from "./pages/ResultadoPago";
 import Onboarding from "./pages/Onboarding";
+import AuditLog from "./pages/AuditLog";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="/contabilidad/balance-prueba" element={<><RequiereRol allow={["admin", "contador"]} /><BalancePrueba /></>} />
               <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
               <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
+              <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
             </Route>
           </Route>
 

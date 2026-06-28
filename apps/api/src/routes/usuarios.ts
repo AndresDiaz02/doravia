@@ -192,6 +192,7 @@ router.post("/vincular-externo", async (req, res) => {
     })
     .returning();
 
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "acceso_externo.vinculado", entidadTipo: "user_acceso", entidadId: nuevo.id, detalle: { email: usuarioExterno.email, role: nuevo.role }, ip: req.ip });
   res.status(201).json({
     id: nuevo.id,
     user_id: usuarioExterno.id,
@@ -213,6 +214,7 @@ router.delete("/externo/:accesoId", async (req, res) => {
   if (!acceso) return res.status(404).json({ error: "Acceso no encontrado." });
 
   await db.delete(user_accesos).where(eq(user_accesos.id, acceso.id));
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "acceso_externo.desvinculado", entidadTipo: "user_acceso", entidadId: acceso.id, ip: req.ip });
   res.json({ ok: true });
 });
 

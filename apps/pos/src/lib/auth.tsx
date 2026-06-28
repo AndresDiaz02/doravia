@@ -53,9 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     localStorage.removeItem("pos_token");
     setUser(null);
-    // Redirige al login del ERP si existe
-    const erpUrl = import.meta.env.VITE_ERP_URL;
-    if (erpUrl) window.location.href = erpUrl;
   }
 
   return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;

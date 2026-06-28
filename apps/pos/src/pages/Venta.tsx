@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent } from "lucide-react";
+import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
+import { useAuth } from "../lib/auth";
 
 interface Producto {
   id: string;
@@ -49,7 +50,8 @@ const METODOS = [
   { value: "daviplata",     label: "Daviplata" },
 ];
 
-export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerrarTurno: _onCerrarTurno }: Props) {
+export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onCerrarTurno }: Props) {
+  const { user } = useAuth();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -70,7 +72,12 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
   const [montoRecibido, setMontoRecibido] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [procesando, setProcesando] = useState(false);
-  const [ultimaVenta, setUltimaVenta] = useState<{ numero: string; total: number; vuelto: number } | null>(null);
+  const [ultimaVenta, setUltimaVenta] = useState<{
+    numero: string; total: number; vuelto: number;
+    items: ItemCarrito[]; clienteNombre: string; metodoPago: string;
+    montoRecibido: number; subtotal: number; iva: number;
+    cajaNombre: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busquedaRef = useRef<HTMLInputElement>(null);
 
@@ -206,7 +213,12 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
         }),
       });
 
-      setUltimaVenta({ numero: venta.numero, total: Number(venta.total), vuelto });
+      setUltimaVenta({
+        numero: venta.numero, total: Number(venta.total), vuelto,
+        items: [...carrito], clienteNombre, metodoPago,
+        montoRecibido: metodoPago === "efectivo" ? Number(montoRecibido) : Number(venta.total),
+        subtotal: subtotalCarrito, iva: ivaCarrito, cajaNombre,
+      });
       setCarrito([]);
       setShowPago(false);
       setClienteNombre("");
@@ -226,6 +238,65 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
     setClienteQuery(c.nombre);
     setShowClienteSug(false);
   }, []);
+
+  function imprimirTirilla() {
+    if (!ultimaVenta) return;
+    const empresa = user?.tenantNombre ?? "Doravia";
+    const fecha = new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
+    const METODO_LABEL: Record<string, string> = {
+      efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia",
+      nequi: "Nequi", daviplata: "Daviplata",
+    };
+    const itemsHTML = ultimaVenta.items.map((i) => {
+      const subtotal = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100) * (1 + Number(i.producto.iva_pct) / 100);
+      return `
+        <tr><td colspan="2" class="pt-1"><strong>${i.producto.nombre}</strong></td></tr>
+        <tr>
+          <td class="pl-2 text-gray-600">${i.cantidad} × ${cop(i.precio_unitario)}${i.descuento_pct > 0 ? ` (-${i.descuento_pct}%)` : ""}</td>
+          <td class="text-right">${cop(subtotal)}</td>
+        </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  @page { size: 80mm auto; margin: 4mm 4mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Courier New', monospace; font-size: 11px; color: #000; width: 72mm; margin: 0; }
+  h1 { font-size: 14px; font-weight: bold; text-align: center; margin: 0 0 2px; }
+  .center { text-align: center; }
+  .sep { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; padding: 1px 0; }
+  .td-r { text-align: right; }
+  .total-row td { font-size: 14px; font-weight: bold; padding-top: 4px; }
+  .small { font-size: 9px; color: #555; }
+  .gracias { text-align: center; margin-top: 8px; font-size: 10px; }
+</style></head><body>
+<h1>${empresa}</h1>
+<p class="center small">${fecha} · Caja: ${ultimaVenta.cajaNombre}</p>
+<hr class="sep">
+<p class="center"><strong>No. ${ultimaVenta.numero}</strong></p>
+${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.clienteNombre}</p>` : ""}
+<hr class="sep">
+<table>${itemsHTML}</table>
+<hr class="sep">
+<table>
+  <tr><td>Subtotal</td><td class="td-r">${cop(ultimaVenta.subtotal)}</td></tr>
+  <tr><td>IVA</td><td class="td-r">${cop(ultimaVenta.iva)}</td></tr>
+  <tr class="total-row"><td>TOTAL</td><td class="td-r">${cop(ultimaVenta.total)}</td></tr>
+</table>
+<hr class="sep">
+<table>
+  <tr><td>${METODO_LABEL[ultimaVenta.metodoPago] ?? ultimaVenta.metodoPago}</td><td class="td-r">${cop(ultimaVenta.montoRecibido)}</td></tr>
+  ${ultimaVenta.vuelto > 0 ? `<tr><td>Vuelto</td><td class="td-r">${cop(ultimaVenta.vuelto)}</td></tr>` : ""}
+</table>
+<p class="gracias">¡Gracias por su compra!<br>Powered by Doravia</p>
+<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=340,height=600,toolbar=no,menubar=no");
+    if (w) { w.document.write(html); w.document.close(); }
+  }
 
   return (
     <div className="h-full flex overflow-hidden bg-[#0B0E1A]">
@@ -624,6 +695,13 @@ export default function Venta({ turnoId, cajaId, cajaNombre: _cajaNombre, onCerr
                 <p className="text-2xl font-black text-emerald-300">{cop(ultimaVenta.vuelto)}</p>
               </div>
             )}
+            <button
+              onClick={imprimirTirilla}
+              className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 py-2.5 text-sm font-semibold text-slate-200 transition-colors flex items-center justify-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir tirilla
+            </button>
             <button
               onClick={() => { setUltimaVenta(null); busquedaRef.current?.focus(); }}
               className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 py-3 text-base font-bold text-white transition-colors"

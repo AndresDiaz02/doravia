@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, users, tenants, plans } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
 import {
   registrarTenant,
@@ -181,6 +182,78 @@ router.post("/cambiar-empresa", authenticate, async (req, res) => {
     res.json(resultado);
   } catch (err) {
     if (err instanceof Error) return res.status(403).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/register-fundador
+// Crea el tenant interno de Doravia + el usuario fundador, sin pasar por el flujo de compra.
+// Protegido por FUNDADOR_PIN y FUNDADOR_EMAILS.
+router.post("/register-fundador", async (req, res) => {
+  const { pin, nombre, email, password } = req.body as {
+    pin?: string; nombre?: string; email?: string; password?: string;
+  };
+
+  // Validar PIN
+  const fundadorPin = process.env.FUNDADOR_PIN;
+  if (fundadorPin && pin !== fundadorPin) {
+    return res.status(403).json({ error: "PIN incorrecto." });
+  }
+
+  // Validar que el correo esté autorizado
+  const fundadorEmails = (process.env.FUNDADOR_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (!email || !fundadorEmails.includes(email.toLowerCase())) {
+    return res.status(403).json({ error: "Este correo no está autorizado como fundador." });
+  }
+
+  if (!nombre || !password || password.length < 8) {
+    return res.status(400).json({ error: "Campos requeridos: nombre, password (mínimo 8 caracteres)." });
+  }
+
+  try {
+    // Si el usuario ya existe, no lo crea de nuevo
+    const [existingUser] = await db.select({ id: users.id })
+      .from(users).where(eq(users.email, email)).limit(1);
+    if (existingUser) {
+      return res.status(422).json({ error: "Ya existe un usuario con ese correo. Inicia sesión normalmente." });
+    }
+
+    // Buscar o crear el tenant interno de Doravia
+    const DORAVIA_NIT = "000000000";
+    let [doraviaTenant] = await db.select({ id: tenants.id })
+      .from(tenants).where(eq(tenants.nit, DORAVIA_NIT)).limit(1);
+
+    if (!doraviaTenant) {
+      const [plan] = await db.select({ id: plans.id }).from(plans).limit(1);
+      if (!plan) return res.status(500).json({ error: "No hay planes configurados en el sistema." });
+
+      const now = new Date();
+      const planEnd = new Date(now);
+      planEnd.setFullYear(planEnd.getFullYear() + 100);
+
+      [doraviaTenant] = await db.insert(tenants).values({
+        nombre: "Doravia (Interno)",
+        nit: DORAVIA_NIT,
+        plan_id: plan.id,
+        plan_starts_at: now,
+        plan_ends_at: planEnd,
+      }).returning({ id: tenants.id });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    await db.insert(users).values({
+      tenant_id: doraviaTenant.id,
+      email,
+      nombre,
+      role: "admin",
+      password_hash,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en POST /auth/register-fundador:", err);
+    if (err instanceof Error) return res.status(500).json({ error: err.message });
     throw err;
   }
 });

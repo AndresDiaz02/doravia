@@ -41,6 +41,7 @@ import AuditLog from "./pages/AuditLog";
 import FundadorLayout from "./components/FundadorLayout";
 import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
+import SetupFundador from "./pages/SetupFundador";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/setup-fundador" element={<SetupFundador />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />

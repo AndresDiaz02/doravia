@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Upload, X, Download } from "lucide-react";
+import { Upload, X, Download, ToggleLeft, ToggleRight } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+
+interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; }
 
 interface EmpresaConfig {
   id: string;
@@ -30,12 +32,28 @@ export default function ConfiguracionEmpresa() {
   const [error, setError] = useState<string | null>(null);
   const [subiendoLogo, setSubiendoLogo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [posConfig, setPosConfig] = useState<PosConfig>({});
+  const [guardandoPos, setGuardandoPos] = useState(false);
 
   useEffect(() => {
     void apiFetch<EmpresaConfig>("/api/empresa")
       .then(setConfig)
       .finally(() => setLoading(false));
+    void apiFetch<{ pos_config: PosConfig }>("/api/empresa/pos-config-get")
+      .then((r) => setPosConfig(r.pos_config ?? {}))
+      .catch(() => null);
   }, []);
+
+  async function togglePosModulo(key: keyof PosConfig, valor: boolean) {
+    setGuardandoPos(true);
+    try {
+      const r = await apiFetch<{ pos_config: PosConfig }>("/api/empresa/pos-config", {
+        method: "PATCH",
+        body: JSON.stringify({ [key]: valor }),
+      });
+      setPosConfig(r.pos_config ?? {});
+    } finally { setGuardandoPos(false); }
+  }
 
   async function handleGuardar(e: FormEvent) {
     e.preventDefault();
@@ -242,6 +260,51 @@ export default function ConfiguracionEmpresa() {
 
         {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
         {ok && <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">Configuración guardada correctamente.</p>}
+
+        {/* ── Módulos POS ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Módulos del Punto de Venta (POS)</CardTitle>
+            <p className="text-sm text-gray-500">Los módulos desactivados no se muestran en el POS. Los cambios aplican de inmediato al recargar el POS.</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[
+              {
+                key: "cartera_visible" as keyof PosConfig,
+                label: "Cartera",
+                desc: "Ventas sin cobro inmediato. El inventario se descuenta pero el pago queda pendiente para cobrar después.",
+                default: true,
+              },
+              {
+                key: "citas_visible" as keyof PosConfig,
+                label: "Agenda / Citas",
+                desc: "Gestión de citas y servicios con hora y profesional asignado (ideal para estéticas, veterinarias, consultorios).",
+                default: false,
+              },
+            ].map(({ key, label, desc, default: def }) => {
+              const activo = posConfig[key] !== undefined ? posConfig[key]! : def;
+              return (
+                <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50">
+                  <div className="flex-1 min-w-0 mr-4">
+                    <p className="text-sm font-medium text-gray-900">{label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={guardandoPos}
+                    onClick={() => void togglePosModulo(key, !activo)}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {activo
+                      ? <><ToggleRight className="h-6 w-6 text-emerald-500" /><span className="text-emerald-600">Activo</span></>
+                      : <><ToggleLeft className="h-6 w-6 text-gray-400" /><span className="text-gray-400">Inactivo</span></>
+                    }
+                  </button>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
 
         <div className="flex justify-between items-center">
           <button

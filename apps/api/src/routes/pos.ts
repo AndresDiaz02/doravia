@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado } from "@workspace/db";
-import { eq, and, desc, sql, count, ne, gte, lt, sum } from "drizzle-orm";
+import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos } from "@workspace/db";
+import { eq, and, desc, sql, count, ne, gte, lt, sum, between } from "drizzle-orm";
 import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 
@@ -399,7 +399,10 @@ router.post("/fiados", async (req, res) => {
       caja_id?: string;
       fecha_vencimiento?: string;
       notas?: string;
-      items: Array<{ descripcion: string; cantidad: number; precio_unitario: number; total: number }>;
+      items: Array<{
+        descripcion: string; cantidad: number; precio_unitario: number; total: number;
+        producto_id?: string;
+      }>;
     };
 
   if (!nombre_cliente) return res.status(400).json({ error: "Campo requerido: nombre_cliente." });
@@ -421,12 +424,39 @@ router.post("/fiados", async (req, res) => {
   await db.insert(items_fiado).values(
     items.map((i) => ({
       fiado_id: fiado.id,
+      producto_id: i.producto_id ?? null,
       descripcion: i.descripcion,
       cantidad: String(i.cantidad),
       precio_unitario: String(i.precio_unitario),
       total: String(i.total),
     }))
   );
+
+  // Descontar inventario para ítems con producto_id (misma lógica que ventas POS)
+  const itemsConProducto = items.filter((i) => i.producto_id);
+  if (itemsConProducto.length > 0) {
+    const [bodega] = await db
+      .select({ id: bodegas.id })
+      .from(bodegas)
+      .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
+      .limit(1);
+
+    if (bodega) {
+      for (const item of itemsConProducto) {
+        await db
+          .update(productos)
+          .set({ stock_actual: sql`COALESCE(stock_actual, 0) - ${Number(item.cantidad)}` })
+          .where(and(eq(productos.id, item.producto_id!), eq(productos.tenant_id, req.tenantId)));
+        await db.insert(movimientos_inventario).values({
+          tenant_id: req.tenantId, bodega_id: bodega.id,
+          producto_id: item.producto_id!, tipo: "salida",
+          cantidad: String(item.cantidad), costo_unitario: String(item.precio_unitario),
+          referencia_tipo: "factura",
+          observaciones: `Cartera: ${fiado.id} – ${nombre_cliente}`,
+        });
+      }
+    }
+  }
 
   try {
     const asientoId = await crearAsientoFiado(req.tenantId, fiado);
@@ -675,6 +705,114 @@ router.post("/cierre-dian/enviar", async (req, res) => {
   } catch (err) {
     console.error("Error en POST /pos/cierre-dian/enviar:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── Citas / Agenda POS ────────────────────────────────────────────────────────
+
+// GET /api/pos/citas?fecha=YYYY-MM-DD  (default: hoy)
+router.get("/citas", async (req, res) => {
+  try {
+    const fechaStr = (req.query as { fecha?: string }).fecha ?? new Date().toISOString().slice(0, 10);
+    const inicio = new Date(`${fechaStr}T00:00:00`);
+    const fin    = new Date(`${fechaStr}T23:59:59`);
+
+    const rows = await db
+      .select()
+      .from(citas_pos)
+      .where(
+        and(
+          eq(citas_pos.tenant_id, req.tenantId),
+          between(citas_pos.fecha_hora, inicio, fin),
+        )
+      )
+      .orderBy(citas_pos.fecha_hora);
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Error en GET /citas:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// POST /api/pos/citas
+router.post("/citas", async (req, res) => {
+  try {
+    const { cliente_nombre, cliente_telefono, fecha_hora, servicio, profesional, duracion_min, notas, caja_id } =
+      req.body as {
+        cliente_nombre: string; cliente_telefono?: string; fecha_hora: string;
+        servicio: string; profesional?: string; duracion_min?: number; notas?: string; caja_id?: string;
+      };
+
+    if (!cliente_nombre?.trim()) return res.status(400).json({ error: "Campo requerido: cliente_nombre." });
+    if (!fecha_hora)              return res.status(400).json({ error: "Campo requerido: fecha_hora." });
+    if (!servicio?.trim())        return res.status(400).json({ error: "Campo requerido: servicio." });
+
+    const [cita] = await db.insert(citas_pos).values({
+      tenant_id: req.tenantId,
+      caja_id: caja_id ?? null,
+      cliente_nombre: cliente_nombre.trim(),
+      cliente_telefono: cliente_telefono?.trim() ?? null,
+      fecha_hora: new Date(fecha_hora),
+      servicio: servicio.trim(),
+      profesional: profesional?.trim() ?? null,
+      duracion_min: duracion_min ?? 30,
+      notas: notas?.trim() ?? null,
+    }).returning();
+
+    res.status(201).json(cita);
+  } catch (err) {
+    console.error("Error en POST /citas:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// PATCH /api/pos/citas/:id
+router.patch("/citas/:id", async (req, res) => {
+  try {
+    const { cliente_nombre, cliente_telefono, fecha_hora, servicio, profesional, duracion_min, notas, estado } =
+      req.body as Partial<{
+        cliente_nombre: string; cliente_telefono: string; fecha_hora: string;
+        servicio: string; profesional: string; duracion_min: number; notas: string;
+        estado: "programada" | "en_proceso" | "completada" | "cancelada";
+      }>;
+
+    const updates: Record<string, unknown> = { updated_at: new Date() };
+    if (cliente_nombre !== undefined)  updates.cliente_nombre  = cliente_nombre;
+    if (cliente_telefono !== undefined) updates.cliente_telefono = cliente_telefono;
+    if (fecha_hora !== undefined)       updates.fecha_hora       = new Date(fecha_hora);
+    if (servicio !== undefined)         updates.servicio         = servicio;
+    if (profesional !== undefined)      updates.profesional      = profesional;
+    if (duracion_min !== undefined)     updates.duracion_min     = duracion_min;
+    if (notas !== undefined)            updates.notas            = notas;
+    if (estado !== undefined)           updates.estado           = estado;
+
+    const [updated] = await db
+      .update(citas_pos)
+      .set(updates)
+      .where(and(eq(citas_pos.id, req.params.id), eq(citas_pos.tenant_id, req.tenantId)))
+      .returning();
+
+    if (!updated) return res.status(404).json({ error: "Cita no encontrada." });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error en PATCH /citas/:id:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// DELETE /api/pos/citas/:id
+router.delete("/citas/:id", async (req, res) => {
+  try {
+    const [deleted] = await db
+      .delete(citas_pos)
+      .where(and(eq(citas_pos.id, req.params.id), eq(citas_pos.tenant_id, req.tenantId)))
+      .returning({ id: citas_pos.id });
+    if (!deleted) return res.status(404).json({ error: "Cita no encontrada." });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en DELETE /citas/:id:", err);
+    res.status(500).json({ error: "Error interno." });
   }
 });
 

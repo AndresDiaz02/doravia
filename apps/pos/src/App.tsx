@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShoppingCart, List, Clock, LogOut } from "lucide-react";
+import { ShoppingCart, BookOpen, Clock, LogOut, Calendar } from "lucide-react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -8,6 +8,7 @@ import Venta from "./pages/Venta";
 import Fiados from "./pages/Fiados";
 import HistorialVentas from "./pages/HistorialVentas";
 import CierreTurno from "./pages/CierreTurno";
+import Citas from "./pages/Citas";
 
 interface TurnoActivo {
   turnoId: string;
@@ -15,13 +16,7 @@ interface TurnoActivo {
   cajaNombre: string;
 }
 
-type Vista = "venta" | "fiados" | "historial";
-
-const NAV_ITEMS: { id: Vista; label: string; icon: React.ReactNode }[] = [
-  { id: "venta",     label: "Venta",     icon: <ShoppingCart className="h-4 w-4" /> },
-  { id: "fiados",    label: "Fiados",    icon: <List className="h-4 w-4" /> },
-  { id: "historial", label: "Historial", icon: <Clock className="h-4 w-4" /> },
-];
+type Vista = "venta" | "cartera" | "historial" | "citas";
 
 function AppInner() {
   const { user, loading } = useAuth();
@@ -54,11 +49,20 @@ function AppInner() {
     );
   }
 
+  const cfg = user.posConfig;
+  const carteraVisible = cfg.cartera_visible !== false; // default visible
+  const citasVisible   = cfg.citas_visible === true;    // default oculto
+
+  const navItems: { id: Vista; label: string; icon: React.ReactNode }[] = [
+    { id: "venta",    label: "Venta",     icon: <ShoppingCart className="h-4 w-4" /> },
+    ...(carteraVisible ? [{ id: "cartera" as Vista, label: "Cartera",  icon: <BookOpen className="h-4 w-4" /> }] : []),
+    ...(citasVisible   ? [{ id: "citas"   as Vista, label: "Agenda",   icon: <Calendar className="h-4 w-4" /> }] : []),
+    { id: "historial", label: "Historial", icon: <Clock className="h-4 w-4" /> },
+  ];
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#0B0E1A]">
-      {/* Barra de navegación */}
       <nav className="bg-[#0B0E1A] border-b border-slate-800 px-4 flex items-center gap-1 flex-shrink-0 h-12">
-        {/* Logo */}
         <div className="flex items-center gap-2 mr-4">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center">
             <span className="text-white text-xs font-black">D</span>
@@ -66,7 +70,7 @@ function AppInner() {
           <span className="text-slate-400 text-xs font-medium truncate max-w-[120px]">{turno.cajaNombre}</span>
         </div>
 
-        {NAV_ITEMS.map(({ id, label, icon }) => (
+        {navItems.map(({ id, label, icon }) => (
           <button
             key={id}
             onClick={() => setVista(id)}
@@ -93,8 +97,9 @@ function AppInner() {
       </nav>
 
       <div className="flex-1 overflow-hidden">
-        {vista === "venta"     && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />}
-        {vista === "fiados"    && <Fiados cajaId={turno.cajaId} />}
+        {vista === "venta"    && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />}
+        {vista === "cartera"  && <Fiados cajaId={turno.cajaId} />}
+        {vista === "citas"    && <Citas cajaId={turno.cajaId} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
       </div>
 

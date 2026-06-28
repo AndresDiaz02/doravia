@@ -27,6 +27,11 @@ export const tenants = pgTable("tenants", {
   fuente_adquisicion: varchar("fuente_adquisicion", { length: 50 }),
   cac_cop: integer("cac_cop"),
   ultimo_pago_confirmado_at: timestamp("ultimo_pago_confirmado_at", { withTimezone: true }),
+  // ── Configuración de módulos del POS ─────────────────────────────────────
+  pos_config: jsonb("pos_config").$type<{
+    cartera_visible?: boolean;
+    citas_visible?: boolean;
+  }>().default({}),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

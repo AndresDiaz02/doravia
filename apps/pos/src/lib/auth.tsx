@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "./api";
 
-interface PosUser {
+export interface PosConfig {
+  cartera_visible?: boolean;
+  citas_visible?: boolean;
+}
+
+export interface PosUser {
   id: string;
   nombre: string;
   email: string;
@@ -9,6 +14,7 @@ interface PosUser {
   tenantId: string;
   tenantNombre: string;
   planSlug: string;
+  posConfig: PosConfig;
 }
 
 interface AuthCtx {
@@ -18,6 +24,25 @@ interface AuthCtx {
   logout: () => void;
 }
 
+interface MeResponse {
+  user: { id: string; nombre: string; email: string; role: string };
+  tenant: { id: string; nombre: string; nit: string; pos_config?: PosConfig };
+  plan: { slug: string };
+}
+
+function mapMe(raw: MeResponse): PosUser {
+  return {
+    id: raw.user.id,
+    nombre: raw.user.nombre,
+    email: raw.user.email,
+    role: raw.user.role,
+    tenantId: raw.tenant.id,
+    tenantNombre: raw.tenant.nombre,
+    planSlug: raw.plan.slug,
+    posConfig: raw.tenant.pos_config ?? {},
+  };
+}
+
 const Ctx = createContext<AuthCtx>({ user: null, loading: true, login: async () => {}, logout: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -25,8 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Si viene desde el ERP con #token=xxx en el fragmento, lo guardamos y limpiamos la URL
-    // Usamos # en vez de ? para que el token no llegue al servidor ni quede en logs
     const hash = window.location.hash.slice(1);
     const hashParams = new URLSearchParams(hash);
     const urlToken = hashParams.get("token");
@@ -37,19 +60,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const token = localStorage.getItem("pos_token");
     if (!token) { setLoading(false); return; }
-    apiFetch<PosUser>("/api/auth/me")
-      .then(setUser)
+    apiFetch<MeResponse>("/api/auth/me")
+      .then((raw) => setUser(mapMe(raw)))
       .catch(() => localStorage.removeItem("pos_token"))
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email: string, password: string) {
-    const data = await apiFetch<{ accessToken: string; user: PosUser }>("/api/auth/login", {
+    const data = await apiFetch<{ accessToken: string } & MeResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
     localStorage.setItem("pos_token", data.accessToken);
-    setUser(data.user);
+    setUser(mapMe(data));
   }
 
   function logout() {

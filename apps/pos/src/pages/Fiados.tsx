@@ -3,7 +3,7 @@ import { Plus, ChevronRight, Search, X, AlertCircle, CheckCircle2, Clock } from 
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
 
-interface Fiado {
+interface Cuenta {
   id: string;
   nombre_cliente: string;
   telefono_cliente: string | null;
@@ -15,7 +15,7 @@ interface Fiado {
   created_at: string;
 }
 
-interface ItemFiado {
+interface ItemCuenta {
   id: string;
   descripcion: string;
   cantidad: string;
@@ -23,7 +23,7 @@ interface ItemFiado {
   total: string;
 }
 
-interface AbonoFiado {
+interface AbonoCuenta {
   id: string;
   monto: string;
   metodo_pago: string;
@@ -31,9 +31,9 @@ interface AbonoFiado {
   created_at: string;
 }
 
-interface FiadoDetalle extends Fiado {
-  items: ItemFiado[];
-  abonos: AbonoFiado[];
+interface CuentaDetalle extends Cuenta {
+  items: ItemCuenta[];
+  abonos: AbonoCuenta[];
 }
 
 interface Props {
@@ -48,12 +48,12 @@ const METODOS = [
   { value: "daviplata",     label: "Daviplata" },
 ];
 
-export default function Fiados({ cajaId }: Props) {
-  const [fiados, setFiados] = useState<Fiado[]>([]);
+export default function Cuentas({ cajaId }: Props) {
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<"pendiente" | "pagado" | "todos">("pendiente");
-  const [detalle, setDetalle] = useState<FiadoDetalle | null>(null);
+  const [detalle, setDetalle] = useState<CuentaDetalle | null>(null);
   const [showNuevo, setShowNuevo] = useState(false);
   const [showAbono, setShowAbono] = useState(false);
   const [montoAbono, setMontoAbono] = useState("");
@@ -61,7 +61,7 @@ export default function Fiados({ cajaId }: Props) {
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form nuevo fiado
+  // Form nuevo cuenta
   const [nuevoForm, setNuevoForm] = useState({
     nombre_cliente: "",
     telefono_cliente: "",
@@ -70,21 +70,21 @@ export default function Fiados({ cajaId }: Props) {
     items: [{ descripcion: "", cantidad: "1", precio_unitario: "", total: "" }],
   });
 
-  useEffect(() => { void cargarFiados(); }, [filtro]);
+  useEffect(() => { void cargarCuentas(); }, [filtro]);
 
-  async function cargarFiados() {
+  async function cargarCuentas() {
     setLoading(true);
     try {
-      const url = filtro === "todos" ? "/api/pos/fiados" : `/api/pos/fiados?estado=${filtro}`;
-      const data = await apiFetch<Fiado[]>(url);
-      setFiados(data);
+      const url = filtro === "todos" ? "/api/pos/cuentas" : `/api/pos/cuentas?estado=${filtro}`;
+      const data = await apiFetch<Cuenta[]>(url);
+      setCuentas(data);
     } finally {
       setLoading(false);
     }
   }
 
   async function abrirDetalle(id: string) {
-    const data = await apiFetch<FiadoDetalle>(`/api/pos/fiados/${id}`);
+    const data = await apiFetch<CuentaDetalle>(`/api/pos/cuentas/${id}`);
     setDetalle(data);
   }
 
@@ -110,9 +110,9 @@ export default function Fiados({ cajaId }: Props) {
     setNuevoForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
   }
 
-  const totalNuevoFiado = nuevoForm.items.reduce((s, i) => s + (Number(i.total) || 0), 0);
+  const totalNuevoCuenta = nuevoForm.items.reduce((s, i) => s + (Number(i.total) || 0), 0);
 
-  async function crearFiado() {
+  async function crearCuenta() {
     if (!nuevoForm.nombre_cliente.trim()) { setError("El nombre del cliente es requerido."); return; }
     const itemsValidos = nuevoForm.items.filter((i) => i.descripcion && Number(i.total) > 0);
     if (!itemsValidos.length) { setError("Agrega al menos un ítem con descripción y precio."); return; }
@@ -120,7 +120,7 @@ export default function Fiados({ cajaId }: Props) {
     setProcesando(true);
     setError(null);
     try {
-      await apiFetch("/api/pos/fiados", {
+      await apiFetch("/api/pos/cuentas", {
         method: "POST",
         body: JSON.stringify({
           nombre_cliente: nuevoForm.nombre_cliente,
@@ -138,9 +138,9 @@ export default function Fiados({ cajaId }: Props) {
       });
       setShowNuevo(false);
       setNuevoForm({ nombre_cliente: "", telefono_cliente: "", fecha_vencimiento: "", notas: "", items: [{ descripcion: "", cantidad: "1", precio_unitario: "", total: "" }] });
-      void cargarFiados();
+      void cargarCuentas();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al crear el fiado.");
+      setError(err instanceof ApiError ? err.message : "Error al crear el cuenta.");
     } finally {
       setProcesando(false);
     }
@@ -151,7 +151,7 @@ export default function Fiados({ cajaId }: Props) {
     setProcesando(true);
     setError(null);
     try {
-      await apiFetch<{ saldo: number; estado: string }>(`/api/pos/fiados/${detalle.id}/abonos`, {
+      await apiFetch<{ saldo: number; estado: string }>(`/api/pos/cuentas/${detalle.id}/abonos`, {
         method: "POST",
         body: JSON.stringify({ monto: Number(montoAbono), metodo_pago: metodoPagoAbono }),
       });
@@ -159,7 +159,7 @@ export default function Fiados({ cajaId }: Props) {
       setMontoAbono("");
       // Recarga detalle y lista
       void abrirDetalle(detalle.id);
-      void cargarFiados();
+      void cargarCuentas();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al registrar abono.");
     } finally {
@@ -167,26 +167,26 @@ export default function Fiados({ cajaId }: Props) {
     }
   }
 
-  const filtrados = fiados.filter((f) =>
+  const filtrados = cuentas.filter((f) =>
     f.nombre_cliente.toLowerCase().includes(busqueda.toLowerCase()) ||
     (f.telefono_cliente ?? "").includes(busqueda)
   );
 
-  const saldo = (f: Fiado) => Number(f.monto_total) - Number(f.monto_pagado);
+  const saldo = (f: Cuenta) => Number(f.monto_total) - Number(f.monto_pagado);
 
   return (
     <div className="flex h-full flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
-          <p className="font-semibold text-gray-900">Fiados</p>
-          <p className="text-xs text-gray-400">{filtrados.filter((f) => f.estado === "pendiente").length} pendientes</p>
+          <p className="font-semibold text-gray-900">Cartera</p>
+          <p className="text-xs text-gray-400">{filtrados.filter((f) => f.estado === "pendiente").length} cuentas por cobrar</p>
         </div>
         <button
           onClick={() => { setError(null); setShowNuevo(true); }}
           className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800"
         >
-          <Plus className="h-4 w-4" /> Nuevo fiado
+          <Plus className="h-4 w-4" /> Nueva cuenta
         </button>
       </div>
 
@@ -222,42 +222,42 @@ export default function Fiados({ cajaId }: Props) {
         ) : filtrados.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <AlertCircle className="h-10 w-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No hay fiados {filtro === "todos" ? "" : filtro + "s"}</p>
+            <p className="text-sm">No hay cuentas {filtro === "todos" ? "" : filtro + "s"}</p>
           </div>
         ) : (
-          filtrados.map((fiado) => (
+          filtrados.map((cuenta) => (
             <button
-              key={fiado.id}
-              onClick={() => void abrirDetalle(fiado.id)}
+              key={cuenta.id}
+              onClick={() => void abrirDetalle(cuenta.id)}
               className="w-full rounded-xl bg-white border border-gray-100 p-3 text-left hover:shadow-sm hover:border-blue-200 transition-all"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900 truncate">{fiado.nombre_cliente}</p>
-                    <EstadoBadge estado={fiado.estado} />
+                    <p className="font-semibold text-gray-900 truncate">{cuenta.nombre_cliente}</p>
+                    <EstadoBadge estado={cuenta.estado} />
                   </div>
-                  {fiado.telefono_cliente && (
-                    <p className="text-xs text-gray-400 mt-0.5">{fiado.telefono_cliente}</p>
+                  {cuenta.telefono_cliente && (
+                    <p className="text-xs text-gray-400 mt-0.5">{cuenta.telefono_cliente}</p>
                   )}
-                  {fiado.fecha_vencimiento && fiado.estado === "pendiente" && (
+                  {cuenta.fecha_vencimiento && cuenta.estado === "pendiente" && (
                     <p className="text-xs text-orange-500 mt-0.5 flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Vence: {fiado.fecha_vencimiento}
+                      <Clock className="h-3 w-3" /> Vence: {cuenta.fecha_vencimiento}
                     </p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{cop(saldo(fiado))}</p>
-                  <p className="text-xs text-gray-400">de {cop(fiado.monto_total)}</p>
+                  <p className="text-sm font-bold text-gray-900">{cop(saldo(cuenta))}</p>
+                  <p className="text-xs text-gray-400">de {cop(cuenta.monto_total)}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0 mt-1" />
               </div>
-              {Number(fiado.monto_pagado) > 0 && (
+              {Number(cuenta.monto_pagado) > 0 && (
                 <div className="mt-2">
                   <div className="h-1.5 w-full rounded-full bg-gray-100">
                     <div
                       className="h-1.5 rounded-full bg-green-400"
-                      style={{ width: `${Math.min(100, (Number(fiado.monto_pagado) / Number(fiado.monto_total)) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (Number(cuenta.monto_pagado) / Number(cuenta.monto_total)) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export default function Fiados({ cajaId }: Props) {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-500">Total fiado</p>
+                  <p className="text-xs text-gray-500">Total cuenta</p>
                   <p className="text-sm font-semibold text-gray-700">{cop(detalle.monto_total)}</p>
                   <EstadoBadge estado={detalle.estado} />
                 </div>
@@ -299,7 +299,7 @@ export default function Fiados({ cajaId }: Props) {
 
               {/* Ítems */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Artículos fiados</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Artículos</p>
                 <div className="space-y-1">
                   {detalle.items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
@@ -391,12 +391,12 @@ export default function Fiados({ cajaId }: Props) {
         </div>
       )}
 
-      {/* Modal nuevo fiado */}
+      {/* Modal nuevo cuenta */}
       {showNuevo && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-40">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg shadow-2xl max-h-[95vh] flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
-              <p className="font-bold text-gray-900">Nuevo fiado</p>
+              <p className="font-bold text-gray-900">Nueva cuenta</p>
               <button onClick={() => { setShowNuevo(false); setError(null); }} className="text-gray-400">
                 <X className="h-5 w-5" />
               </button>
@@ -481,10 +481,10 @@ export default function Fiados({ cajaId }: Props) {
                 </div>
               </div>
 
-              {totalNuevoFiado > 0 && (
+              {totalNuevoCuenta > 0 && (
                 <div className="flex justify-between items-center rounded-xl bg-blue-50 px-4 py-2">
-                  <span className="text-sm font-medium text-blue-700">Total fiado</span>
-                  <span className="text-lg font-bold text-blue-700">{cop(totalNuevoFiado)}</span>
+                  <span className="text-sm font-medium text-blue-700">Total cuenta</span>
+                  <span className="text-lg font-bold text-blue-700">{cop(totalNuevoCuenta)}</span>
                 </div>
               )}
 
@@ -510,11 +510,11 @@ export default function Fiados({ cajaId }: Props) {
                 Cancelar
               </button>
               <button
-                onClick={() => void crearFiado()}
+                onClick={() => void crearCuenta()}
                 disabled={procesando}
                 className="flex-1 rounded-xl bg-blue-700 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-40"
               >
-                {procesando ? "Guardando..." : `Registrar fiado ${totalNuevoFiado > 0 ? cop(totalNuevoFiado) : ""}`}
+                {procesando ? "Guardando..." : `Registrar cuenta ${totalNuevoCuenta > 0 ? cop(totalNuevoCuenta) : ""}`}
               </button>
             </div>
           </div>

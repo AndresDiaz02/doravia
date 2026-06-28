@@ -38,6 +38,11 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET /api/empresa/pos-config-get
+router.get("/pos-config-get", async (req, res) => {
+  res.json({ pos_config: req.tenant.pos_config ?? {} });
+});
+
 // PATCH /api/empresa — actualiza datos de texto
 router.patch("/", requireNotContador, async (req, res) => {
   try {
@@ -165,6 +170,33 @@ router.patch("/addons", async (req, res) => {
     res.json({ addons: updated.addons });
   } catch (err) {
     console.error("Error en PATCH /empresa/addons:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/empresa/pos-config — activa/desactiva módulos del POS (solo admin)
+router.patch("/pos-config", requireNotContador, async (req, res) => {
+  try {
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ error: "Solo el administrador puede configurar módulos POS." });
+    }
+    const { cartera_visible, citas_visible } = req.body as {
+      cartera_visible?: boolean; citas_visible?: boolean;
+    };
+    const actual = (req.tenant.pos_config ?? {}) as Record<string, boolean>;
+    const nuevo = {
+      ...actual,
+      ...(cartera_visible !== undefined && { cartera_visible }),
+      ...(citas_visible   !== undefined && { citas_visible }),
+    };
+    const [updated] = await db
+      .update(tenants)
+      .set({ pos_config: nuevo })
+      .where(eq(tenants.id, req.tenantId))
+      .returning({ pos_config: tenants.pos_config });
+    res.json({ pos_config: updated.pos_config });
+  } catch (err) {
+    console.error("Error en PATCH /empresa/pos-config:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

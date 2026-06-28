@@ -72,6 +72,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onC
   const [montoRecibido, setMontoRecibido] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [procesando, setProcesando] = useState(false);
+  const [showFiarForm, setShowFiarForm] = useState(false);
+  const [nombreFiado, setNombreFiado] = useState("");
   const [ultimaVenta, setUltimaVenta] = useState<{
     numero: string; total: number; vuelto: number;
     items: ItemCarrito[]; clienteNombre: string; metodoPago: string;
@@ -227,6 +229,48 @@ export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onC
       setObservaciones("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al procesar la venta.");
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  async function procesarFiado() {
+    if (!nombreFiado.trim() || procesando) return;
+    setProcesando(true);
+    setError(null);
+    try {
+      const items = carrito.map((i) => {
+        const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
+        const ivaVal = base * (Number(i.producto.iva_pct) / 100);
+        return {
+          producto_id: i.producto.id,
+          descripcion: i.producto.nombre,
+          cantidad: i.cantidad,
+          precio_unitario: i.precio_unitario,
+          total: base + ivaVal,
+        };
+      });
+
+      await apiFetch("/api/pos/fiados", {
+        method: "POST",
+        body: JSON.stringify({
+          caja_id: cajaId,
+          nombre_cliente: nombreFiado.trim(),
+          items,
+        }),
+      });
+
+      setCarrito([]);
+      setShowPago(false);
+      setShowFiarForm(false);
+      setNombreFiado("");
+      setClienteNombre("");
+      setClienteId(null);
+      setClienteQuery("");
+      setError(null);
+      busquedaRef.current?.focus();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error al registrar en cartera.");
     } finally {
       setProcesando(false);
     }
@@ -671,6 +715,39 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             >
               {procesando ? "Procesando..." : "Confirmar venta"}
             </button>
+
+            {/* Fiar a cartera */}
+            {!showFiarForm ? (
+              <button
+                onClick={() => setShowFiarForm(true)}
+                className="w-full rounded-xl border border-slate-700 py-2.5 text-sm font-medium text-slate-400 hover:text-amber-400 hover:border-amber-700 transition-colors"
+              >
+                Registrar como cartera (sin cobro)
+              </button>
+            ) : (
+              <div className="space-y-2 border border-amber-700/50 rounded-xl p-3 bg-amber-950/20">
+                <p className="text-xs text-amber-400 font-medium">El inventario se descuenta pero el pago queda pendiente</p>
+                <input
+                  autoFocus
+                  value={nombreFiado}
+                  onChange={(e) => setNombreFiado(e.target.value)}
+                  placeholder="Nombre del cliente *"
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowFiarForm(false); setNombreFiado(""); }} className="flex-1 rounded-lg border border-slate-700 py-2 text-sm text-slate-400">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => void procesarFiado()}
+                    disabled={procesando || !nombreFiado.trim()}
+                    className="flex-1 rounded-lg bg-amber-600 hover:bg-amber-500 py-2 text-sm font-bold text-white disabled:opacity-40"
+                  >
+                    {procesando ? "Guardando..." : "Confirmar"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

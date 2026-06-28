@@ -114,6 +114,7 @@ export const fiados = pgTable("fiados", {
 export const items_fiado = pgTable("items_fiado", {
   id:              uuid("id").primaryKey().defaultRandom(),
   fiado_id:        uuid("fiado_id").notNull().references(() => fiados.id),
+  producto_id:     uuid("producto_id").references(() => productos.id),
   descripcion:     varchar("descripcion", { length: 300 }).notNull(),
   cantidad:        numeric("cantidad",        { precision: 10, scale: 4 }).notNull(),
   precio_unitario: numeric("precio_unitario", { precision: 14, scale: 4 }).notNull(),
@@ -132,3 +133,26 @@ export const abonos_fiado = pgTable("abonos_fiado", {
 
 export type Fiado = typeof fiados.$inferSelect;
 export type AbonoFiado = typeof abonos_fiado.$inferSelect;
+
+// ── Citas / Agenda POS ──────────────────────────────────────────────────────
+export const ESTADOS_CITA = ["programada", "en_proceso", "completada", "cancelada"] as const;
+export type EstadoCita = (typeof ESTADOS_CITA)[number];
+
+export const citas_pos = pgTable("citas_pos", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  tenant_id:         uuid("tenant_id").notNull().references(() => tenants.id),
+  caja_id:           uuid("caja_id").references(() => cajas_pos.id),
+  cliente_nombre:    varchar("cliente_nombre", { length: 200 }).notNull(),
+  cliente_telefono:  varchar("cliente_telefono", { length: 30 }),
+  fecha_hora:        timestamp("fecha_hora", { withTimezone: true }).notNull(),
+  servicio:          varchar("servicio", { length: 200 }).notNull(),
+  profesional:       varchar("profesional", { length: 200 }),
+  duracion_min:      integer("duracion_min").default(30),
+  notas:             text("notas"),
+  estado:            varchar("estado", { length: 20 }).$type<EstadoCita>().notNull().default("programada"),
+  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type CitaPos = typeof citas_pos.$inferSelect;
+export type NewCitaPos = typeof citas_pos.$inferInsert;

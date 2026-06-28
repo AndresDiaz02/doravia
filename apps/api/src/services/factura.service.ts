@@ -15,6 +15,7 @@ export interface ItemInput {
   precio_unitario: number;
   descuento_pct?: number;
   iva_pct?: number;
+  unidad_medida?: string;
 }
 
 export interface RetencionInput {
@@ -31,6 +32,8 @@ export interface CrearFacturaInput {
   retenciones?: RetencionInput[];
   fecha_vencimiento?: string;
   observaciones?: string;
+  condicion_pago?: string;
+  forma_pago?: string;
 }
 
 function calcularItem(item: ItemInput) {
@@ -119,6 +122,8 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         total: String(total),
         total_retenciones: String(total_retenciones),
         neto_a_pagar: String(neto_a_pagar),
+        condicion_pago: (input.condicion_pago ?? "contado") as "contado" | "credito",
+        forma_pago: (input.forma_pago ?? "efectivo") as "efectivo" | "tarjeta_credito" | "tarjeta_debito" | "transferencia" | "cheque" | "otro",
         observaciones: input.observaciones ?? null,
       })
       .returning();
@@ -132,6 +137,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         precio_unitario: String(item.precio_unitario),
         descuento_pct: String(item.descuento_pct ?? 0),
         iva_pct: String(item.iva_pct ?? 19),
+        unidad_medida: (item.unidad_medida ?? "UN") as "UN" | "KG" | "GR" | "LT" | "ML" | "MT" | "CM" | "M2" | "M3" | "HOR" | "DIA" | "MES" | "BOL" | "CJA" | "PAR" | "DOZ",
         subtotal: String(item.subtotal),
         iva_valor: String(item.iva_valor),
         total: String(item.total),

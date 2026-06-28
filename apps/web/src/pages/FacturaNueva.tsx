@@ -41,6 +41,24 @@ interface RetencionAplicada {
 
 let nextRetKey = 0;
 
+const UNIDADES = [
+  { value: "UN", label: "UN — Unidad" },
+  { value: "KG", label: "KG — Kilogramo" },
+  { value: "GR", label: "GR — Gramo" },
+  { value: "LT", label: "LT — Litro" },
+  { value: "ML", label: "ML — Mililitro" },
+  { value: "MT", label: "MT — Metro" },
+  { value: "M2", label: "M2 — Metro²" },
+  { value: "M3", label: "M3 — Metro³" },
+  { value: "HOR", label: "HOR — Hora" },
+  { value: "DIA", label: "DIA — Día" },
+  { value: "MES", label: "MES — Mes" },
+  { value: "BOL", label: "BOL — Bolsa" },
+  { value: "CJA", label: "CJA — Caja" },
+  { value: "PAR", label: "PAR — Par" },
+  { value: "DOZ", label: "DOZ — Docena" },
+] as const;
+
 interface Linea {
   key: number;
   producto_id: string;
@@ -49,6 +67,7 @@ interface Linea {
   precio_unitario: string;
   descuento_pct: string;
   iva_pct: string;
+  unidad_medida: string;
 }
 
 function calcLinea(l: Linea) {
@@ -72,6 +91,7 @@ function newLinea(): Linea {
     precio_unitario: "",
     descuento_pct: "0",
     iva_pct: "19",
+    unidad_medida: "UN",
   };
 }
 
@@ -81,6 +101,8 @@ export function FacturaNueva() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clienteId, setClienteId] = useState(params.get("cliente_id") ?? "");
+  const [condicionPago, setCondicionPago] = useState<"contado" | "credito">("contado");
+  const [formaPago, setFormaPago] = useState("efectivo");
   const [fechaVenc, setFechaVenc] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([newLinea()]);
@@ -179,6 +201,8 @@ export function FacturaNueva() {
     try {
       const body = {
         cliente_id: clienteId,
+        condicion_pago: condicionPago,
+        forma_pago: formaPago,
         fecha_vencimiento: fechaVenc || undefined,
         observaciones: observaciones || undefined,
         items: lineas.map((l) => ({
@@ -188,6 +212,7 @@ export function FacturaNueva() {
           precio_unitario: Number(l.precio_unitario),
           descuento_pct: Number(l.descuento_pct),
           iva_pct: Number(l.iva_pct),
+          unidad_medida: l.unidad_medida,
         })),
         retenciones: retencionesAplicadas.map((r) => ({
           config_id: r.config_id,
@@ -249,11 +274,48 @@ export function FacturaNueva() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="fecha_venc">Fecha de vencimiento</Label>
+              <Label htmlFor="condicion_pago">Condición de pago *</Label>
+              <select
+                id="condicion_pago"
+                value={condicionPago}
+                onChange={(e) => {
+                  const v = e.target.value as "contado" | "credito";
+                  setCondicionPago(v);
+                  if (v === "contado") setFechaVenc("");
+                }}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="forma_pago">Forma de pago *</Label>
+              <select
+                id="forma_pago"
+                value={formaPago}
+                onChange={(e) => setFormaPago(e.target.value)}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta_credito">Tarjeta crédito</option>
+                <option value="tarjeta_debito">Tarjeta débito</option>
+                <option value="transferencia">Transferencia bancaria</option>
+                <option value="cheque">Cheque</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="fecha_venc">
+                Fecha de vencimiento{condicionPago === "credito" ? " *" : ""}
+              </Label>
               <Input
                 id="fecha_venc"
                 type="date"
                 value={fechaVenc}
+                required={condicionPago === "credito"}
                 onChange={(e) => setFechaVenc(e.target.value)}
               />
             </div>
@@ -284,6 +346,7 @@ export function FacturaNueva() {
                 <thead className="border-b border-gray-100 bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium text-gray-500 min-w-[200px]">Descripción</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 w-24">Unidad</th>
                     <th className="px-4 py-3 text-right font-medium text-gray-500 w-20">Cant.</th>
                     <th className="px-4 py-3 text-right font-medium text-gray-500 w-32">Precio unit.</th>
                     <th className="px-4 py-3 text-right font-medium text-gray-500 w-20">Desc. %</th>
@@ -318,6 +381,17 @@ export function FacturaNueva() {
                             placeholder="Descripción del ítem"
                             required
                           />
+                        </td>
+                        <td className="px-4 py-2">
+                          <select
+                            value={l.unidad_medida}
+                            onChange={(e) => setLinea(l.key, "unidad_medida", e.target.value)}
+                            className="block w-full rounded-md border border-gray-300 bg-white px-2 py-2 text-xs"
+                          >
+                            {UNIDADES.map((u) => (
+                              <option key={u.value} value={u.value}>{u.value}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-2">
                           <Input

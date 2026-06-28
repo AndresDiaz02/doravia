@@ -3,6 +3,7 @@ import {
   db, facturas, items_factura, clientes, notas_credito, items_nota_credito,
   asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_CREDITO,
 } from "@workspace/db";
+import { audit } from "../services/audit.service.js";
 import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
@@ -198,6 +199,7 @@ router.post("/factura/:facturaId", async (req, res) => {
       return n;
     });
 
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "nota_credito.creada", entidadTipo: "nota_credito", entidadId: nota.id, detalle: { numero: nota.numero, tipo: nota.tipo, total: nota.total, factura_id: factura.id }, ip: req.ip });
     res.status(201).json(nota);
   } catch (err) {
     console.error("Error en POST /notas-credito/factura/:facturaId:", err);

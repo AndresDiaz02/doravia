@@ -17,4 +17,5 @@ export * from "./ensamble.ts";
 export * from "./retenciones.ts";
 export * from "./notas_credito.ts";
 export * from "./pos.ts";
+export * from "./audit_log.ts";
 

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { createHash, randomBytes } from "crypto";
 import { db, users, tenants, plans, refresh_tokens, user_accesos } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import type { User } from "@workspace/db";
@@ -49,16 +50,20 @@ export function verifyAccessToken(token: string): AccessPayload {
   return jwt.verify(token, jwtSecret()) as AccessPayload;
 }
 
+function hashToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
+
 async function createRefreshToken(userId: string, tenantId: string): Promise<string> {
+  const raw = randomBytes(32).toString("base64url");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + REFRESH_TTL_DAYS);
 
-  const [row] = await db
+  await db
     .insert(refresh_tokens)
-    .values({ user_id: userId, tenant_id: tenantId, expires_at: expiresAt })
-    .returning();
+    .values({ user_id: userId, tenant_id: tenantId, token_hash: hashToken(raw), expires_at: expiresAt });
 
-  return row.id;
+  return raw;
 }
 
 // ── Registro ─────────────────────────────────────────────────────────────────
@@ -295,11 +300,11 @@ export async function getEmpresasUsuario(userId: string, currentTenantId: string
 
 // ── Refresh ──────────────────────────────────────────────────────────────────
 
-export async function refreshAccessToken(tokenId: string) {
+export async function refreshAccessToken(rawToken: string) {
   const [token] = await db
     .select()
     .from(refresh_tokens)
-    .where(eq(refresh_tokens.id, tokenId))
+    .where(eq(refresh_tokens.token_hash, hashToken(rawToken)))
     .limit(1);
 
   if (!token) throw new Error("Refresh token inválido.");
@@ -337,11 +342,11 @@ export async function refreshAccessToken(tokenId: string) {
 
 // ── Logout ───────────────────────────────────────────────────────────────────
 
-export async function logout(tokenId: string) {
+export async function logout(rawToken: string) {
   await db
     .update(refresh_tokens)
     .set({ revoked_at: new Date() })
-    .where(eq(refresh_tokens.id, tokenId));
+    .where(eq(refresh_tokens.token_hash, hashToken(rawToken)));
 }
 
 // ── Cambio de contraseña ─────────────────────────────────────────────────────

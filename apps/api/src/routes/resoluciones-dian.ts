@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, resoluciones_dian } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import type { Request, Response, NextFunction } from "express";
+import { audit } from "../services/audit.service.js";
 
 const router = Router();
 
@@ -85,6 +86,7 @@ router.post("/", requireAdmin, async (req, res) => {
       return row;
     });
 
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "resolucion_dian.registrada", entidadTipo: "resolucion_dian", entidadId: nueva.id, detalle: { numero: nueva.numero_resolucion, prefijo: nueva.prefijo, desde: nueva.consecutivo_desde, hasta: nueva.consecutivo_hasta }, ip: req.ip });
     res.status(201).json(nueva);
   } catch (err) {
     console.error("Error en POST /resoluciones-dian:", err);

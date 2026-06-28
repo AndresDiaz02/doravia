@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import { assertCanAddUsuario } from "../guards/plan-limits.js";
 import { PlanLimitError } from "@workspace/shared";
+import { audit } from "../services/audit.service.js";
 
 const router = Router();
 
@@ -80,6 +81,7 @@ router.post("/", async (req, res) => {
     .returning();
 
   const { password_hash: _, ...sinHash } = nuevo;
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "usuario.creado", entidadTipo: "usuario", entidadId: nuevo.id, detalle: { email: nuevo.email, role: nuevo.role }, ip: req.ip });
   res.status(201).json(sinHash);
 });
 
@@ -114,6 +116,7 @@ router.patch("/:id", async (req, res) => {
     .returning();
 
   const { password_hash: _, ...sinHash } = actualizado;
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "usuario.modificado", entidadTipo: "usuario", entidadId: usuario.id, detalle: { campo: req.body }, ip: req.ip });
   res.json(sinHash);
 });
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Download } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -243,7 +243,15 @@ export default function ConfiguracionEmpresa() {
         {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
         {ok && <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">Configuración guardada correctamente.</p>}
 
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <button
+            type="button"
+            onClick={() => { window.location.href = "/api/exportar/datos-empresa"; }}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar datos (Ley 1581)
+          </button>
           <Button type="submit" disabled={guardando}>
             {guardando ? "Guardando..." : "Guardar cambios"}
           </Button>

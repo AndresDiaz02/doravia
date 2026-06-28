@@ -5,6 +5,7 @@ import { crearFactura } from "../services/factura.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
+import { audit } from "../services/audit.service.js";
 import { PlanLimitError } from "@workspace/shared";
 
 const router = Router();
@@ -133,6 +134,7 @@ router.patch("/:id/marcar-pagada", async (req, res) => {
     .where(eq(facturas.id, factura.id))
     .returning();
 
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.marcada_pagada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total }, ip: req.ip });
   res.json(actualizada);
 });
 
@@ -146,6 +148,7 @@ router.post("/", async (req, res) => {
   try {
     await verificarPeriodoAbierto(req.tenantId, new Date());
     const factura = await crearFactura(req.tenant, { cliente_id, items, fecha_vencimiento, observaciones });
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.creada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total, estado: factura.estado }, ip: req.ip });
     res.status(201).json(factura);
   } catch (err) {
     if (err instanceof PlanLimitError) {

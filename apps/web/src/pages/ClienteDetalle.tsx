@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, FileText, ShieldOff } from "lucide-react";
 import { apiFetch, cop, fecha } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 interface ClienteDetalle {
   id: string;
@@ -37,8 +39,24 @@ const ESTADO_BADGE: Record<string, "green" | "yellow" | "red" | "gray" | "blue">
 export function ClienteDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [cliente, setCliente] = useState<ClienteDetalle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [anonimizando, setAnonimizando] = useState(false);
+
+  async function handleAnonimizar() {
+    if (!confirm("¿Confirmas que deseas anonimizar los datos personales de este cliente? Esta acción no se puede deshacer. Los registros fiscales (número de documento, facturas) se conservan por obligación legal.")) return;
+    setAnonimizando(true);
+    try {
+      await apiFetch(`/api/clientes/${id!}/anonimizar`, { method: "DELETE" });
+      navigate("/clientes", { replace: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al anonimizar.";
+      alert(msg);
+    } finally {
+      setAnonimizando(false);
+    }
+  }
 
   useEffect(() => {
     void apiFetch<ClienteDetalle>(`/api/clientes/${id!}`)
@@ -63,14 +81,27 @@ export function ClienteDetalle() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="rounded p-1.5 text-gray-400 hover:bg-gray-100"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <h1 className="text-xl font-semibold text-gray-900">{cliente.nombre}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded p-1.5 text-gray-400 hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900">{cliente.nombre}</h1>
+        </div>
+        {user?.role === "admin" && cliente.nombre !== "DATOS ELIMINADOS" && (
+          <Button
+            variant="secondary"
+            onClick={() => void handleAnonimizar()}
+            disabled={anonimizando}
+            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+          >
+            <ShieldOff className="h-4 w-4" />
+            {anonimizando ? "Anonimizando..." : "Anonimizar datos (Ley 1581)"}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas } from "@workspace/db";
+import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -214,6 +214,48 @@ router.get("/inventario", async (req, res) => {
     enviarExcel(res, wb, "inventario_movimientos.xlsx");
   } catch (err) {
     console.error("Error en GET /exportar/inventario:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/datos-empresa
+// Exporta todos los datos personales del tenant como JSON (Ley 1581 — portabilidad de datos).
+// Solo para administradores.
+router.get("/datos-empresa", async (req, res) => {
+  if (req.userRole !== "admin") {
+    return res.status(403).json({ error: "Solo los administradores pueden exportar los datos completos." });
+  }
+
+  try {
+    const [empresa] = await db
+      .select({ id: tenants.id, nombre: tenants.nombre, nit: tenants.nit, correo: tenants.correo, direccion: tenants.direccion, ciudad: tenants.ciudad, created_at: tenants.created_at })
+      .from(tenants)
+      .where(eq(tenants.id, req.tenantId))
+      .limit(1);
+
+    const [clientesData, usuariosData, facturasData] = await Promise.all([
+      db.select({ id: clientes.id, tipo_persona: clientes.tipo_persona, tipo_documento: clientes.tipo_documento, numero_documento: clientes.numero_documento, nombre: clientes.nombre, correo: clientes.correo, telefono: clientes.telefono, direccion: clientes.direccion, municipio: clientes.municipio, departamento: clientes.departamento, activo: clientes.activo, created_at: clientes.created_at })
+        .from(clientes).where(eq(clientes.tenant_id, req.tenantId)),
+      db.select({ id: users.id, nombre: users.nombre, email: users.email, role: users.role, activo: users.activo, created_at: users.created_at })
+        .from(users).where(eq(users.tenant_id, req.tenantId)),
+      db.select({ id: facturas.id, numero: facturas.numero, fecha_emision: facturas.fecha_emision, estado: facturas.estado, total: facturas.total, cliente_id: facturas.cliente_id })
+        .from(facturas).where(eq(facturas.tenant_id, req.tenantId)).orderBy(desc(facturas.fecha_emision)).limit(5000),
+    ]);
+
+    const exportacion = {
+      generado_en: new Date().toISOString(),
+      ley_aplicable: "Ley 1581 de 2012 — Habeas Data Colombia",
+      empresa,
+      clientes: clientesData,
+      usuarios: usuariosData,
+      facturas_resumen: facturasData,
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="datos-empresa-${empresa?.nit ?? req.tenantId}-${new Date().toISOString().split("T")[0]}.json"`);
+    res.json(exportacion);
+  } catch (err) {
+    console.error("Error en GET /exportar/datos-empresa:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { db, clientes } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
-import { facturas } from "@workspace/db";
+import { db, clientes, facturas } from "@workspace/db";
+import { eq, and, desc, inArray, or, isNull } from "drizzle-orm";
+import { audit } from "../services/audit.service.js";
 
 const router = Router();
 
@@ -109,6 +109,62 @@ router.patch("/:id", async (req, res) => {
     res.json(actualizado);
   } catch (err) {
     console.error("Error en PATCH /clientes/:id:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// DELETE /api/clientes/:id/anonimizar — Ley 1581 derecho al olvido
+// Anonimiza los datos personales del cliente manteniendo el registro fiscal obligatorio.
+// Rechaza si tiene facturas pendientes de pago (obligación tributaria vigente).
+router.delete("/:id/anonimizar", async (req, res) => {
+  try {
+    const [cliente] = await db
+      .select()
+      .from(clientes)
+      .where(and(eq(clientes.id, req.params.id), eq(clientes.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!cliente) return res.status(404).json({ error: "Cliente no encontrado." });
+
+    // Bloquear si hay facturas en borrador/enviadas o aceptadas pero sin pago registrado
+    const facturasPendientes = await db
+      .select({ id: facturas.id })
+      .from(facturas)
+      .where(and(
+        eq(facturas.cliente_id, cliente.id),
+        eq(facturas.tenant_id, req.tenantId),
+        or(
+          inArray(facturas.estado, ["borrador", "enviada"]),
+          and(eq(facturas.estado, "aceptada"), isNull(facturas.pagada_at)),
+        ),
+      ))
+      .limit(1);
+
+    if (facturasPendientes.length > 0) {
+      return res.status(422).json({
+        error: "No se pueden anonimizar los datos de un cliente con facturas activas o pendientes de pago. Resuelve las facturas primero.",
+        code: "FACTURAS_PENDIENTES",
+      });
+    }
+
+    const [anonimizado] = await db
+      .update(clientes)
+      .set({
+        nombre: "DATOS ELIMINADOS",
+        correo: null,
+        telefono: null,
+        direccion: null,
+        municipio: null,
+        departamento: null,
+        activo: false,
+      })
+      .where(eq(clientes.id, cliente.id))
+      .returning();
+
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "cliente.anonimizado", entidadTipo: "cliente", entidadId: cliente.id, detalle: { numero_documento: cliente.numero_documento }, ip: req.ip });
+    res.json({ ok: true, id: anonimizado.id });
+  } catch (err) {
+    console.error("Error en DELETE /clientes/:id/anonimizar:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

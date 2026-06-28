@@ -94,8 +94,6 @@ export async function registrarTenant(input: RegistrarTenantInput) {
         plan_id: plan.id,
         plan_starts_at: ahora,
         plan_ends_at: planFin,
-        en_prueba: !esPlanGratis,
-        prueba_ends_at: esPlanGratis ? null : pruebaFin,
       })
       .returning();
 

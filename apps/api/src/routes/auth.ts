@@ -131,8 +131,6 @@ router.get("/me", authenticate, async (req, res) => {
       nit: req.tenant.nit,
       plan_ends_at: req.tenant.plan_ends_at,
       onboarding_completado: req.tenant.onboarding_completado,
-      en_prueba: req.tenant.en_prueba,
-      prueba_ends_at: req.tenant.prueba_ends_at,
     },
     plan: {
       slug: plan.slug,

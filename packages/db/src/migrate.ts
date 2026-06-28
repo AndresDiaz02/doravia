@@ -1,22 +1,21 @@
-import { Client } from "pg";
+import postgres from "postgres";
 
-const client = new Client({ connectionString: process.env.DATABASE_URL });
-
-await client.connect();
+const sql = postgres(process.env.DATABASE_URL!);
 
 const migrations = [
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS en_prueba boolean NOT NULL DEFAULT true`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS prueba_ends_at timestamptz`,
 ];
 
-for (const sql of migrations) {
+for (const migration of migrations) {
   try {
-    await client.query(sql);
-    console.log("✓", sql.slice(0, 60));
+    await sql.unsafe(migration);
+    console.log("✓", migration.slice(0, 70));
   } catch (e) {
     console.error("✗", e instanceof Error ? e.message : e);
   }
 }
 
-await client.end();
+await sql.end();
 console.log("Migración completada.");
+process.exit(0);

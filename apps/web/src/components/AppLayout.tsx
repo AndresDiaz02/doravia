@@ -333,46 +333,12 @@ export function AppLayout() {
 
       {/* Área principal */}
       <main className="flex flex-1 flex-col overflow-auto">
-        <TrialBanner tenant={tenant} />
         <Outlet />
       </main>
     </div>
   );
 }
 
-function TrialBanner({ tenant }: { tenant: import("../lib/auth").TenantInfo | null }) {
-  if (!tenant?.en_prueba || !tenant.prueba_ends_at) return null;
-
-  const fin = new Date(tenant.prueba_ends_at);
-  const hoy = new Date();
-  const dias = Math.max(0, Math.ceil((fin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)));
-
-  if (dias === 0) return null; // middleware ya bloqueó con 402
-
-  const urgente = dias <= 3;
-
-  return (
-    <div className={`flex items-center justify-between px-5 py-2.5 text-sm ${
-      urgente ? "bg-red-600 text-white" : "bg-amber-50 border-b border-amber-200 text-amber-800"
-    }`}>
-      <span>
-        {urgente ? "⚠ " : ""}
-        Período de prueba — te quedan <strong>{dias} día{dias !== 1 ? "s" : ""}</strong>.
-        {urgente ? " Activa tu plan para no perder el acceso." : " Después deberás activar tu suscripción."}
-      </span>
-      <Link
-        to="/planes"
-        className={`ml-4 flex-shrink-0 rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-          urgente
-            ? "bg-white text-red-700 hover:bg-red-50"
-            : "bg-amber-600 text-white hover:bg-amber-700"
-        }`}
-      >
-        Ver planes →
-      </Link>
-    </div>
-  );
-}
 
 function NavItem({
   to,

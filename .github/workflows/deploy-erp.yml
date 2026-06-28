@@ -24,6 +24,7 @@ jobs:
       - run: pnpm --filter @workspace/web build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_POS_URL: https://pos.doraviasoft.com
 
       - run: npx wrangler pages deploy apps/web/dist --project-name=doravia-erp
         env:

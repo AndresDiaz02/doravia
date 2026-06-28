@@ -27,6 +27,7 @@ import {
   Users,
   Warehouse,
   Calendar,
+  Zap,
 } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
@@ -90,7 +91,7 @@ const CONFIG = [
 ];
 
 export function AppLayout() {
-  const { user, tenant, plan, empresas, logout, isContador, isVendedor, cambiarEmpresa } = useAuth();
+  const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador, cambiarEmpresa } = useAuth();
   const [showEmpresaMenu, setShowEmpresaMenu] = useState(false);
   const [cambiando, setCambiando] = useState(false);
   const empresaMenuRef = useRef<HTMLDivElement>(null);
@@ -320,6 +321,24 @@ export function AppLayout() {
           )}
           {user?.role === "admin" && (
             <NavItem to="/auditoria" label="Auditoría" icon={ShieldCheck} isActive={active("/auditoria")} />
+          )}
+
+          {isFundador && (
+            <>
+              <div className="my-2 border-t border-gray-100" />
+              <Link
+                to="/fundador"
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  active("/fundador")
+                    ? "bg-slate-800 text-amber-400"
+                    : "text-slate-600 hover:bg-slate-800 hover:text-amber-400",
+                )}
+              >
+                <Zap className="h-4 w-4 flex-shrink-0" />
+                Panel Fundadores
+              </Link>
+            </>
           )}
         </nav>
 

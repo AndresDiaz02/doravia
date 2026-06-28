@@ -38,6 +38,9 @@ import ModulosAdicionales from "./pages/ModulosAdicionales";
 import ResultadoPago from "./pages/ResultadoPago";
 import Onboarding from "./pages/Onboarding";
 import AuditLog from "./pages/AuditLog";
+import FundadorLayout from "./components/FundadorLayout";
+import FundadorAdmin from "./pages/FundadorAdmin";
+import FundadorMarketing from "./pages/FundadorMarketing";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -96,6 +99,13 @@ export default function App() {
               <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
               <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
               <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
+            </Route>
+
+            {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}
+            <Route path="/fundador" element={<FundadorLayout />}>
+              <Route index element={<Navigate to="/fundador/admin" replace />} />
+              <Route path="admin" element={<FundadorAdmin />} />
+              <Route path="marketing" element={<FundadorMarketing />} />
             </Route>
           </Route>
 

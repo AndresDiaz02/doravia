@@ -18,4 +18,6 @@ export * from "./retenciones.ts";
 export * from "./notas_credito.ts";
 export * from "./pos.ts";
 export * from "./audit_log.ts";
+export * from "./gastos_internos.ts";
+export * from "./comisiones_contador.ts";
 

@@ -32,6 +32,8 @@ import carteraRouter from "./routes/cartera.js";
 import documentosRouter from "./routes/documentos.js";
 import posRouter from "./routes/pos.js";
 import auditLogRouter from "./routes/audit-log.js";
+import fundadorRouter from "./routes/fundador.js";
+import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
 
@@ -100,6 +102,7 @@ app.use("/api/cartera",        authenticate, requirePlanFeature("cartera_avanzad
 app.use("/api/documentos",     authenticate, documentosRouter);
 app.use("/api/pos",            authenticate, requirePlanFeature("pos"), posRouter);
 app.use("/api/audit-log",      authenticate, auditLogRouter);
+app.use("/api/fundador",       requireFundador, fundadorRouter);
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

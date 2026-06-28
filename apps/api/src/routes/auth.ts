@@ -129,8 +129,13 @@ router.get("/me", authenticate, async (req, res) => {
   // Lista de todas las empresas a las que el usuario tiene acceso
   const empresas = await getEmpresasUsuario(req.userId, req.tenantId);
 
+  const fundadorList = (process.env.FUNDADOR_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
   res.json({
-    user: { ...user, role: req.userRole }, // role puede ser diferente si es acceso externo
+    user: { ...user, role: req.userRole, is_fundador: fundadorList.includes(user.email.toLowerCase()) },
     tenant: {
       id: req.tenant.id,
       nombre: req.tenant.nombre,

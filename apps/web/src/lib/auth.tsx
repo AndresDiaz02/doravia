@@ -13,6 +13,7 @@ export interface AuthUser {
   email: string;
   nombre: string;
   role: string;
+  is_fundador?: boolean;
 }
 
 export interface PlanInfo {
@@ -56,6 +57,7 @@ interface AuthCtx {
   isLoading: boolean;
   isContador: boolean;
   isVendedor: boolean;
+  isFundador: boolean;
   login: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   cambiarEmpresa: (tenantId: string) => Promise<void>;
@@ -144,9 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isContador = user?.role === "contador";
   const isVendedor = user?.role === "vendedor";
+  const isFundador = user?.is_fundador === true;
 
   return (
-    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, login, logout, cambiarEmpresa }}>
+    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, login, logout, cambiarEmpresa }}>
       {children}
     </Ctx.Provider>
   );

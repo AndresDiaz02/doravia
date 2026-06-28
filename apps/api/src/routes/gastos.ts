@@ -217,8 +217,8 @@ router.patch("/:id", requireNotContador, async (req, res) => {
       const asientoId = await crearAsientoGasto(req.tenantId, actualizado);
       await db.update(gastos).set({ asiento_id: asientoId }).where(eq(gastos.id, actualizado.id));
       actualizado.asiento_id = asientoId;
-    } catch {
-      // Asiento no crítico — el gasto queda aprobado aunque el asiento falle
+    } catch (err) {
+      console.error("Error al crear asiento de gasto:", err);
     }
   }
 

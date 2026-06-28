@@ -46,14 +46,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     });
   }
 
-  // Prueba gratuita vencida sin pago
-  if (req.tenant.en_prueba && req.tenant.prueba_ends_at && new Date(req.tenant.prueba_ends_at) < new Date()) {
-    return res.status(402).json({
-      error: "Tu período de prueba de 15 días ha vencido. Activa tu plan para continuar.",
-      code: "TRIAL_EXPIRED",
-    });
-  }
-
   // Rol Contador: solo lectura
   if (req.userRole === "contador" && req.method !== "GET") {
     return res.status(403).json({

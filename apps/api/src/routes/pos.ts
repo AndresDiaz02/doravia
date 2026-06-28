@@ -21,6 +21,25 @@ router.post("/cajas", async (req, res) => {
   const { nombre, descripcion } = req.body as { nombre?: string; descripcion?: string };
   if (!nombre) return res.status(400).json({ error: "Campo requerido: nombre." });
 
+  // Plan "punto" solo permite 1 caja; "punto_plus" es ilimitado
+  const tieneMultiCaja = req.tenant.plan.features?.pos_multi_caja ||
+    (req.tenant.addons as Record<string, boolean> | null)?.pos_multi_caja;
+
+  if (!tieneMultiCaja) {
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(cajas_pos)
+      .where(and(eq(cajas_pos.tenant_id, req.tenantId), eq(cajas_pos.activo, true)));
+
+    if (Number(total) >= 1) {
+      return res.status(403).json({
+        error: "Tu plan solo permite 1 caja activa. Actualiza a Punto Plus para agregar más cajas.",
+        code: "PLAN_FEATURE_NOT_INCLUDED",
+        upgrade_required: true,
+      });
+    }
+  }
+
   const [nueva] = await db
     .insert(cajas_pos)
     .values({ tenant_id: req.tenantId, nombre, descripcion: descripcion ?? null })
@@ -306,8 +325,8 @@ router.post("/ventas", async (req, res) => {
   // no tiene cuentas configuradas (plan sin contabilidad)
   try {
     await crearAsientoVentaPOS(req.tenantId, result);
-  } catch {
-    // Si falla el asiento (ej: plan sin contabilidad), la venta igual quedó registrada
+  } catch (err) {
+    console.error("Error al crear asiento de venta POS:", err);
   }
 
   res.status(201).json(result);

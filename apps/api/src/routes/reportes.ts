@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes } from "@workspace/db";
+import { db, facturas, clientes, tenants, resoluciones_dian } from "@workspace/db";
 import { eq, and, gte, lt, sum, count, desc, isNull, inArray, asc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { requireAccountingLevel } from "../middleware/require-plan-feature.js";
@@ -244,6 +244,44 @@ router.get("/cartera-vencida", async (req, res) => {
   } catch (err) {
     console.error("Error en /reportes/cartera-vencida:", err);
     res.status(500).json({ error: "Error al generar cartera vencida" });
+  }
+});
+
+// GET /api/reportes/primeros-pasos
+router.get("/primeros-pasos", async (req, res) => {
+  try {
+    const tid = req.tenantId;
+
+    const [tenant] = await db
+      .select({ direccion: tenants.direccion })
+      .from(tenants)
+      .where(eq(tenants.id, tid))
+      .limit(1);
+
+    const [{ totalRes }] = await db
+      .select({ totalRes: count(resoluciones_dian.id) })
+      .from(resoluciones_dian)
+      .where(eq(resoluciones_dian.tenant_id, tid));
+
+    const [{ totalCli }] = await db
+      .select({ totalCli: count(clientes.id) })
+      .from(clientes)
+      .where(eq(clientes.tenant_id, tid));
+
+    const [{ totalFact }] = await db
+      .select({ totalFact: count(facturas.id) })
+      .from(facturas)
+      .where(eq(facturas.tenant_id, tid));
+
+    res.json({
+      empresa: !!tenant?.direccion,
+      resolucion: Number(totalRes) > 0,
+      clientes: Number(totalCli) > 0,
+      facturas: Number(totalFact) > 0,
+    });
+  } catch (err) {
+    console.error("primeros-pasos:", err);
+    res.status(500).json({ error: "Error al obtener el estado inicial." });
   }
 });
 

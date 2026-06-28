@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, FileText, Users, AlertCircle, Minus, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, FileText, Users, AlertCircle, Minus, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 import { apiFetch, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -72,8 +72,15 @@ const ESTADO_BADGE: Record<string, "green" | "yellow" | "red" | "gray"> = {
   enviada: "gray",
 };
 
+interface PrimerosPasos {
+  empresa: boolean;
+  resolucion: boolean;
+  clientes: boolean;
+  facturas: boolean;
+}
+
 export function Dashboard() {
-  const { plan, tenant } = useAuth();
+  const { plan, tenant, user } = useAuth();
   const ahora = new Date();
   const [anio, setAnio] = useState(ahora.getFullYear());
   const [mes, setMes] = useState(ahora.getMonth() + 1);
@@ -82,8 +89,17 @@ export function Dashboard() {
   const [tendencia, setTendencia] = useState<TendenciaMes[]>([]);
   const [cartera, setCartera] = useState<CarteraVencida | null>(null);
   const [loading, setLoading] = useState(true);
+  const [primerosPasos, setPrimerosPasos] = useState<PrimerosPasos | null>(null);
 
   const hasComparativo = (plan?.accounting_level ?? 1) >= 3;
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      void apiFetch<PrimerosPasos>("/api/reportes/primeros-pasos")
+        .then((d) => { if (!d.empresa || !d.resolucion || !d.clientes || !d.facturas) setPrimerosPasos(d); })
+        .catch(() => {});
+    }
+  }, [user?.role]);
 
   useEffect(() => {
     setLoading(true);
@@ -136,6 +152,41 @@ export function Dashboard() {
           </select>
         </div>
       </div>
+
+      {/* Widget primeros pasos — solo admin, solo si falta algún paso */}
+      {primerosPasos && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-sm font-semibold text-blue-900 mb-3">
+            Completa la configuración inicial para empezar a facturar
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { key: "empresa", label: "Datos de tu empresa", link: "/configuracion/empresa" },
+              { key: "resolucion", label: "Resolución DIAN", link: "/configuracion/dian" },
+              { key: "clientes", label: "Agrega tu primer cliente", link: "/clientes" },
+              { key: "facturas", label: "Emite tu primera factura", link: "/facturas/nueva" },
+            ].map(({ key, label, link }) => {
+              const done = primerosPasos[key as keyof PrimerosPasos];
+              return (
+                <Link
+                  key={key}
+                  to={done ? "#" : link}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    done
+                      ? "bg-white text-gray-400 cursor-default"
+                      : "bg-white text-blue-800 hover:bg-blue-100 font-medium"
+                  }`}
+                >
+                  {done
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    : <Circle className="h-4 w-4 text-blue-400 flex-shrink-0" />}
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Alerta límite de facturas */}
       {limiteFacturas && porcentajeLimite !== null && porcentajeLimite >= 80 && (

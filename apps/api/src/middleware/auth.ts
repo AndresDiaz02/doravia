@@ -54,5 +54,30 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     });
   }
 
+  // Rol Vendedor: sin acceso a módulos de contabilidad/administración
+  if (req.userRole === "vendedor") {
+    const url = req.originalUrl;
+    const BLOQUEADO = [
+      "/api/gastos",
+      "/api/contabilidad",
+      "/api/retenciones",
+      "/api/centros-costos",
+      "/api/recurrentes",
+      "/api/ensamble",
+      "/api/usuarios",
+      "/api/cartera",
+    ];
+    if (BLOQUEADO.some((p) => url.startsWith(p))) {
+      return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
+    }
+    // Empresa y DIAN: solo lectura
+    if (
+      (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
+      req.method !== "GET"
+    ) {
+      return res.status(403).json({ error: "No tienes permisos para modificar esta información.", code: "FORBIDDEN" });
+    }
+  }
+
   next();
 }

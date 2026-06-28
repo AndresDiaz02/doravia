@@ -89,7 +89,7 @@ const CONFIG = [
 ];
 
 export function AppLayout() {
-  const { user, tenant, plan, logout, isContador } = useAuth();
+  const { user, tenant, plan, logout, isContador, isVendedor } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -150,9 +150,11 @@ export function AppLayout() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {NAV_BASE.map(({ to, label, icon: Icon }) => (
-            <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
-          ))}
+          {NAV_BASE.map(({ to, label, icon: Icon }) => {
+            // Contabilidad solo para admin y contador
+            if (to.startsWith("/contabilidad") && isVendedor) return null;
+            return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />;
+          })}
 
           {/* Cotizaciones y Gastos: Semilla+ */}
           {NAV_VENTAS.map(({ to, label, icon: Icon }) => {
@@ -162,6 +164,7 @@ export function AppLayout() {
           })}
           {NAV_GASTOS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.gastos === true;
+            if (isVendedor) return null;
             if (!hasFeature && isContador) return null;
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
           })}
@@ -192,8 +195,8 @@ export function AppLayout() {
             );
           })}
 
-          {/* Recurrentes: requiere Brote+ */}
-          {NAV_BROTE.map(({ to, label, icon: Icon }) => {
+          {/* Recurrentes: requiere Brote+ — solo admin/contador */}
+          {!isVendedor && NAV_BROTE.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.facturacion_recurrente === true;
             if (!hasFeature && isContador) return null;
             return (
@@ -201,8 +204,9 @@ export function AppLayout() {
             );
           })}
 
-          {/* Módulos Cosecha */}
+          {/* Módulos Cosecha — Centros/Ensamble/Cartera: solo admin/contador */}
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
+            if (isVendedor) return null;
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
             if (!hasFeature && isContador) return null;
             return (
@@ -235,7 +239,7 @@ export function AppLayout() {
                 <span className="flex-1">Punto de venta</span>
                 <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-60" />
               </a>
-            ) : isContador ? null : (
+            ) : (isContador || isVendedor) ? null : (
               <span
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 cursor-not-allowed"
                 title="Requiere plan con módulo POS"
@@ -249,7 +253,7 @@ export function AppLayout() {
 
           <div className="my-2 border-t border-gray-100" />
 
-          {!isContador && CONFIG.map(({ to, label, icon: Icon }) => (
+          {!isContador && !isVendedor && CONFIG.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
           ))}
 

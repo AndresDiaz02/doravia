@@ -157,10 +157,12 @@ export function AppLayout() {
           {/* Cotizaciones y Gastos: Semilla+ */}
           {NAV_VENTAS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.cotizaciones === true;
+            if (!hasFeature && isContador) return null;
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
           })}
           {NAV_GASTOS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.gastos === true;
+            if (!hasFeature && isContador) return null;
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
           })}
 
@@ -168,6 +170,7 @@ export function AppLayout() {
           <div className="my-2 border-t border-gray-100" />
           {NAV_INVENTARIO.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.inventario === true;
+            if (!hasFeature && isContador) return null;
             return (
               <NavItem
                 key={to}
@@ -183,6 +186,7 @@ export function AppLayout() {
           {/* Alertas de cobro: requiere Raíz+ */}
           {NAV_COBRO.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.facturacion_ilimitada === true;
+            if (!hasFeature && isContador) return null;
             return (
               <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />
             );
@@ -191,6 +195,7 @@ export function AppLayout() {
           {/* Recurrentes: requiere Brote+ */}
           {NAV_BROTE.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.facturacion_recurrente === true;
+            if (!hasFeature && isContador) return null;
             return (
               <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />
             );
@@ -199,6 +204,7 @@ export function AppLayout() {
           {/* Módulos Cosecha */}
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
+            if (!hasFeature && isContador) return null;
             return (
               <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />
             );
@@ -229,7 +235,7 @@ export function AppLayout() {
                 <span className="flex-1">Punto de venta</span>
                 <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-60" />
               </a>
-            ) : (
+            ) : isContador ? null : (
               <span
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 cursor-not-allowed"
                 title="Requiere plan con módulo POS"

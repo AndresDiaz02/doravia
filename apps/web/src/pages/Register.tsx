@@ -23,7 +23,7 @@ const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
 const PLANES_POS = ["punto", "punto_plus"];
 
 const PLANES_LISTA = [
-  { slug: "origen",     label: "Origen — Gratis",             desc: "12 documentos/año · Solo facturación DIAN" },
+  { slug: "origen",     label: "Origen — Gratis",             desc: "10 documentos/año · Solo facturación DIAN" },
   { slug: "origen_24",  label: "Origen 24 — $99.900/año",     desc: "24 documentos/año · Solo facturación DIAN" },
   { slug: "origen_60",  label: "Origen 60 — $169.900/año",    desc: "60 documentos/año · Solo facturación DIAN" },
   { slug: "origen_120", label: "Origen 120 — $249.900/año",   desc: "120 documentos/año · Solo facturación DIAN" },

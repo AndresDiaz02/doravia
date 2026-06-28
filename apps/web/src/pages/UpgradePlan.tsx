@@ -30,7 +30,7 @@ interface OrigenCapacidad {
 }
 
 const ORIGEN_CAPACIDADES: OrigenCapacidad[] = [
-  { slug: "origen",     docs: 12,   precio: 0,       etiqueta: "Gratis" },
+  { slug: "origen",     docs: 10,   precio: 0,       etiqueta: "Gratis" },
   { slug: "origen_24",  docs: 24,   precio: 99_900  },
   { slug: "origen_60",  docs: 60,   precio: 169_900 },
   { slug: "origen_120", docs: 120,  precio: 249_900 },

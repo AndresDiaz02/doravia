@@ -30,11 +30,11 @@ export const PLAN_SEEDS: NewPlan[] = [
   // ── Origen: facturación electrónica pura ─────────────────────────────────
   {
     slug: "origen",
-    nombre: "Origen 12",
+    nombre: "Origen 10",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
-    max_facturas_ano: 12,
+    max_facturas_ano: 10,
     max_ia_docs_mes: 0,
     accounting_level: 0,
     features: { ...origenFeatures },

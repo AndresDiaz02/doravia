@@ -14,10 +14,12 @@
     "drizzle-kit": "drizzle-kit"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.36.0",
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "drizzle-kit": "^0.28.0",
     "tsx": "^4.15.0",
     "@types/node": "^20.0.0"

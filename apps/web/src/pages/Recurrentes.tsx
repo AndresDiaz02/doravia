@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch, cop, fecha } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -285,7 +285,7 @@ export default function Recurrentes() {
               <select
                 value={form.cliente_id}
                 onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 <option value="">Selecciona cliente</option>
                 {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -296,7 +296,7 @@ export default function Recurrentes() {
               <select
                 value={form.frecuencia}
                 onChange={(e) => setForm({ ...form, frecuencia: e.target.value })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 {FRECUENCIAS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
@@ -325,7 +325,7 @@ export default function Recurrentes() {
                     <select
                       value={item.producto_id ?? ""}
                       onChange={(e) => e.target.value ? selectProducto(idx, e.target.value) : setItem(idx, { producto_id: undefined })}
-                      className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-green-500"
+                      className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-action"
                     >
                       <option value="">Texto libre</option>
                       {productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}

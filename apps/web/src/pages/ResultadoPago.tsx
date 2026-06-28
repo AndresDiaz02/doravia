@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 
@@ -64,7 +64,7 @@ export default function ResultadoPago() {
           ) : (
             <Link
               to="/dashboard"
-              className="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              className="inline-block bg-action hover:bg-action-hover text-white font-semibold px-6 py-3 rounded-lg transition-colors"
               onClick={() => window.location.reload()}
             >
               Ir al Dashboard

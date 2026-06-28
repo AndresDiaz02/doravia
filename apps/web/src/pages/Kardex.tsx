@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
 
@@ -67,7 +67,7 @@ export default function Kardex() {
         <div className="flex-1 max-w-sm">
           <label className="block text-xs font-medium text-gray-600 mb-1">Producto</label>
           <select
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={productoId}
             onChange={(e) => setProductoId(e.target.value)}
           >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, FileDown } from "lucide-react";
 import { apiFetchPaged, cop, fecha, descargarExcel } from "../lib/api";
@@ -67,7 +67,7 @@ export function Facturas() {
           </Button>
           <Link
             to="/facturas/nueva"
-            className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover"
           >
             <Plus className="h-4 w-4" />
             Nueva factura
@@ -83,7 +83,7 @@ export function Facturas() {
             <p className="text-sm text-gray-500">No hay facturas registradas.</p>
             <Link
               to="/facturas/nueva"
-              className="mt-4 inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              className="mt-4 inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover"
             >
               Crear primera factura
             </Link>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { apiFetch, apiFetchPaged, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent } from "../components/ui/card";
@@ -333,7 +333,7 @@ export default function Gastos() {
               <select
                 value={form.proveedor_id}
                 onChange={(e) => setForm({ ...form, proveedor_id: e.target.value })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 <option value="">Sin proveedor</option>
                 {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -344,7 +344,7 @@ export default function Gastos() {
               <select
                 value={form.categoria}
                 onChange={(e) => setForm({ ...form, categoria: e.target.value as typeof form.categoria })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>)}
               </select>
@@ -386,7 +386,7 @@ export default function Gastos() {
               <select
                 value={form.estado}
                 onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 <option value="borrador">Borrador</option>
                 <option value="aprobado">Aprobado</option>

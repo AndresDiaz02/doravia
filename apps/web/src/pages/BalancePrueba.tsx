@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Download } from "lucide-react";
 
@@ -77,7 +77,7 @@ export default function BalancePrueba() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
           />
@@ -86,14 +86,14 @@ export default function BalancePrueba() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Hasta</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={hasta}
             onChange={(e) => setHasta(e.target.value)}
           />
         </div>
         <button
           onClick={() => void cargar()}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover transition-colors"
         >
           Generar
         </button>

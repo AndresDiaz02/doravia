@@ -1,3 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --action: #7B2FF7;
+  --action-hover: #6620E0;
+  --brand: #3B1E8C;
+  --accent-blue: #2E9BF5;
+  --accent-orange: #FF9233;
+}
+
+@layer components {
+  .btn-primary-gradient {
+    background: linear-gradient(135deg, #7B2FF7 0%, #4A6FF5 55%, #2E9BF5 100%);
+  }
+  .btn-primary-gradient:hover {
+    background: linear-gradient(135deg, #6620E0 0%, #3A5EE0 55%, #1B8AE0 100%);
+  }
+}
+
+@layer utilities {
+  .bg-gradient-cold {
+    background: linear-gradient(135deg, #7B2FF7 0%, #4A6FF5 55%, #2E9BF5 100%);
+  }
+  .bg-gradient-warm {
+    background: linear-gradient(135deg, #7B2FF7 0%, #FF9233 100%);
+  }
+}

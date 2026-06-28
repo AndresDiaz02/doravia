@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -256,7 +256,7 @@ export default function Inventario() {
               id="bodega"
               value={form.bodega_id}
               onChange={(e) => setForm({ ...form, bodega_id: e.target.value })}
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             >
               <option value="">Selecciona bodega</option>
               {bodegas.map((b) => (
@@ -270,7 +270,7 @@ export default function Inventario() {
               id="producto"
               value={form.producto_id}
               onChange={(e) => setForm({ ...form, producto_id: e.target.value })}
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             >
               <option value="">Selecciona producto</option>
               {productos.map((p) => (

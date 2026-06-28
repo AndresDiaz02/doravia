@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiFetch, apiFetchPaged, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -302,7 +302,7 @@ export default function Cotizaciones() {
             <select
               value={form.cliente_id}
               onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             >
               <option value="">Selecciona cliente</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}

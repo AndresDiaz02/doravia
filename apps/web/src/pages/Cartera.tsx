@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, cop, fecha } from "../lib/api";
 import { Card, CardContent } from "../components/ui/card";
@@ -293,7 +293,7 @@ export default function Cartera() {
               <select
                 value={clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 <option value="">Selecciona un cliente</option>
                 {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -302,7 +302,7 @@ export default function Cartera() {
             <button
               onClick={() => void cargarEstadoCuenta()}
               disabled={!clienteId || loadingEC}
-              className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-action-hover disabled:opacity-50"
             >
               {loadingEC ? "Cargando…" : "Ver estado"}
             </button>

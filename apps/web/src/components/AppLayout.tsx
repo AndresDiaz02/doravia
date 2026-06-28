@@ -133,15 +133,15 @@ export function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}
-      <aside className="flex w-56 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
+      <aside className="flex w-56 flex-shrink-0 flex-col border-r border-doravia-border bg-doravia-surface">
         {/* Cabecera empresa */}
         <div className="flex items-center gap-2.5 border-b border-gray-100 px-4 py-4">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-green-600 text-white">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-gradient-cold text-white">
             <Building2 className="h-4 w-4" />
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">{tenant?.nombre}</p>
-            <Link to="/planes" className="text-xs text-green-600 hover:text-green-800 flex items-center gap-0.5 w-fit">
+            <Link to="/planes" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
               {plan?.nombre}
               <ChevronRight className="w-3 h-3" />
             </Link>
@@ -223,7 +223,7 @@ export function AppLayout() {
                 href={`${posUrl}?token=${encodeURIComponent(localStorage.getItem("access_token") ?? "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-accent-blue hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
               >
                 <Monitor className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1">Punto de venta</span>
@@ -280,7 +280,7 @@ export function AppLayout() {
       {/* Dialog cambio de contraseña */}
       <Dialog open={showPassword} onClose={() => setShowPassword(false)} title="Cambiar contraseña">
         {passOk ? (
-          <p className="py-2 text-center text-sm font-medium text-green-700">
+          <p className="py-2 text-center text-sm font-medium text-action">
             Contraseña actualizada correctamente.
           </p>
         ) : (
@@ -406,7 +406,7 @@ function NavItem({
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
         isActive
-          ? "bg-green-50 font-medium text-green-700"
+          ? "bg-action/10 font-medium text-action"
           : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
       )}
     >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -172,7 +172,7 @@ export default function UpgradePlan() {
           <h1 className="text-3xl font-bold text-gray-900">Elige tu plan</h1>
           <p className="text-gray-500 mt-2">Precios en COP · facturación anual.</p>
           {planActual && (
-            <p className="mt-1 text-sm text-green-700 font-medium">
+            <p className="mt-1 text-sm text-action font-medium">
               Plan actual: <strong>{planActual.nombre}</strong>
             </p>
           )}
@@ -229,7 +229,7 @@ export default function UpgradePlan() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {esActual ? (
-                          <span className="text-xs bg-green-100 text-green-700 font-medium px-3 py-1 rounded-full">
+                          <span className="text-xs bg-green-100 text-action font-medium px-3 py-1 rounded-full">
                             Plan actual
                           </span>
                         ) : c.precio === 0 ? null : (
@@ -275,7 +275,7 @@ export default function UpgradePlan() {
                 >
                   {plan.destacado && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                      <span className="bg-gradient-warm text-white text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1">
                         <Zap className="w-3 h-3" /> Más popular
                       </span>
                     </div>
@@ -294,14 +294,14 @@ export default function UpgradePlan() {
                   <ul className="flex-1 space-y-1.5">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-2 text-xs text-gray-700">
-                        <Check className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-action mt-0.5 shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
 
                   {esActual ? (
-                    <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-center text-xs font-medium text-green-700">
+                    <div className="rounded-lg border border-action/20 bg-action/5 px-3 py-2 text-center text-xs font-medium text-action">
                       Plan actual
                     </div>
                   ) : (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { CheckCircle2, Building2, FileText, Package, Rocket } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -151,7 +151,7 @@ export default function Onboarding() {
       {/* Cabecera */}
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green-600 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-cold text-white">
             <Building2 className="h-4 w-4" />
           </div>
           <span className="text-lg font-bold text-gray-900">Doravia</span>
@@ -466,7 +466,7 @@ export default function Onboarding() {
               <button
                 onClick={() => void completar()}
                 disabled={guardando}
-                className="w-full rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                className="w-full rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white hover:bg-action-hover disabled:opacity-50 transition-colors"
               >
                 {guardando ? "Cargando..." : "Ir al dashboard →"}
               </button>
@@ -506,8 +506,8 @@ function CheckItem({ label, ok, sublabel }: { label: string; ok: boolean; sublab
 }
 
 const inputCls =
-  "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
+  "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-action focus:border-transparent";
 const btnPrimary =
-  "flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50 transition-colors";
+  "flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-bold text-white hover:bg-action-hover disabled:opacity-50 transition-colors";
 const btnSecondary =
   "flex-shrink-0 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 
 interface Cuenta { id: string; codigo: string; nombre: string; tipo: string; naturaleza: string }
@@ -62,7 +62,7 @@ export default function Auxiliares() {
         <div className="flex-1 min-w-48 max-w-xs">
           <label className="block text-xs font-medium text-gray-600 mb-1">Cuenta</label>
           <select
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={cuentaId}
             onChange={(e) => setCuentaId(e.target.value)}
           >
@@ -78,7 +78,7 @@ export default function Auxiliares() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
           />
@@ -87,7 +87,7 @@ export default function Auxiliares() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Hasta</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             value={hasta}
             onChange={(e) => setHasta(e.target.value)}
           />
@@ -95,7 +95,7 @@ export default function Auxiliares() {
         <button
           onClick={() => void cargar()}
           disabled={!cuentaId || loading}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover disabled:opacity-50 transition-colors"
         >
           Consultar
         </button>

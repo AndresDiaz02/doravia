@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+﻿import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -145,7 +145,7 @@ export function Register() {
             {/* Plan — fijo si viene de la URL, seleccionable si no */}
             {planFijo ? (
               <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Plan seleccionado</p>
+                <p className="text-xs text-action font-medium uppercase tracking-wide">Plan seleccionado</p>
                 <p className="text-sm font-semibold text-green-900 mt-0.5">
                   {PLANES_INFO[planFijo].nombre} — {PLANES_INFO[planFijo].precio}
                 </p>
@@ -159,7 +159,7 @@ export function Register() {
                       key={plan.slug}
                       className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
                         form.plan_slug === plan.slug
-                          ? "border-green-500 bg-green-50"
+                          ? "border-action bg-action/5"
                           : "border-gray-200 hover:bg-gray-50"
                       }`}
                     >
@@ -169,7 +169,7 @@ export function Register() {
                         value={plan.slug}
                         checked={form.plan_slug === plan.slug}
                         onChange={(e) => set("plan_slug", e.target.value)}
-                        className="mt-0.5 accent-green-600"
+                        className="mt-0.5 accent-violet-600"
                       />
                       <div>
                         <p className="text-sm font-medium text-gray-900">{plan.label}</p>

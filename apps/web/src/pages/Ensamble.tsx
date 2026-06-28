@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -246,7 +246,7 @@ export default function Ensamble() {
             <select
               value={formComp.componente_id}
               onChange={(e) => setFormComp({ ...formComp, componente_id: e.target.value })}
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
             >
               <option value="">Selecciona un producto/insumo</option>
               {productosDisponibles.map((p) => (
@@ -298,7 +298,7 @@ export default function Ensamble() {
               <select
                 value={formProducir.bodega_id}
                 onChange={(e) => setFormProducir({ ...formProducir, bodega_id: e.target.value })}
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 {bodegas.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}
               </select>

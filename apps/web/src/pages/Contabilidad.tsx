@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch, cop, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -504,7 +504,7 @@ function TabBtn({
         locked
           ? "text-gray-300 cursor-not-allowed"
           : active
-          ? "bg-green-600 text-white"
+          ? "bg-gradient-cold text-white"
           : "text-gray-500 hover:text-gray-900"
       }`}
       title={locked ? "Requiere plan Raíz o superior" : undefined}

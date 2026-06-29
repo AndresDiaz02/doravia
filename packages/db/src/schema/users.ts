@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   password_hash: varchar("password_hash", { length: 255 }).notNull(),
   activo: boolean("activo").notNull().default(true),
   permisos_contables: boolean("permisos_contables").notNull().default(false),
+  dark_mode: boolean("dark_mode").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

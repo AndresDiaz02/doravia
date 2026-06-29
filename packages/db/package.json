@@ -11,6 +11,7 @@
     "seed": "tsx src/seed/index.ts",
     "seed:contador": "tsx src/seed/contador.ts",
     "push": "drizzle-kit push --force",
+    "migrate": "tsx src/migrate.ts",
     "studio": "drizzle-kit studio",
     "drizzle-kit": "drizzle-kit"
   },

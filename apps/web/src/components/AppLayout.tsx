@@ -92,7 +92,7 @@ const CONFIG = [
 
 export function AppLayout() {
   const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador, cambiarEmpresa } = useAuth();
-  const { isDark, toggleDark } = useDarkMode();
+  const { isDark, toggleDark } = useDarkMode(user?.dark_mode);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEmpresaMenu, setShowEmpresaMenu] = useState(false);
   const [cambiando, setCambiando] = useState(false);

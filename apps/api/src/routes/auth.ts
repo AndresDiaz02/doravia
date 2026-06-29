@@ -168,6 +168,7 @@ router.get("/me", authenticate, async (req, res) => {
       nombre: users.nombre,
       role: users.role,
       activo: users.activo,
+      dark_mode: users.dark_mode,
       created_at: users.created_at,
     })
     .from(users)
@@ -210,6 +211,16 @@ router.get("/me", authenticate, async (req, res) => {
     },
     empresas,
   });
+});
+
+// PATCH /api/auth/preferencias — guarda preferencias del usuario (ej. dark_mode)
+router.patch("/preferencias", authenticate, async (req, res) => {
+  const { dark_mode } = req.body as { dark_mode?: boolean };
+  if (typeof dark_mode !== "boolean") {
+    return res.status(400).json({ error: "Campo requerido: dark_mode (boolean)." });
+  }
+  await db.update(users).set({ dark_mode }).where(eq(users.id, req.userId));
+  return res.json({ ok: true });
 });
 
 // POST /api/auth/select-empresa — elige empresa tras login multi-empresa

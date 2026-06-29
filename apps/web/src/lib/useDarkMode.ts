@@ -1,13 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { apiFetch } from "./api";
 
 const KEY = "doravia_dark";
 
-export function useDarkMode() {
+export function useDarkMode(serverValue?: boolean) {
+  const synced = useRef(false);
+
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem(KEY);
     if (stored !== null) return stored === "1";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return false; // modo claro por defecto
   });
+
+  // Cuando el usuario carga del servidor, sincroniza su preferencia (solo una vez)
+  useEffect(() => {
+    if (serverValue !== undefined && !synced.current) {
+      synced.current = true;
+      setIsDark(serverValue);
+      localStorage.setItem(KEY, serverValue ? "1" : "0");
+    }
+  }, [serverValue]);
 
   useEffect(() => {
     if (isDark) {
@@ -18,5 +30,16 @@ export function useDarkMode() {
     localStorage.setItem(KEY, isDark ? "1" : "0");
   }, [isDark]);
 
-  return { isDark, toggleDark: () => setIsDark((v) => !v) };
+  const toggleDark = useCallback(() => {
+    setIsDark((v) => {
+      const next = !v;
+      apiFetch("/api/auth/preferencias", {
+        method: "PATCH",
+        body: JSON.stringify({ dark_mode: next }),
+      }).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  return { isDark, toggleDark };
 }

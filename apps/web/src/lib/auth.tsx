@@ -14,6 +14,7 @@ export interface AuthUser {
   nombre: string;
   role: string;
   is_fundador?: boolean;
+  dark_mode: boolean;
 }
 
 export interface PlanInfo {

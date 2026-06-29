@@ -13,7 +13,7 @@ export function fundadorEmails(): string[] {
 export function requireFundador(req: Request, res: Response, next: NextFunction): void {
   authenticate(req, res, async () => {
     try {
-      const userId = (req as { user?: { userId: string } }).user?.userId;
+      const userId = req.userId;
       if (!userId) { res.status(401).json({ error: "No autenticado." }); return; }
 
       const [u] = await db

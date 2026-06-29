@@ -51,7 +51,11 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: string };
+    const body = await res.json().catch(() => ({})) as { error?: string; code?: string };
+    if (res.status === 403 && body.code === "SETUP_REQUIRED") {
+      window.location.href = "/onboarding";
+      throw new ApiError(403, body.error ?? "Configuración requerida.");
+    }
     throw new ApiError(res.status, body.error ?? "Error del servidor.");
   }
 

@@ -54,6 +54,23 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     });
   }
 
+  // Bloqueo por onboarding incompleto después de 2 días de activación
+  // Excluye rutas de onboarding y auth para no crear un loop
+  const esRutaOnboarding = req.originalUrl.startsWith("/api/empresa") ||
+    req.originalUrl.startsWith("/api/auth") ||
+    req.originalUrl.startsWith("/api/onboarding") ||
+    req.originalUrl.startsWith("/health");
+  if (!esRutaOnboarding && !req.tenant.onboarding_completado && req.tenant.plan_starts_at) {
+    const msDesdeActivacion = Date.now() - new Date(req.tenant.plan_starts_at).getTime();
+    const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000;
+    if (msDesdeActivacion > DOS_DIAS_MS) {
+      return res.status(403).json({
+        error: "Debes completar la configuración inicial de tu empresa para continuar.",
+        code: "SETUP_REQUIRED",
+      });
+    }
+  }
+
   // Rol Contador
   if (req.userRole === "contador" && req.method !== "GET") {
     if (!req.userContable) {

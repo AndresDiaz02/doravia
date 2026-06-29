@@ -414,9 +414,6 @@ export function AppLayout() {
           </button>
         </div>
 
-        {/* Banner de trial */}
-        <TrialBanner />
-
         <main className="flex flex-1 flex-col overflow-auto">
           <Outlet />
         </main>
@@ -485,49 +482,6 @@ export function AppLayout() {
 // ─────────────────────────────────────────────────────────────
 // Banner de prueba gratuita
 // ─────────────────────────────────────────────────────────────
-function TrialBanner() {
-  const { tenant, plan } = useAuth();
-  const TRIAL_SLUGS = ["semilla", "raiz", "brote", "cosecha"];
-  if (!plan || !tenant || !TRIAL_SLUGS.includes(plan.slug)) return null;
-
-  const ends = new Date(tenant.plan_ends_at);
-  const hoy = new Date();
-  const diasRestantes = Math.ceil((ends.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-
-  // Calcular duración total del período actual
-  const inicio = tenant.plan_starts_at ? new Date(tenant.plan_starts_at) : null;
-  const duracion = inicio ? Math.ceil((ends.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)) : 999;
-  const enTrial = duracion <= 15 && diasRestantes >= 0;
-
-  if (!enTrial) return null;
-
-  const urgente = diasRestantes <= 3;
-
-  return (
-    <div className={`flex items-center justify-between gap-2 px-4 py-2 text-sm flex-shrink-0 ${
-      urgente ? "bg-red-600 text-white" : "bg-amber-50 border-b border-amber-200 text-amber-800"
-    }`}>
-      <span className="flex items-center gap-2">
-        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-        {diasRestantes <= 0
-          ? "Tu prueba gratuita ha vencido."
-          : diasRestantes === 1
-          ? "Tu prueba gratuita vence hoy."
-          : `Prueba gratuita: ${diasRestantes} días restantes.`}
-      </span>
-      <Link
-        to="/planes"
-        className={`whitespace-nowrap rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-          urgente
-            ? "bg-white text-red-600 hover:bg-red-50"
-            : "bg-amber-600 text-white hover:bg-amber-700"
-        }`}
-      >
-        Activar plan →
-      </Link>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────
 // Chat de soporte IA flotante

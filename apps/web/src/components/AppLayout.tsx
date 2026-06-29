@@ -1,4 +1,4 @@
-import { type ElementType, useState, type FormEvent, useRef, useEffect } from "react";
+import { type ElementType, useState, type FormEvent, useRef, useEffect, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -15,6 +15,7 @@ import {
   Lock,
   LogOut,
   Menu,
+  MessageCircle,
   Monitor,
   Moon,
   Package,
@@ -191,10 +192,12 @@ export function AppLayout() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{tenant?.nombre}</p>
-              <Link to="/planes" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
-                {plan?.nombre}
-                <ChevronRight className="w-3 h-3" />
-              </Link>
+              <div className="flex items-center gap-1">
+                <Link to="/mi-plan" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
+                  {plan?.nombre}
+                  <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
             </div>
             {empresas.length > 1 && (
               <button
@@ -411,10 +414,16 @@ export function AppLayout() {
           </button>
         </div>
 
+        {/* Banner de trial */}
+        <TrialBanner />
+
         <main className="flex flex-1 flex-col overflow-auto">
           <Outlet />
         </main>
       </div>
+
+      {/* Chat de soporte flotante */}
+      <SoporteChat />
 
       {/* Dialog cambio de contraseña */}
       <Dialog open={showPassword} onClose={() => setShowPassword(false)} title="Cambiar contraseña">
@@ -470,6 +479,187 @@ export function AppLayout() {
         )}
       </Dialog>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Banner de prueba gratuita
+// ─────────────────────────────────────────────────────────────
+function TrialBanner() {
+  const { tenant, plan } = useAuth();
+  const TRIAL_SLUGS = ["semilla", "raiz", "brote", "cosecha"];
+  if (!plan || !tenant || !TRIAL_SLUGS.includes(plan.slug)) return null;
+
+  const ends = new Date(tenant.plan_ends_at);
+  const hoy = new Date();
+  const diasRestantes = Math.ceil((ends.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Calcular duración total del período actual
+  const inicio = tenant.plan_starts_at ? new Date(tenant.plan_starts_at) : null;
+  const duracion = inicio ? Math.ceil((ends.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+  const enTrial = duracion <= 15 && diasRestantes >= 0;
+
+  if (!enTrial) return null;
+
+  const urgente = diasRestantes <= 3;
+
+  return (
+    <div className={`flex items-center justify-between gap-2 px-4 py-2 text-sm flex-shrink-0 ${
+      urgente ? "bg-red-600 text-white" : "bg-amber-50 border-b border-amber-200 text-amber-800"
+    }`}>
+      <span className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+        {diasRestantes <= 0
+          ? "Tu prueba gratuita ha vencido."
+          : diasRestantes === 1
+          ? "Tu prueba gratuita vence hoy."
+          : `Prueba gratuita: ${diasRestantes} días restantes.`}
+      </span>
+      <Link
+        to="/planes"
+        className={`whitespace-nowrap rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+          urgente
+            ? "bg-white text-red-600 hover:bg-red-50"
+            : "bg-amber-600 text-white hover:bg-amber-700"
+        }`}
+      >
+        Activar plan →
+      </Link>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chat de soporte IA flotante
+// ─────────────────────────────────────────────────────────────
+interface ChatMsg { role: "user" | "assistant"; content: string }
+
+function SoporteChat() {
+  const [open, setOpen] = useState(false);
+  const [mensajes, setMensajes] = useState<ChatMsg[]>([
+    { role: "assistant", content: "¡Hola! Soy el asistente de Doravia. ¿En qué te puedo ayudar hoy?" },
+  ]);
+  const [input, setInput] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [open, mensajes]);
+
+  const enviar = useCallback(async () => {
+    const texto = input.trim();
+    if (!texto || enviando) return;
+
+    const nuevosMensajes: ChatMsg[] = [...mensajes, { role: "user", content: texto }];
+    setMensajes(nuevosMensajes);
+    setInput("");
+    setEnviando(true);
+
+    try {
+      const res = await apiFetch<{ respuesta: string }>("/api/soporte/chat", {
+        method: "POST",
+        body: JSON.stringify({ mensajes: nuevosMensajes }),
+      });
+      setMensajes((prev) => [...prev, { role: "assistant", content: res.respuesta }]);
+    } catch {
+      setMensajes((prev) => [
+        ...prev,
+        { role: "assistant", content: "Hubo un error. Escríbenos a soporte@doraviasoft.com o al WhatsApp +57 312 558 7055." },
+      ]);
+    } finally {
+      setEnviando(false);
+    }
+  }, [input, mensajes, enviando]);
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); }
+  };
+
+  return (
+    <>
+      {/* Botón flotante */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="fixed bottom-5 right-5 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-action text-white shadow-lg hover:bg-action-hover transition-all"
+        title="Soporte IA"
+        style={{ width: 52, height: 52 }}
+      >
+        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+      </button>
+
+      {/* Panel de chat */}
+      {open && (
+        <div className="fixed bottom-20 right-5 z-40 w-80 sm:w-96 rounded-2xl shadow-2xl bg-white border border-gray-200 flex flex-col overflow-hidden"
+          style={{ maxHeight: "70vh" }}
+        >
+          {/* Header */}
+          <div className="bg-action px-4 py-3 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+              <MessageCircle className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Soporte Doravia</p>
+              <p className="text-xs text-white/70">Con IA · 24/7</p>
+            </div>
+          </div>
+
+          {/* Mensajes */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+            {mensajes.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                  m.role === "user"
+                    ? "bg-action text-white rounded-br-sm"
+                    : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm"
+                }`}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {enviando && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-3 py-2">
+                  <span className="flex gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
+                        style={{ animationDelay: `${i * 150}ms` }} />
+                    ))}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="border-t border-gray-200 p-2 bg-white flex gap-2">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Escribe tu pregunta..."
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action/40"
+              disabled={enviando}
+            />
+            <button
+              onClick={() => void enviar()}
+              disabled={!input.trim() || enviando}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-action text-white disabled:opacity-40 hover:bg-action-hover transition-colors"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

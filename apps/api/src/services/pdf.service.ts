@@ -271,3 +271,75 @@ export function generarPdfCotizacion(
   doc.end();
   return doc as unknown as Readable;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// RECIBO DE CAJA (pago de factura)
+// ──────────────────────────────────────────────────────────────────────────────
+export function generarReciboCaja(
+  factura: Factura,
+  cliente: Cliente,
+  tenant: Tenant,
+): Readable {
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+
+  const fechaPago = factura.pagada_at ? new Date(factura.pagada_at) : new Date();
+  const numRecibo = `RC-${factura.numero}`;
+
+  encabezado(doc, tenant, "Recibo de Caja", numRecibo);
+
+  const y0 = 140;
+  const col2 = 350;
+
+  doc.fontSize(9).fillColor(GRIS).text("Número de recibo", 50, y0);
+  doc.fontSize(10).fillColor(NEGRO).text(numRecibo, 50, y0 + 12);
+
+  doc.fontSize(9).fillColor(GRIS).text("Fecha de pago", col2, y0);
+  doc.fontSize(10).fillColor(NEGRO).text(
+    fechaPago.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    col2, y0 + 12,
+  );
+
+  doc.moveTo(50, y0 + 32).lineTo(545, y0 + 32).strokeColor("#e5e7eb").stroke();
+
+  const y1 = y0 + 48;
+  doc.fontSize(9).fillColor(GRIS).text("Recibimos de", 50, y1);
+  doc.fontSize(11).fillColor(NEGRO).font("Helvetica-Bold").text(cliente.nombre, 50, y1 + 12);
+  doc.font("Helvetica");
+  if (cliente.numero_documento) {
+    doc.fontSize(9).fillColor(GRIS).text(`NIT / CC: ${cliente.numero_documento}`, 50, y1 + 26);
+  }
+
+  const y2 = y1 + 56;
+  doc.moveTo(50, y2).lineTo(545, y2).strokeColor("#e5e7eb").stroke();
+  doc.fontSize(9).fillColor(GRIS).text("Concepto", 50, y2 + 12);
+  doc.fontSize(9).fillColor(GRIS).text("Valor", 450, y2 + 12, { align: "right", width: 95 });
+  doc.moveTo(50, y2 + 26).lineTo(545, y2 + 26).strokeColor("#e5e7eb").stroke();
+
+  const conceptoY = y2 + 36;
+  doc.fontSize(10).fillColor(NEGRO).text(`Pago factura ${factura.numero}`, 50, conceptoY);
+  doc.fontSize(10).fillColor(NEGRO).text(fmt(factura.total), 350, conceptoY, { align: "right", width: 195 });
+
+  const formas: Record<string, string> = {
+    efectivo: "Efectivo", transferencia: "Transferencia bancaria", cheque: "Cheque",
+    tarjeta_credito: "Tarjeta crédito", tarjeta_debito: "Tarjeta débito",
+    nequi: "Nequi", daviplata: "Daviplata",
+  };
+  doc.fontSize(9).fillColor(GRIS).text("Forma de pago", 50, conceptoY + 28);
+  doc.fontSize(10).fillColor(NEGRO).text(formas[factura.forma_pago ?? "efectivo"] ?? "Efectivo", 50, conceptoY + 40);
+
+  const totalY = conceptoY + 80;
+  doc.roundedRect(50, totalY, 495, 52, 6).fill(CLARO);
+  doc.fontSize(11).fillColor(GRIS).text("TOTAL RECIBIDO", 70, totalY + 10);
+  doc.fontSize(18).fillColor(VERDE).font("Helvetica-Bold").text(fmt(factura.total), 70, totalY + 22, { align: "right", width: 455 });
+  doc.font("Helvetica");
+
+  const firmaY = totalY + 100;
+  doc.moveTo(50, firmaY + 40).lineTo(220, firmaY + 40).strokeColor(GRIS).stroke();
+  doc.fontSize(9).fillColor(GRIS).text("Firma y sello empresa", 50, firmaY + 46);
+  doc.moveTo(330, firmaY + 40).lineTo(500, firmaY + 40).strokeColor(GRIS).stroke();
+  doc.fontSize(9).fillColor(GRIS).text("Recibido por", 330, firmaY + 46);
+
+  pie(doc, tenant);
+  doc.end();
+  return doc as unknown as Readable;
+}

@@ -43,6 +43,7 @@ import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
+import MiPlan from "./pages/MiPlan";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/ensamble" element={<><RequiereRol allow={["admin", "contador"]} /><Ensamble /></>} />
               <Route path="/cartera" element={<><RequiereRol allow={["admin", "contador"]} /><Cartera /></>} />
               <Route path="/planes" element={<UpgradePlan />} />
+              <Route path="/mi-plan" element={<MiPlan />} />
               <Route path="/usuarios" element={<><SoloEscritura /><Usuarios /></>} />
               <Route path="/configuracion/dian" element={<><SoloEscritura /><ResolucionesDian /></>} />
               <Route path="/retenciones" element={<><RequiereRol allow={["admin", "contador"]} /><Retenciones /></>} />

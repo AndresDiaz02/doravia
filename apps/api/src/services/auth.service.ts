@@ -107,11 +107,21 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
   const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (emailExistente) throw new Error("Ya existe un usuario con ese correo electrónico.");
 
-  // ── Plan gratuito: activar inmediatamente ──────────────────────────────────
-  if (plan.precio_anual_cop === 0) {
+  // Planes ERP con prueba gratuita de 15 días
+  const TRIAL_PLAN_SLUGS = ["semilla", "raiz", "brote", "cosecha"];
+  const esPlanTrial = TRIAL_PLAN_SLUGS.includes(plan.slug);
+
+  // ── Plan gratuito o plan ERP con trial: activar inmediatamente ─────────────
+  if (plan.precio_anual_cop === 0 || esPlanTrial) {
     const ahora = new Date();
     const planFin = new Date(ahora);
-    planFin.setFullYear(planFin.getFullYear() + 1);
+    if (plan.precio_anual_cop === 0) {
+      // Plan Origen gratuito: permanente (~100 años)
+      planFin.setFullYear(planFin.getFullYear() + 100);
+    } else {
+      // Plan ERP: 15 días de prueba gratuita
+      planFin.setDate(planFin.getDate() + 15);
+    }
     const password_hash = await bcrypt.hash(input.password, 12);
 
     const { tenant, user } = await db.transaction(async (tx) => {
@@ -139,7 +149,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
     return { payment_required: false, tenant, user: sinHash(user), accessToken, refreshToken };
   }
 
-  // ── Plan de pago: crear registro pendiente y generar checkout ──────────────
+  // ── Plan de pago (Origen 24+, POS): crear registro pendiente y checkout ────
   const password_hash = await bcrypt.hash(input.password, 12);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
 

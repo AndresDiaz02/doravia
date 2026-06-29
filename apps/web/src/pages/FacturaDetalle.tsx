@@ -118,28 +118,35 @@ export function FacturaDetalle() {
     }
   }
 
-  async function handleDescargarPdf() {
-    if (!factura) return;
+  async function handleDescargarDoc(endpoint: string, filename: string) {
     setDescargando(true);
     try {
       const token = localStorage.getItem("access_token");
-      const resp = await fetch(`/api/documentos/facturas/${factura.id}/pdf`, {
+      const resp = await fetch(endpoint, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!resp.ok) throw new Error("No se pudo generar el PDF.");
+      if (!resp.ok) throw new Error("No se pudo generar el documento.");
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${factura.numero}.pdf`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setErrorReenvio(err instanceof Error ? err.message : "Error al descargar el PDF.");
+      setErrorReenvio(err instanceof Error ? err.message : "Error al descargar el documento.");
     } finally {
       setDescargando(false);
     }
   }
+
+  const handleDescargarPdf = () => factura && void handleDescargarDoc(
+    `/api/documentos/facturas/${factura.id}/pdf`, `${factura.numero}.pdf`,
+  );
+
+  const handleDescargarRecibo = () => factura && void handleDescargarDoc(
+    `/api/documentos/facturas/${factura.id}/recibo`, `RC-${factura.numero}.pdf`,
+  );
 
   async function handleCrearNotaCredito() {
     if (!factura) return;
@@ -233,11 +240,17 @@ export function FacturaDetalle() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void handleDescargarPdf()} disabled={descargando}>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="secondary" onClick={handleDescargarPdf} disabled={descargando}>
             <Download className="h-4 w-4" />
             {descargando ? "Generando…" : "Descargar PDF"}
           </Button>
+          {factura.pagada_at && (
+            <Button variant="secondary" onClick={handleDescargarRecibo} disabled={descargando}>
+              <Download className="h-4 w-4" />
+              Recibo de caja
+            </Button>
+          )}
           {!isContador && factura.estado === "aceptada" && !factura.pagada_at && (
             <Button variant="secondary" onClick={() => void handleMarcarPagada()} disabled={marcandoPagada}>
               <CheckCircle className="h-4 w-4" />

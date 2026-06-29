@@ -31,6 +31,9 @@ export interface TenantInfo {
   nombre: string;
   nit: string;
   plan_ends_at: string;
+  plan_starts_at: string | null;
+  activo: boolean;
+  ultimo_pago_confirmado_at: string | null;
   onboarding_completado: boolean;
 }
 

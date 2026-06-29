@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, facturas, items_factura, clientes, cotizaciones, items_cotizacion } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { generarPdfFactura, generarPdfCotizacion } from "../services/pdf.service.js";
+import { generarPdfFactura, generarPdfCotizacion, generarReciboCaja } from "../services/pdf.service.js";
 import type { Readable } from "node:stream";
 
 const router = Router();
@@ -62,6 +62,32 @@ router.get("/cotizaciones/:id/pdf", async (req, res) => {
     (stream as Readable).pipe(res);
   } catch (err) {
     console.error("Error en GET /cotizaciones/:id/pdf:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/documentos/facturas/:id/recibo
+// Genera el recibo de caja del pago de una factura
+router.get("/facturas/:id/recibo", async (req, res) => {
+  try {
+    const [row] = await db
+      .select({ factura: facturas, cliente: clientes })
+      .from(facturas)
+      .innerJoin(clientes, eq(facturas.cliente_id, clientes.id))
+      .where(and(eq(facturas.id, req.params.id), eq(facturas.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!row) return res.status(404).json({ error: "Factura no encontrada." });
+    if (!row.factura.pagada_at) {
+      return res.status(422).json({ error: "La factura aún no ha sido marcada como pagada." });
+    }
+
+    const stream = generarReciboCaja(row.factura, row.cliente, req.tenant);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="RC-${row.factura.numero}.pdf"`);
+    (stream as Readable).pipe(res);
+  } catch (err) {
+    console.error("Error en GET /documentos/facturas/:id/recibo:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

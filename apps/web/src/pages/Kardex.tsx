@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 
 interface Producto { id: string; nombre: string; codigo: string | null }
 interface Bodega   { id: string; nombre: string }
@@ -59,7 +60,10 @@ export default function Kardex() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Kardex de inventario</h1>
+        <h1 className="flex items-center gap-1.5 text-xl font-bold text-gray-900">
+          Kardex de inventario
+          <HelpTooltip text="El Kardex muestra cada entrada y salida de un producto con el saldo acumulado, como un estado de cuenta del inventario." side="right" />
+        </h1>
         <p className="text-sm text-gray-500 mt-0.5">Historial cronológico de movimientos con saldo acumulado</p>
       </div>
 

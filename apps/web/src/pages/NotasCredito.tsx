@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FileX } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, cop, fecha } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -45,7 +46,10 @@ export default function NotasCredito() {
     <div className="flex-1 space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Notas crédito</h1>
+          <h1 className="flex items-center gap-1.5 text-xl font-semibold text-gray-900">
+            Notas crédito
+            <HelpTooltip text="Úsala para corregir o devolver parcialmente una factura ya aceptada por la DIAN. No anula la factura original." side="right" />
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">Creadas desde el detalle de cada factura aceptada</p>
         </div>
       </div>

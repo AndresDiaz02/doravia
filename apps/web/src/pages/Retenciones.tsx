@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, Trash2, FileDown } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -105,7 +106,10 @@ export default function Retenciones() {
     <div className="flex-1 space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Retenciones</h1>
+          <h1 className="flex items-center gap-1.5 text-xl font-semibold text-gray-900">
+            Retenciones
+            <HelpTooltip text="Las retenciones son descuentos en el pago que hace el cliente para girarlos directamente a la DIAN como anticipo de impuesto." side="right" />
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">Configura las retenciones que aplican tus clientes (retefuente, reteiva, reteica)</p>
         </div>
         <div className="flex items-center gap-2">
@@ -197,7 +201,12 @@ export default function Retenciones() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Tipo</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Tipo</Label>
+                {form.tipo === "retefuente" && <HelpTooltip text="Retefuente: el cliente retiene un % de tu pago y lo paga directamente a la DIAN en tu nombre." />}
+                {form.tipo === "reteiva" && <HelpTooltip text="Reteiva: el cliente retiene el 15% del IVA que cobras y lo consigna a la DIAN." />}
+                {form.tipo === "reteica" && <HelpTooltip text="Reteica: retención del impuesto de industria y comercio municipal; el % varía por ciudad y actividad." />}
+              </div>
               <select
                 value={form.tipo}
                 onChange={(e) => set("tipo", e.target.value)}

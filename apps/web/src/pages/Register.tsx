@@ -13,11 +13,11 @@ const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
   origen_120:  { nombre: "Origen 120",  precio: "$249.900 / año" },
   origen_300:  { nombre: "Origen 300",  precio: "$329.900 / año" },
   semilla:     { nombre: "Semilla",     precio: "$730.000 / año" },
-  raiz:        { nombre: "Raíz",        precio: "$1.150.000 / año" },
-  brote:       { nombre: "Brote",       precio: "$1.680.000 / año" },
-  cosecha:     { nombre: "Cosecha",     precio: "$2.320.000 / año" },
-  punto:       { nombre: "Punto",       precio: "$480.000 / año" },
-  punto_plus:  { nombre: "Punto Plus",  precio: "$840.000 / año" },
+  raiz:        { nombre: "Raíz",        precio: "$990.000 / año" },
+  brote:       { nombre: "Brote",       precio: "$1.450.000 / año" },
+  cosecha:     { nombre: "Cosecha",     precio: "$1.990.000 / año" },
+  punto:       { nombre: "Punto",       precio: "$450.000 / año" },
+  punto_plus:  { nombre: "Punto Plus",  precio: "$790.000 / año" },
 };
 
 const PLANES_LISTA = [
@@ -27,9 +27,9 @@ const PLANES_LISTA = [
   { slug: "origen_120", label: "Origen 120 — $249.900/año",   desc: "120 documentos/año · Solo facturación DIAN" },
   { slug: "origen_300", label: "Origen 300 — $329.900/año",   desc: "300 documentos/año · Solo facturación DIAN" },
   { slug: "semilla",    label: "Semilla — $730.000/año",       desc: "ERP completo · Inventario · 3 usuarios" },
-  { slug: "raiz",       label: "Raíz — $1.150.000/año",        desc: "Facturación ilimitada · 5 usuarios · 3 bodegas" },
-  { slug: "brote",      label: "Brote — $1.680.000/año",        desc: "Recurrentes · CRM · Reportes comparativos" },
-  { slug: "cosecha",    label: "Cosecha — $2.320.000/año",     desc: "Plan completo · Centros de costos · Ilimitado" },
+  { slug: "raiz",       label: "Raíz — $990.000/año",          desc: "Facturación ilimitada · 5 usuarios · 3 bodegas" },
+  { slug: "brote",      label: "Brote — $1.450.000/año",       desc: "Recurrentes · CRM · Reportes comparativos" },
+  { slug: "cosecha",    label: "Cosecha — $1.990.000/año",     desc: "Plan completo · Centros de costos · Ilimitado" },
 ];
 
 interface RegisterFreeResponse {

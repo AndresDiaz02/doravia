@@ -6,9 +6,11 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch } from "lucide-react";
+import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { RecibirMercanciaIA } from "./RecibirMercanciaIA";
+import { TutorialOverlay } from "../components/TutorialOverlay";
+import { useTutorial } from "../hooks/useTutorial";
 
 interface StockItem {
   producto_id: string;
@@ -37,9 +39,25 @@ interface Producto { id: string; nombre: string; codigo: string }
 type TabActiva = "stock" | "movimientos";
 type TipoMovimiento = "entrada" | "salida" | "ajuste";
 
+const TUTORIAL_INVENTARIO = [
+  {
+    titulo: "Tu inventario en un solo lugar",
+    descripcion: "Aquí ves el stock disponible de cada producto por bodega y el historial de movimientos.",
+  },
+  {
+    titulo: "Registra una entrada de mercancía",
+    descripcion: 'Haz clic en "Registrar movimiento" para agregar stock. Si tienes el plan con IA, puedes subir la foto de la factura del proveedor.',
+  },
+  {
+    titulo: "Cargue con IA desde foto",
+    descripcion: 'Con el botón "IA — Cargar desde foto", sube la foto de la factura del proveedor y la IA extrae todos los ítems automáticamente.',
+  },
+];
+
 export default function Inventario() {
   const { plan, isContador } = useAuth();
   const puedeIA = (plan?.features as Record<string, boolean> | undefined)?.ia_asistente === true;
+  const { mostrar: mostrarTutorial, cerrar: cerrarTutorial, relanzar: relanzarTutorial } = useTutorial("inventario");
   const [tab, setTab] = useState<TabActiva>("stock");
   const [stock, setStock] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -118,12 +136,24 @@ export default function Inventario() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {mostrarTutorial && (
+        <TutorialOverlay
+          slug="inventario"
+          titulo="Tu primer cargue de inventario"
+          pasos={TUTORIAL_INVENTARIO}
+          onFin={cerrarTutorial}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
           <p className="text-sm text-gray-500 mt-1">Control de existencias por bodega</p>
         </div>
         <div className="flex gap-2">
+          <Button type="button" variant="secondary" onClick={relanzarTutorial} title="Ver tutorial">
+            <BookOpen className="h-4 w-4" />
+          </Button>
           {puedeIA && !isContador && (
             <RecibirMercanciaIA bodegas={bodegas} productos={productos} onSuccess={cargarDatos} />
           )}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad | Doravia</title>
+<meta name="description" content="Política de privacidad y tratamiento de datos personales de Doravia — plataforma de facturación electrónica colombiana.">
+<link rel="canonical" href="https://doraviasoft.com/privacidad">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .legal-page { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+  .legal-page h1 { font-size: 2rem; font-weight: 700; color: #111827; margin-bottom: 8px; }
+  .legal-page .subtitle { color: #6b7280; font-size: 0.9rem; margin-bottom: 40px; }
+  .legal-page h2 { font-size: 1.15rem; font-weight: 600; color: #111827; margin: 32px 0 12px; }
+  .legal-page p, .legal-page li { color: #374151; font-size: 0.95rem; line-height: 1.75; }
+  .legal-page ul { padding-left: 20px; margin: 8px 0; }
+  .legal-page li { margin-bottom: 6px; }
+  .legal-page a { color: #16a34a; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg></div>
+      <span class="logo-text">Doravia</span>
+    </a>
+    <nav>
+      <a href="/">Inicio</a>
+      <a href="/erp.html">ERP</a>
+      <a href="/punto.html">POS</a>
+    </nav>
+    <a href="https://app.doravia.co/login" class="btn-cta">Ingresar</a>
+  </div>
+</header>
+
+<main class="legal-page">
+  <h1>Política de Privacidad</h1>
+  <p class="subtitle">Última actualización: junio de 2025</p>
+
+  <p>
+    Doravia SAS (<strong>"Doravia"</strong>, <strong>"nosotros"</strong>) opera la plataforma de facturación electrónica
+    disponible en <a href="https://app.doravia.co">app.doravia.co</a>. Esta política describe cómo recopilamos,
+    usamos, almacenamos y protegemos tu información personal de acuerdo con la
+    Ley 1581 de 2012 y el Decreto 1074 de 2015 (Régimen de Protección de Datos Personales de Colombia).
+  </p>
+
+  <h2>1. Datos que recopilamos</h2>
+  <p>Recopilamos los siguientes datos cuando usas Doravia:</p>
+  <ul>
+    <li><strong>Datos de registro:</strong> nombre, correo electrónico, NIT, contraseña (cifrada con bcrypt).</li>
+    <li><strong>Datos de empresa:</strong> razón social, NIT, dirección, teléfono, logo.</li>
+    <li><strong>Datos de facturación:</strong> información de clientes, facturas, gastos y movimientos contables que tú registras en la plataforma.</li>
+    <li><strong>Datos de pago:</strong> procesamos pagos a través de Wompi (Bancolombia). No almacenamos números de tarjeta ni datos de cuenta bancaria.</li>
+    <li><strong>Datos técnicos:</strong> dirección IP, tipo de navegador, registros de acceso (logs) para seguridad y diagnóstico.</li>
+  </ul>
+
+  <h2>2. Finalidad del tratamiento</h2>
+  <p>Usamos tus datos para:</p>
+  <ul>
+    <li>Prestar el servicio de facturación electrónica y ERP que contrataste.</li>
+    <li>Procesar y confirmar pagos de suscripción.</li>
+    <li>Enviarte notificaciones transaccionales (facturas, alertas de cobro, recuperación de contraseña).</li>
+    <li>Mejorar la plataforma y prevenir fraudes.</li>
+    <li>Cumplir con obligaciones legales colombianas (DIAN, UGPP).</li>
+  </ul>
+
+  <h2>3. Base legal del tratamiento</h2>
+  <p>
+    El tratamiento de tus datos se basa en: (i) la ejecución del contrato de prestación de servicios,
+    (ii) el cumplimiento de obligaciones legales, y (iii) tu consentimiento explícito al aceptar estos
+    términos durante el registro.
+  </p>
+
+  <h2>4. Almacenamiento y seguridad</h2>
+  <p>
+    Los datos se almacenan en servidores de Railway (PostgreSQL) ubicados en infraestructura de Google Cloud
+    en la región <em>us-east4</em>. Implementamos cifrado en tránsito (TLS 1.2+), cifrado de contraseñas
+    (bcrypt), tokens de sesión con rotación automática y rate limiting en todos los endpoints de autenticación.
+  </p>
+  <p>
+    Realizamos copias de seguridad periódicas. Sin embargo, te recomendamos mantener exportaciones propias
+    de tus datos contables importantes.
+  </p>
+
+  <h2>5. Compartición de datos con terceros</h2>
+  <p>Compartimos datos únicamente con:</p>
+  <ul>
+    <li><strong>DIAN (Dirección de Impuestos y Aduanas Nacionales):</strong> datos de facturas electrónicas, según lo exige la ley colombiana.</li>
+    <li><strong>Wompi (Bancolombia):</strong> referencia de pago y monto, para procesar tu suscripción.</li>
+    <li><strong>Proveedor Tecnológico DIAN (PT):</strong> datos de facturas para la firma y envío electrónico.</li>
+    <li><strong>SendGrid / servicio de email:</strong> correo electrónico y nombre, para envío de notificaciones transaccionales.</li>
+  </ul>
+  <p>No vendemos ni cedemos tus datos a terceros con fines publicitarios.</p>
+
+  <h2>6. Tus derechos (Habeas Data)</h2>
+  <p>Conforme a la Ley 1581 de 2012, tienes derecho a:</p>
+  <ul>
+    <li>Conocer, actualizar y rectificar tus datos personales.</li>
+    <li>Solicitar la supresión de tus datos cuando no sean necesarios para la prestación del servicio.</li>
+    <li>Revocar el consentimiento otorgado.</li>
+    <li>Presentar quejas ante la Superintendencia de Industria y Comercio (SIC).</li>
+  </ul>
+  <p>
+    Para ejercer estos derechos escríbenos a <a href="mailto:privacidad@doravia.co">privacidad@doravia.co</a>.
+    Responderemos en un plazo máximo de 10 días hábiles.
+  </p>
+
+  <h2>7. Retención de datos</h2>
+  <p>
+    Conservamos tus datos durante la vigencia del contrato de servicio y por el período adicional exigido
+    por la ley colombiana (mínimo 5 años para documentos contables y tributarios según el Código de Comercio
+    y la ley tributaria).
+  </p>
+
+  <h2>8. Cookies</h2>
+  <p>
+    La aplicación web usa únicamente cookies de sesión esenciales (JWT en localStorage) para mantener tu
+    sesión activa. No usamos cookies de seguimiento publicitario ni analytics de terceros.
+  </p>
+
+  <h2>9. Cambios a esta política</h2>
+  <p>
+    Podemos actualizar esta política. Los cambios materiales serán notificados por correo electrónico con
+    al menos 15 días de anticipación. El uso continuado de Doravia después de la fecha efectiva constituye
+    aceptación de los cambios.
+  </p>
+
+  <h2>10. Contacto</h2>
+  <p>
+    Para consultas sobre privacidad o ejercicio de derechos:<br>
+    <strong>Doravia SAS</strong><br>
+    Correo: <a href="mailto:privacidad@doravia.co">privacidad@doravia.co</a><br>
+    Colombia
+  </p>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="logo-mark logo-mark--sm"><svg viewBox="0 0 220 220" fill="none"><rect x="60" y="50" width="34" height="120" rx="17" fill="#FFC94A"/><path d="M77 50 C 130 48, 165 72, 165 110 C 165 148, 130 172, 77 170" fill="none" stroke="#FFC94A" stroke-width="34" stroke-linecap="round"/></svg></div>
+      <span>Doravia</span>
+    </div>
+    <div class="footer-links">
+      <a href="/privacidad.html">Privacidad</a>
+      <a href="/terminos.html">Términos</a>
+      <a href="mailto:soporte@doravia.co">Soporte</a>
+    </div>
+    <p class="footer-copy">© 2025 Doravia SAS. Todos los derechos reservados.</p>
+  </div>
+</footer>
+
+</body>
+</html>

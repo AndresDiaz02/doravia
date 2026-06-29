@@ -1,4 +1,5 @@
 import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura } from "@workspace/db";
+import type { ResolucionDian } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { assertCanEmitirFactura } from "../guards/plan-limits.js";
 import { crearAsientoFactura } from "./contabilidad.service.js";
@@ -54,6 +55,26 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   // Guard numérico — lanza PlanLimitError si se superó el límite del mes
   await assertCanEmitirFactura(tenant);
 
+  // Validar items
+  if (!input.items.length) throw new Error("Se requiere al menos un ítem.");
+  for (const item of input.items) {
+    if (!item.descripcion?.trim()) throw new Error("Cada ítem debe tener descripción.");
+    if (Number(item.cantidad) <= 0) throw new Error("La cantidad de cada ítem debe ser mayor a cero.");
+    if (Number(item.precio_unitario) <= 0) throw new Error("El precio unitario de cada ítem debe ser mayor a cero.");
+    const desc = item.descuento_pct ?? 0;
+    if (desc < 0 || desc > 100) throw new Error("El descuento debe estar entre 0 y 100.");
+    const iva = item.iva_pct ?? 19;
+    if (![0, 5, 19].includes(iva)) throw new Error("IVA debe ser 0, 5 o 19.");
+  }
+
+  // Validar fecha de vencimiento
+  if (input.fecha_vencimiento) {
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    if (input.fecha_vencimiento < hoyStr) {
+      throw new Error("La fecha de vencimiento no puede ser anterior a hoy.");
+    }
+  }
+
   // Verificar que el cliente pertenece al tenant
   const [cliente] = await db
     .select()
@@ -63,24 +84,23 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
 
   if (!cliente) throw new Error("Cliente no encontrado.");
 
-  // Obtener resolución DIAN activa
-  const [resolucion] = await db
-    .select()
+  // Verificar que existe resolución activa ANTES de la transacción (falla rápido si no hay)
+  const [resolucionPrev] = await db
+    .select({ id: resoluciones_dian.id, numero_resolucion: resoluciones_dian.numero_resolucion,
+              fecha_desde: resoluciones_dian.fecha_desde, fecha_hasta: resoluciones_dian.fecha_hasta })
     .from(resoluciones_dian)
     .where(and(eq(resoluciones_dian.tenant_id, tenant.id), eq(resoluciones_dian.activa, true)))
     .limit(1);
 
-  if (!resolucion) throw new Error("No hay una resolución DIAN activa. Configura tu resolución antes de emitir facturas.");
-  if (resolucion.consecutivo_actual > resolucion.consecutivo_hasta) {
-    throw new Error("La resolución DIAN ha agotado su rango de consecutivos. Solicita una nueva resolución.");
-  }
+  if (!resolucionPrev) throw new Error("No hay una resolución DIAN activa. Configura tu resolución antes de emitir facturas.");
+
   const hoy = new Date();
-  const fechaDesde = new Date(resolucion.fecha_desde);
-  const fechaHasta = new Date(resolucion.fecha_hasta);
+  const fechaDesde = new Date(resolucionPrev.fecha_desde);
+  const fechaHasta = new Date(resolucionPrev.fecha_hasta);
   if (hoy < fechaDesde || hoy > fechaHasta) {
     throw new Error(
-      `La resolución DIAN ${resolucion.numero_resolucion} no está vigente. ` +
-      `Vigencia: ${resolucion.fecha_desde} – ${resolucion.fecha_hasta}.`
+      `La resolución DIAN ${resolucionPrev.numero_resolucion} no está vigente. ` +
+      `Vigencia: ${resolucionPrev.fecha_desde} – ${resolucionPrev.fecha_hasta}.`
     );
   }
 
@@ -98,12 +118,29 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   const total_retenciones = Number(retencionesCalculadas.reduce((s, r) => s + r.valor, 0).toFixed(2));
   const neto_a_pagar = Number((total - total_retenciones).toFixed(2));
 
-  const consecutivo = resolucion.consecutivo_actual;
-  const numero = `${resolucion.prefijo}${String(consecutivo).padStart(4, "0")}`;
   const fechaEmision = new Date();
 
-  // Insertar factura + items + retenciones en una transacción
+  // Insertar factura + items + retenciones en una transacción atómica.
+  // El consecutivo se lee con SELECT FOR UPDATE dentro de la transacción para
+  // evitar la race condition donde dos requests concurrentes generan el mismo número.
+  let resolucion!: ResolucionDian;
   const factura = await db.transaction(async (tx) => {
+    // Lock de la fila de resolución — garantiza consecutivo único
+    const [resolucionLocked] = await tx
+      .select()
+      .from(resoluciones_dian)
+      .where(eq(resoluciones_dian.id, resolucionPrev.id))
+      .for("update");
+
+    if (!resolucionLocked) throw new Error("Resolución DIAN no encontrada.");
+    if (resolucionLocked.consecutivo_actual > resolucionLocked.consecutivo_hasta) {
+      throw new Error("La resolución DIAN ha agotado su rango de consecutivos. Solicita una nueva resolución.");
+    }
+
+    resolucion = resolucionLocked;
+    const consecutivo = resolucionLocked.consecutivo_actual;
+    const numero = `${resolucionLocked.prefijo}${String(consecutivo).padStart(4, "0")}`;
+
     const [f] = await tx
       .insert(facturas)
       .values({
@@ -174,10 +211,27 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
       .from(items_factura)
       .where(eq(items_factura.factura_id, factura.id));
 
-    const respDian = await enviarFacturaDian({ factura, cliente, items: itemsParaDian, tenant });
+    const respDian = await enviarFacturaDian({
+      factura,
+      cliente,
+      items: itemsParaDian,
+      tenant,
+      resolucion: resolucion!,
+    });
 
     if (respDian.aceptada) {
-      const asientoId = await crearAsientoFactura(tenant.id, factura);
+      // crearAsientoFactura falla si no hay cuentas PUC configuradas.
+      // Esto NO debe impedir que la factura quede aceptada — la factura ya
+      // fue validada por la DIAN. Se captura el error y se registra para
+      // que el usuario pueda ver la advertencia sin perder la factura.
+      let asientoId: string | null = null;
+      let asientoError: string | null = null;
+      try {
+        asientoId = await crearAsientoFactura(tenant.id, factura);
+      } catch (e) {
+        asientoError = e instanceof Error ? e.message : "Error desconocido al crear asiento contable.";
+        console.error(`[CONTABILIDAD] Asiento factura ${factura.numero} fallido:`, asientoError);
+      }
 
       // Auto-descuento de inventario si el plan lo tiene activo
       const features = tenant.plan.features as Record<string, boolean>;
@@ -210,7 +264,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         });
       }
 
-      return facturaFinal;
+      return { factura: facturaFinal, advertencias: asientoError ? [asientoError] : [] };
     } else {
       await db.update(facturas).set({ estado: "rechazada" }).where(eq(facturas.id, factura.id));
       throw new Error(`La DIAN rechazó la factura: ${respDian.mensaje}`);
@@ -218,6 +272,6 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   } catch (err) {
     // Si falló el envío DIAN, la factura queda en borrador para reintento
     if (err instanceof Error && err.message.includes("La DIAN rechazó")) throw err;
-    throw new Error(`Error al enviar a la DIAN. La factura ${numero} quedó en borrador para reintento.`);
+    throw new Error(`Error al enviar a la DIAN. La factura ${factura.numero} quedó en borrador para reintento.`);
   }
 }

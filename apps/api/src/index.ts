@@ -21,6 +21,7 @@ import recurrentesRouter from "./routes/recurrentes.js";
 import cotizacionesRouter from "./routes/cotizaciones.js";
 import gastosRouter from "./routes/gastos.js";
 import iaRouter from "./routes/ia.js";
+import tutorialesRouter from "./routes/tutoriales.js";
 import pagosRouter from "./routes/pagos.js";
 import retencionesRouter from "./routes/retenciones.js";
 import notasCreditoRouter from "./routes/notas-credito.js";
@@ -36,6 +37,9 @@ import fundadorRouter from "./routes/fundador.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { isDianEnProduccion } from "./services/dian.service.js";
 
 const app = express();
 
@@ -55,6 +59,7 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use("/api/ia", express.json({ limit: "10mb" })); // imágenes y PDFs
 app.use(express.json({ limit: "1mb" }));
 
 const loginRateLimit = rateLimit({
@@ -65,12 +70,51 @@ const loginRateLimit = rateLimit({
   message: { error: "Demasiados intentos de acceso. Intenta de nuevo en 15 minutos." },
 });
 
+// Rate limit para endpoints de escritura (POST/PATCH/DELETE autenticados)
+const writeRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: (req) => req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS",
+  message: { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
+});
+
+// Rate limit para registro de nuevas empresas
+const registerRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de registro. Intenta de nuevo en una hora." },
+});
+
 // ── Sin auth ────────────────────────────────────────────────────────────────
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", async (_req, res) => {
+  const start = Date.now();
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.json({
+      ok: true,
+      db: "connected",
+      db_ms: Date.now() - start,
+      dian: isDianEnProduccion() ? "produccion" : "stub",
+      uptime_s: Math.floor(process.uptime()),
+    });
+  } catch (e) {
+    res.status(503).json({
+      ok: false,
+      db: "error",
+      error: e instanceof Error ? e.message : "DB unreachable",
+    });
+  }
+});
 app.use("/api/auth/login", loginRateLimit);
+app.use("/api/auth/register", registerRateLimit);
 app.use("/api/auth", authRouter);
 
 // ── Fase 1 — Semilla (todos los planes) ─────────────────────────────────────
+app.use(writeRateLimit);
 app.use("/api/clientes",           authenticate, clientesRouter);
 app.use("/api/facturas",           authenticate, facturasRouter);
 app.use("/api/contabilidad",       authenticate, contabilidadRouter);
@@ -89,6 +133,7 @@ app.use("/api/recurrentes",    authenticate, requirePlanFeature("facturacion_rec
 app.use("/api/cotizaciones",  authenticate, requirePlanFeature("cotizaciones"),            cotizacionesRouter);
 app.use("/api/gastos",        authenticate, requirePlanFeature("gastos"),                  gastosRouter);
 app.use("/api/ia",            authenticate, requirePlanFeature("ia_asistente"),            iaRouter);
+app.use("/api/tutoriales",   authenticate, tutorialesRouter);
 app.use("/api/pagos",         pagosRouter); // checkout usa authenticate internamente; webhook es público
 
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────

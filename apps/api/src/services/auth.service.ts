@@ -22,6 +22,7 @@ export interface AccessPayload {
   sub: string;       // userId
   tenantId: string;
   role: string;
+  permisos_contables: boolean;
   type: "access";
 }
 
@@ -32,11 +33,12 @@ export interface SelectionPayload {
 
 // ── Helpers JWT ──────────────────────────────────────────────────────────────
 
-export function signAccessToken(user: User, tenantId: string, role?: string): string {
+export function signAccessToken(user: User, tenantId: string, role?: string, permisos_contables?: boolean): string {
   const payload: AccessPayload = {
     sub: user.id,
     tenantId,
     role: role ?? user.role,
+    permisos_contables: permisos_contables ?? user.permisos_contables,
     type: "access",
   };
   return jwt.sign(payload, jwtSecret(), { expiresIn: ACCESS_TTL_SECONDS });
@@ -316,14 +318,16 @@ export async function selectEmpresa(selectionToken: string, tenantId: string) {
   if (!user) throw new Error("Usuario no encontrado.");
 
   let role = user.role as string;
+  let permisos_contables = user.permisos_contables;
   if (user.tenant_id !== tenantId) {
     const [acceso] = await db
-      .select({ role: user_accesos.role })
+      .select({ role: user_accesos.role, permisos_contables: user_accesos.permisos_contables })
       .from(user_accesos)
       .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, tenantId)))
       .limit(1);
     if (!acceso) throw new Error("No tienes acceso a esa empresa.");
     role = acceso.role;
+    permisos_contables = acceso.permisos_contables;
   }
 
   const [tenant] = await db
@@ -333,7 +337,7 @@ export async function selectEmpresa(selectionToken: string, tenantId: string) {
     .limit(1);
   if (!tenant) throw new Error("Empresa inactiva o no encontrada.");
 
-  const accessToken = signAccessToken(user, tenant.id, role);
+  const accessToken = signAccessToken(user, tenant.id, role, permisos_contables);
   const refreshToken = await createRefreshToken(user.id, tenant.id);
 
   return { user: sinHash(user), tenant, accessToken, refreshToken };
@@ -350,14 +354,16 @@ export async function cambiarEmpresa(userId: string, tenantId: string) {
   if (!user) throw new Error("Usuario no encontrado.");
 
   let role = user.role as string;
+  let permisos_contables = user.permisos_contables;
   if (user.tenant_id !== tenantId) {
     const [acceso] = await db
-      .select({ role: user_accesos.role })
+      .select({ role: user_accesos.role, permisos_contables: user_accesos.permisos_contables })
       .from(user_accesos)
       .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, tenantId)))
       .limit(1);
     if (!acceso) throw new Error("No tienes acceso a esa empresa.");
     role = acceso.role;
+    permisos_contables = acceso.permisos_contables;
   }
 
   const [tenant] = await db
@@ -367,7 +373,7 @@ export async function cambiarEmpresa(userId: string, tenantId: string) {
     .limit(1);
   if (!tenant) throw new Error("Empresa no encontrada o inactiva.");
 
-  const accessToken = signAccessToken(user, tenant.id, role);
+  const accessToken = signAccessToken(user, tenant.id, role, permisos_contables);
   const refreshToken = await createRefreshToken(user.id, tenant.id);
 
   return { user: sinHash(user), tenant, accessToken, refreshToken };
@@ -427,15 +433,19 @@ export async function refreshAccessToken(rawToken: string) {
     .limit(1);
   if (!user) throw new Error("Usuario no encontrado o inactivo.");
 
-  // Preservar el rol correcto para el tenant del token
+  // Preservar el rol y permisos correctos para el tenant del token
   let role = user.role as string;
+  let permisos_contables = user.permisos_contables;
   if (user.tenant_id !== token.tenant_id) {
     const [acceso] = await db
-      .select({ role: user_accesos.role })
+      .select({ role: user_accesos.role, permisos_contables: user_accesos.permisos_contables })
       .from(user_accesos)
       .where(and(eq(user_accesos.user_id, user.id), eq(user_accesos.tenant_id, token.tenant_id)))
       .limit(1);
-    if (acceso) role = acceso.role;
+    if (acceso) {
+      role = acceso.role;
+      permisos_contables = acceso.permisos_contables;
+    }
   }
 
   await db
@@ -443,7 +453,7 @@ export async function refreshAccessToken(rawToken: string) {
     .set({ revoked_at: new Date() })
     .where(eq(refresh_tokens.id, token.id));
 
-  const accessToken = signAccessToken(user, token.tenant_id, role);
+  const accessToken = signAccessToken(user, token.tenant_id, role, permisos_contables);
   const newRefreshToken = await createRefreshToken(user.id, token.tenant_id);
 
   return { accessToken, refreshToken: newRefreshToken };

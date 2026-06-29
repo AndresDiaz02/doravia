@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, uuid, timestamp, varchar, index } from "drizzle-orm/pg-core";
 import { users } from "./users.ts";
 import { tenants } from "./tenants.ts";
 
@@ -10,7 +10,10 @@ export const refresh_tokens = pgTable("refresh_tokens", {
   expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
   revoked_at: timestamp("revoked_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("refresh_tokens_user_idx").on(t.user_id),
+  index("refresh_tokens_tenant_idx").on(t.tenant_id),
+]);
 
 export type RefreshToken = typeof refresh_tokens.$inferSelect;
 

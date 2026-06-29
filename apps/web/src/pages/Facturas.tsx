@@ -1,11 +1,13 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, FileDown } from "lucide-react";
+import { Plus, FileDown, BookOpen } from "lucide-react";
 import { apiFetchPaged, cop, fecha, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card } from "../components/ui/card";
+import { TutorialOverlay } from "../components/TutorialOverlay";
+import { useTutorial } from "../hooks/useTutorial";
 
 interface FacturaListItem {
   id: string;
@@ -33,6 +35,26 @@ const ESTADO_LABEL: Record<string, string> = {
   enviada: "Enviada",
 };
 
+const TUTORIAL_PASOS = [
+  {
+    titulo: "Bienvenido a Facturación",
+    descripcion: "Aquí creas y gestionas todas tus facturas electrónicas DIAN. Cada factura queda registrada y puedes descargarla en PDF.",
+  },
+  {
+    titulo: "Crea tu primera factura",
+    descripcion: 'Haz clic en "Nueva factura" para empezar. Solo necesitas seleccionar el cliente y agregar los ítems.',
+    selector: 'a[href="/facturas/nueva"]',
+  },
+  {
+    titulo: "Revisa el estado de cada factura",
+    descripcion: '"Aceptada" significa que la DIAN la recibió. "Borrador" significa que falló el envío y puedes reintentarlo desde el detalle.',
+  },
+  {
+    titulo: "Exporta a Excel",
+    descripcion: "Puedes filtrar por rango de fechas y exportar todas las facturas a Excel para tu contador.",
+  },
+];
+
 export function Facturas() {
   const { isContador } = useAuth();
   const [facturas, setFacturas] = useState<FacturaListItem[]>([]);
@@ -40,6 +62,7 @@ export function Facturas() {
   const [exportando, setExportando] = useState(false);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const { mostrar: mostrarTutorial, cerrar: cerrarTutorial, relanzar: relanzarTutorial } = useTutorial("facturas");
 
   useEffect(() => {
     void apiFetchPaged<FacturaListItem>("/api/facturas", 1, 50)
@@ -50,6 +73,15 @@ export function Facturas() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
+      {mostrarTutorial && (
+        <TutorialOverlay
+          slug="facturas"
+          titulo="Crea tu primera factura"
+          pasos={TUTORIAL_PASOS}
+          onFin={cerrarTutorial}
+        />
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-semibold text-gray-900">Facturas</h1>
         <div className="flex items-center gap-2 flex-wrap">
@@ -66,6 +98,9 @@ export function Facturas() {
           }}>
             <FileDown className="h-4 w-4" />
             {exportando ? "Exportando..." : "Exportar Excel"}
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={relanzarTutorial} title="Ver tutorial">
+            <BookOpen className="h-4 w-4" />
           </Button>
           {!isContador && (
             <Link

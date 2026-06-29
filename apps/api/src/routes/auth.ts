@@ -1,8 +1,10 @@
 import { Router } from "express";
-import { db, users, tenants, plans, pending_registrations } from "@workspace/db";
+import { db, users, tenants, plans, pending_registrations, password_reset_tokens } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
+import { enviarResetPassword } from "../services/email.service.js";
 import {
   registrarTenant,
   completarRegistroPendiente,
@@ -231,6 +233,84 @@ router.post("/cambiar-empresa", authenticate, async (req, res) => {
     res.json(resultado);
   } catch (err) {
     if (err instanceof Error) return res.status(403).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/solicitar-reset
+// Envía email con enlace de reset. Siempre responde 200 para no revelar si el email existe.
+router.post("/solicitar-reset", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email) return res.status(400).json({ error: "Campo requerido: email." });
+
+  try {
+    const [user] = await db
+      .select({ id: users.id, nombre: users.nombre, email: users.email })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase().trim()))
+      .limit(1);
+
+    if (user) {
+      const rawToken = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      await db.insert(password_reset_tokens).values({
+        user_id:    user.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      });
+
+      void enviarResetPassword(user.email, user.nombre, rawToken).catch(
+        (e) => console.error("Error enviando email de reset:", e),
+      );
+    }
+
+    res.json({ ok: true, message: "Si el correo existe, recibirás un enlace en los próximos minutos." });
+  } catch (err) {
+    if (err instanceof Error) return res.status(422).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/resetear-password
+router.post("/resetear-password", async (req, res) => {
+  const { token, new_password } = req.body as { token?: string; new_password?: string };
+  if (!token || !new_password) {
+    return res.status(400).json({ error: "Campos requeridos: token, new_password." });
+  }
+  if (new_password.length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  }
+
+  try {
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+
+    const [resetToken] = await db
+      .select()
+      .from(password_reset_tokens)
+      .where(eq(password_reset_tokens.token_hash, tokenHash))
+      .limit(1);
+
+    if (!resetToken || resetToken.used || resetToken.expires_at < new Date()) {
+      return res.status(400).json({ error: "El enlace es inválido o ha expirado. Solicita uno nuevo." });
+    }
+
+    const password_hash = await bcrypt.hash(new_password, 12);
+
+    await db.transaction(async (tx) => {
+      await tx.update(users)
+        .set({ password_hash })
+        .where(eq(users.id, resetToken.user_id));
+
+      await tx.update(password_reset_tokens)
+        .set({ used: true })
+        .where(eq(password_reset_tokens.id, resetToken.id));
+    });
+
+    res.json({ ok: true, message: "Contraseña actualizada correctamente." });
+  } catch (err) {
+    if (err instanceof Error) return res.status(422).json({ error: err.message });
     throw err;
   }
 });

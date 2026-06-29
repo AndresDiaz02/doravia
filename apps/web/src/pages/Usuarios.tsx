@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { UserPlus, AlertCircle, Link2, Trash2 } from "lucide-react";
+import { UserPlus, AlertCircle, Link2, Trash2, BookOpen } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -15,6 +15,7 @@ interface Usuario {
   nombre: string;
   role: string;
   activo: boolean;
+  permisos_contables: boolean;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ interface UsuarioExterno {
   email: string;
   role: string;
   activo: boolean;
+  permisos_contables: boolean;
   created_at: string;
 }
 
@@ -89,6 +91,22 @@ export function Usuarios() {
       body: JSON.stringify({ activo: !u.activo }),
     });
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? actualizado : x)));
+  }
+
+  async function togglePermisos(u: Usuario) {
+    const actualizado = await apiFetch<Usuario>(`/api/usuarios/${u.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permisos_contables: !u.permisos_contables }),
+    });
+    setUsuarios((prev) => prev.map((x) => (x.id === u.id ? actualizado : x)));
+  }
+
+  async function togglePermisosExterno(e: UsuarioExterno) {
+    const actualizado = await apiFetch<UsuarioExterno>(`/api/usuarios/externo/${e.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permisos_contables: !e.permisos_contables }),
+    });
+    setExternos((prev) => prev.map((x) => (x.id === e.id ? actualizado : x)));
   }
 
   async function handleVincularExterno(e: FormEvent) {
@@ -184,9 +202,20 @@ export function Usuarios() {
                   </td>
                   <td className="px-6 py-3 text-gray-600">{u.email}</td>
                   <td className="px-6 py-3">
-                    <Badge variant={u.role === "admin" ? "green" : "gray"}>
-                      {ROLE_LABEL[u.role] ?? u.role}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={u.role === "admin" ? "green" : "gray"}>
+                        {ROLE_LABEL[u.role] ?? u.role}
+                      </Badge>
+                      {u.role === "contador" && u.permisos_contables && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
+                          title="Permisos contables habilitados"
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          Contable
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-3 text-center">
                     <Badge variant={u.activo ? "green" : "gray"}>
@@ -194,14 +223,25 @@ export function Usuarios() {
                     </Badge>
                   </td>
                   <td className="px-6 py-3 text-right">
-                    {u.id !== user?.id && (
-                      <button
-                        onClick={() => void toggleActivo(u)}
-                        className="text-xs text-gray-400 hover:text-gray-600"
-                      >
-                        {u.activo ? "Desactivar" : "Activar"}
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-3">
+                      {u.role === "contador" && u.id !== user?.id && (
+                        <button
+                          onClick={() => void togglePermisos(u)}
+                          className="text-xs text-purple-500 hover:text-purple-700"
+                          title={u.permisos_contables ? "Quitar permisos contables" : "Habilitar permisos contables"}
+                        >
+                          {u.permisos_contables ? "Quitar contable" : "Habilitar contable"}
+                        </button>
+                      )}
+                      {u.id !== user?.id && (
+                        <button
+                          onClick={() => void toggleActivo(u)}
+                          className="text-xs text-gray-400 hover:text-gray-600"
+                        >
+                          {u.activo ? "Desactivar" : "Activar"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -230,16 +270,37 @@ export function Usuarios() {
                     <td className="px-6 py-3 font-medium text-gray-900">{e.nombre}</td>
                     <td className="px-6 py-3 text-gray-600">{e.email}</td>
                     <td className="px-6 py-3">
-                      <Badge variant="blue">{ROLE_LABEL[e.role] ?? e.role}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="blue">{ROLE_LABEL[e.role] ?? e.role}</Badge>
+                        {e.role === "contador" && e.permisos_contables && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
+                            title="Permisos contables habilitados"
+                          >
+                            <BookOpen className="h-3 w-3" />
+                            Contable
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <button
-                        onClick={() => void handleDesvincular(e.id)}
-                        className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 ml-auto"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Desvincular
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        {e.role === "contador" && (
+                          <button
+                            onClick={() => void togglePermisosExterno(e)}
+                            className="text-xs text-purple-500 hover:text-purple-700"
+                          >
+                            {e.permisos_contables ? "Quitar contable" : "Habilitar contable"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => void handleDesvincular(e.id)}
+                          className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Desvincular
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -312,6 +373,7 @@ export function Usuarios() {
           </div>
         </form>
       </Dialog>
+
       <Dialog open={openExterno} onClose={() => setOpenExterno(false)} title="Vincular contador externo">
         <div className="mb-4 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">
           El contador debe tener una cuenta activa en Doravia. Después de vincularlo, podrá cambiar entre esta empresa y la suya al iniciar sesión.

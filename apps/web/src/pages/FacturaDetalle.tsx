@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -423,7 +424,10 @@ export function FacturaDetalle() {
       <Dialog open={openNC} onClose={() => setOpenNC(false)} title="Crear nota crédito">
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Tipo</Label>
+            <div className="flex items-center gap-1.5">
+              <Label>Tipo</Label>
+              <HelpTooltip text="Anulación cancela la factura ante la DIAN (irreversible). Usa nota crédito parcial para descuentos o devoluciones sin anular." />
+            </div>
             <select
               value={ncForm.tipo}
               onChange={(e) => setNcForm((f) => ({ ...f, tipo: e.target.value }))}

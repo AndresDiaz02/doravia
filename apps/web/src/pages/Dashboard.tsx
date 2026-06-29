@@ -90,6 +90,7 @@ export function Dashboard() {
   const [cartera, setCartera] = useState<CarteraVencida | null>(null);
   const [loading, setLoading] = useState(true);
   const [primerosPasos, setPrimerosPasos] = useState<PrimerosPasos | null>(null);
+  const [dianModo, setDianModo] = useState<"stub" | "produccion" | null>(null);
 
   const hasComparativo = (plan?.accounting_level ?? 1) >= 3;
 
@@ -97,6 +98,9 @@ export function Dashboard() {
     if (user?.role === "admin") {
       void apiFetch<PrimerosPasos>("/api/reportes/primeros-pasos")
         .then((d) => { if (!d.empresa || !d.resolucion || !d.clientes || !d.facturas) setPrimerosPasos(d); })
+        .catch(() => {});
+      void apiFetch<{ modo: "stub" | "produccion" }>("/api/empresa/dian-modo")
+        .then((d) => setDianModo(d.modo))
         .catch(() => {});
     }
   }, [user?.role]);
@@ -125,6 +129,20 @@ export function Dashboard() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
+      {/* Banner modo STUB — visible solo hasta que DIAN_PROVEEDOR sea aliaddo o matias */}
+      {dianModo === "stub" && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-red-800 text-sm">Modo de prueba — facturación electrónica no habilitada con la DIAN</p>
+            <p className="text-red-700 text-xs mt-0.5">
+              Las facturas generadas <strong>no tienen validez fiscal</strong>. Para activar la facturación real,
+              configura <code className="bg-red-100 px-1 rounded">DIAN_PROVEEDOR</code> y las credenciales
+              de tu proveedor tecnológico en Railway.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Cabecera */}
       <div className="flex items-center justify-between">
         <div>

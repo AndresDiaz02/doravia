@@ -27,7 +27,7 @@ export default function FundadorLayout() {
     }
 
     // Intenta con pin vacío — si FUNDADOR_PIN no está configurado, pasa directo
-    apiFetch<{ ok: boolean }>("/api/auth/verify-fundador-pin", {
+    apiFetch<{ ok: boolean }>("/api/fundador/verify-pin", {
       method: "POST",
       body: JSON.stringify({ pin: "" }),
     })
@@ -48,7 +48,7 @@ export default function FundadorLayout() {
     setVerificando(true);
     setPinError("");
     try {
-      await apiFetch("/api/auth/verify-fundador-pin", {
+      await apiFetch("/api/fundador/verify-pin", {
         method: "POST",
         body: JSON.stringify({ pin: pinInput.trim() }),
       });

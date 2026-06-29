@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Building2, ChevronRight } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -163,7 +163,12 @@ export function Login() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <Link to="/recuperar-password" className="text-xs text-green-600 hover:text-green-700">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

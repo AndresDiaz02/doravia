@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, numeric, index } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 import { bodegas } from "./bodegas.ts";
 import { productos } from "./productos.ts";
@@ -23,7 +23,9 @@ export const movimientos_inventario = pgTable("movimientos_inventario", {
   referencia_id: uuid("referencia_id"),
   observaciones: varchar("observaciones", { length: 300 }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("movimientos_inventario_producto_tenant_idx").on(t.producto_id, t.tenant_id),
+]);
 
 export type MovimientoInventario = typeof movimientos_inventario.$inferSelect;
 export type NewMovimientoInventario = typeof movimientos_inventario.$inferInsert;

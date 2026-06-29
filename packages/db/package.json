@@ -9,6 +9,7 @@
   },
   "scripts": {
     "seed": "tsx src/seed/index.ts",
+    "seed:contador": "tsx src/seed/contador.ts",
     "push": "drizzle-kit push --force",
     "studio": "drizzle-kit studio",
     "drizzle-kit": "drizzle-kit"

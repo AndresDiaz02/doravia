@@ -23,4 +23,7 @@ export * from "./comisiones_contador.ts";
 export * from "./retencion_seguimiento.ts";
 export * from "./leads_doravia.ts";
 export * from "./pending_registrations.ts";
+export * from "./wompi_events.ts";
+export * from "./password_reset_tokens.ts";
+export * from "./tutorial_progress.ts";
 

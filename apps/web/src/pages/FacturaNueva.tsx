@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Trash2, ArrowLeft, Percent } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
+import { DictadoIA, type CamposFacturaIA } from "../components/DictadoIA";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -144,6 +145,20 @@ export function FacturaNueva() {
 
   function addLinea() {
     setLineas((prev) => [...prev, newLinea()]);
+  }
+
+  function agregarLineaDesdeIA(campos: CamposFacturaIA) {
+    const linea: Linea = {
+      key: nextKey++,
+      producto_id: "",
+      descripcion: campos.descripcion,
+      cantidad: String(campos.cantidad),
+      precio_unitario: String(campos.precio_unitario),
+      descuento_pct: "0",
+      iva_pct: String(campos.iva_porcentaje),
+      unidad_medida: "UN",
+    };
+    setLineas((prev) => [...prev, linea]);
   }
 
   function removeLinea(key: number) {
@@ -335,10 +350,13 @@ export function FacturaNueva() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Ítems</CardTitle>
-            <Button type="button" variant="secondary" size="sm" onClick={addLinea}>
-              <Plus className="h-3 w-3" />
-              Agregar ítem
-            </Button>
+            <div className="flex items-center gap-2">
+              <DictadoIA onAplicar={agregarLineaDesdeIA} />
+              <Button type="button" variant="secondary" size="sm" onClick={addLinea}>
+                <Plus className="h-3 w-3" />
+                Agregar ítem
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">

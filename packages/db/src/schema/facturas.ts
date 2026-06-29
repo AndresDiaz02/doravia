@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, boolean, timestamp, numeric, text } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, integer, boolean, timestamp, numeric, text, index } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { resoluciones_dian } from "./resoluciones_dian.ts";
@@ -55,7 +55,10 @@ export const facturas = pgTable("facturas", {
   observaciones: text("observaciones"),
   pagada_at: timestamp("pagada_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("facturas_tenant_fecha_idx").on(t.tenant_id, t.fecha_emision),
+  index("facturas_tenant_estado_idx").on(t.tenant_id, t.estado),
+]);
 
 export const items_factura = pgTable("items_factura", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -70,7 +73,9 @@ export const items_factura = pgTable("items_factura", {
   subtotal: numeric("subtotal", { precision: 14, scale: 2 }).notNull(),
   iva_valor: numeric("iva_valor", { precision: 14, scale: 2 }).notNull(),
   total: numeric("total", { precision: 14, scale: 2 }).notNull(),
-});
+}, (t) => [
+  index("items_factura_factura_idx").on(t.factura_id),
+]);
 
 export type Factura = typeof facturas.$inferSelect;
 export type NewFactura = typeof facturas.$inferInsert;

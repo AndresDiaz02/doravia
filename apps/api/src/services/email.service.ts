@@ -168,3 +168,44 @@ export async function enviarAlertaCobro(
     html:    baseLayout("Recordatorio de pago", cuerpo),
   });
 }
+
+export async function enviarResetPassword(
+  email: string,
+  nombre: string,
+  token: string,
+): Promise<void> {
+  if (!emailConfigured()) {
+    console.warn(`[EMAIL] SMTP no configurado — token reset para ${email}: ${token}`);
+    return;
+  }
+
+  const baseUrl = process.env.APP_URL ?? "https://app.doravia.co";
+  const link = `${baseUrl}/recuperar-password?token=${encodeURIComponent(token)}`;
+
+  const cuerpo = `
+    <h2 style="color:#111827;font-size:18px;margin:0 0 8px;">Recupera tu contraseña</h2>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
+      Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta en Doravia.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${link}"
+         style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;
+                padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Restablecer contraseña
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">
+      Este enlace es válido por <strong>1 hora</strong>. Si no solicitaste este cambio, ignora este correo.
+    </p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">
+      O copia este enlace en tu navegador: ${link}
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from:    `"Doravia" <${FROM}>`,
+    to:      email,
+    subject: "Restablece tu contraseña de Doravia",
+    html:    baseLayout("Recuperar contraseña", cuerpo),
+  });
+}

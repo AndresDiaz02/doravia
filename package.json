@@ -6,6 +6,7 @@
     "build": "pnpm -r build",
     "db:push": "pnpm --filter @workspace/db push",
     "db:seed": "pnpm --filter @workspace/db seed",
+    "db:seed:contador": "pnpm --filter @workspace/db seed:contador",
     "db:studio": "pnpm --filter @workspace/db studio"
   },
   "devDependencies": {

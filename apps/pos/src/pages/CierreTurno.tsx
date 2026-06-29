@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, DollarSign, AlertTriangle } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
+import { HelpTooltip } from "../components/HelpTooltip";
 
 interface ResumenTurno {
   turno: {
@@ -132,6 +133,7 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
             <div className="rounded-xl bg-gray-50 p-4 space-y-3">
               <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
                 <DollarSign className="h-4 w-4" /> Cuadre de caja
+                <HelpTooltip text="Cuenta el dinero físico en la caja y compáralo con lo esperado. La diferencia queda registrada en el reporte del turno." side="right" />
               </p>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Base inicial</span>

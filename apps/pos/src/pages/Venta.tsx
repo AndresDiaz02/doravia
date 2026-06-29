@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer } from "lucide-react";
+import { TutorialOverlay } from "../components/TutorialOverlay";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
@@ -50,11 +51,28 @@ const METODOS = [
   { value: "daviplata",     label: "Daviplata" },
 ];
 
+const TUTORIAL_POS = [
+  {
+    titulo: "Bienvenido al Punto de Venta",
+    descripcion: "Desde aquí registras cada venta. El catálogo de productos aparece a la izquierda, el carrito a la derecha.",
+  },
+  {
+    titulo: "Busca y agrega productos",
+    descripcion: "Escribe el nombre o código del producto en el buscador, o haz clic directamente en la tarjeta del producto para agregarlo al carrito.",
+    selector: "input[placeholder*='Buscar']",
+  },
+  {
+    titulo: "Procesa el cobro",
+    descripcion: 'Una vez tengas los ítems en el carrito, haz clic en "Cobrar", elige el método de pago e ingresa el monto. El sistema calcula el vuelto automáticamente.',
+  },
+];
+
 export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onCerrarTurno }: Props) {
   const { user } = useAuth();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [mostrarTutorial, setMostrarTutorial] = useState(false);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
   // Cliente seleccionado
@@ -86,6 +104,10 @@ export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onC
   useEffect(() => {
     void apiFetch<Producto[]>("/api/pos/productos").then(setProductos);
     void apiFetch<{ data: Cliente[] }>("/api/clientes?limit=500").then((r) => setClientes(r.data));
+    // Chequear si debe mostrar el tutorial de POS
+    void apiFetch<Record<string, { completado: boolean; saltado: boolean }>>("/api/tutoriales/estado")
+      .then((est) => { if (!est.pos?.completado && !est.pos?.saltado) setMostrarTutorial(true); })
+      .catch(() => {/* si falla, no mostramos */});
   }, []);
 
   const productosVisibles = busqueda.trim()
@@ -344,6 +366,14 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
   return (
     <div className="h-full flex overflow-hidden bg-[#0B0E1A]">
+      {mostrarTutorial && (
+        <TutorialOverlay
+          slug="pos"
+          titulo="Tu primera venta en POS"
+          pasos={TUTORIAL_POS}
+          onFin={() => setMostrarTutorial(false)}
+        />
+      )}
       {/* ── Panel izquierdo: catálogo ── */}
       <div className="flex flex-col w-[58%] border-r border-slate-800">
         {/* Buscador */}

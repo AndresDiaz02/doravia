@@ -9,10 +9,17 @@ declare global {
       tenantId: string;
       userId: string;
       userRole: string;
+      userContable: boolean;
       tenant: TenantWithPlan;
     }
   }
 }
+
+// Paths donde el contador con permisos_contables puede escribir (PATCH/POST)
+const CONTABLE_WRITE_OK: RegExp[] = [
+  /^\/api\/contabilidad(\/|$)/,
+  /^\/api\/gastos\//,
+];
 
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
@@ -27,6 +34,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     req.tenantId = payload.tenantId;
     req.userId = payload.sub;
     req.userRole = payload.role;
+    req.userContable = payload.permisos_contables ?? false;
     req.tenant = await getTenantWithPlan(payload.tenantId);
   } catch {
     return res.status(401).json({ error: "Token inválido o expirado." });
@@ -46,12 +54,24 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     });
   }
 
-  // Rol Contador: solo lectura
+  // Rol Contador
   if (req.userRole === "contador" && req.method !== "GET") {
-    return res.status(403).json({
-      error: "El rol Contador solo tiene permisos de lectura.",
-      code: "CONTADOR_READ_ONLY",
-    });
+    if (!req.userContable) {
+      return res.status(403).json({
+        error: "El rol Contador solo tiene permisos de lectura.",
+        code: "CONTADOR_READ_ONLY",
+      });
+    }
+    // Contador con permisos contables: puede escribir en contabilidad y gastos solamente
+    // DELETE nunca está permitido para el contador
+    const url = req.originalUrl;
+    const contableOk = req.method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
+    if (!contableOk) {
+      return res.status(403).json({
+        error: "El contador no tiene permisos para modificar este módulo.",
+        code: "CONTADOR_READ_ONLY",
+      });
+    }
   }
 
   // Rol Vendedor: sin acceso a módulos de contabilidad/administración

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, CheckCircle2 } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, fecha } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -183,7 +184,10 @@ export function ResolucionesDian() {
                 </div>
                 <div className="space-y-1.5 sm:col-span-1" />
                 <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
                   <Label htmlFor="cons_desde">Consecutivo desde *</Label>
+                  <HelpTooltip text="Número con el que empieza tu talonario según la resolución DIAN. Generalmente es 1." />
+                </div>
                   <Input
                     id="cons_desde"
                     type="number"

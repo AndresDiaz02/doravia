@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, items_factura, clientes, retenciones_factura } from "@workspace/db";
+import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { crearFactura } from "../services/factura.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
@@ -70,18 +70,25 @@ router.post("/:id/reenviar", async (req, res) => {
     });
   }
 
-  const [[cliente], items] = await Promise.all([
+  const [[cliente], items, [resolucion]] = await Promise.all([
     db.select().from(clientes).where(eq(clientes.id, factura.cliente_id)).limit(1),
     db.select().from(items_factura).where(eq(items_factura.factura_id, factura.id)),
+    db.select().from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1),
   ]);
 
   if (!cliente) return res.status(422).json({ error: "Cliente de la factura no encontrado." });
+  if (!resolucion) return res.status(422).json({ error: "Resolución DIAN de la factura no encontrada." });
 
   try {
-    const respDian = await enviarFacturaDian({ factura, cliente, items, tenant: req.tenant });
+    const respDian = await enviarFacturaDian({ factura, cliente, items, tenant: req.tenant, resolucion });
 
     if (respDian.aceptada) {
-      const asientoId = await crearAsientoFactura(req.tenantId, factura);
+      let asientoId: string | null = null;
+      try {
+        asientoId = await crearAsientoFactura(req.tenantId, factura);
+      } catch (e) {
+        console.error(`[CONTABILIDAD] Asiento reenvío factura ${factura.numero} fallido:`, e);
+      }
 
       const features = req.tenant.plan.features as Record<string, boolean>;
       if (features.inventario) {
@@ -147,9 +154,9 @@ router.post("/", async (req, res) => {
 
   try {
     await verificarPeriodoAbierto(req.tenantId, new Date());
-    const factura = await crearFactura(req.tenant, { cliente_id, items, fecha_vencimiento, observaciones });
+    const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha_vencimiento, observaciones });
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.creada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total, estado: factura.estado }, ip: req.ip });
-    res.status(201).json(factura);
+    res.status(201).json({ ...factura, advertencias });
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return res.status(403).json({ error: err.message, code: err.code });

@@ -147,6 +147,14 @@ router.post("/", requireNotContador, async (req, res) => {
 
   const montoNum = Number(monto);
   const ivaNum = Number(iva ?? 0);
+
+  if (isNaN(montoNum) || montoNum <= 0) {
+    return res.status(400).json({ error: "El monto debe ser un número mayor a cero." });
+  }
+  if (isNaN(ivaNum) || ivaNum < 0) {
+    return res.status(400).json({ error: "El IVA no puede ser negativo." });
+  }
+
   const total = Number((montoNum + ivaNum).toFixed(2));
 
   try {
@@ -192,6 +200,13 @@ router.patch("/:id", requireNotContador, async (req, res) => {
 
   const montoNum = monto !== undefined ? Number(monto) : Number(gasto.monto);
   const ivaNum = iva !== undefined ? Number(iva) : Number(gasto.iva);
+
+  if (monto !== undefined && (isNaN(montoNum) || montoNum <= 0)) {
+    return res.status(400).json({ error: "El monto debe ser un número mayor a cero." });
+  }
+  if (iva !== undefined && (isNaN(ivaNum) || ivaNum < 0)) {
+    return res.status(400).json({ error: "El IVA no puede ser negativo." });
+  }
 
   const aprobandoAhora = estado === "aprobado" && gasto.estado !== "aprobado" && !gasto.asiento_id;
 

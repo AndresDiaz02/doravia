@@ -66,7 +66,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "raiz",
     nombre: "Raíz",
-    precio: 1_150_000,
+    precio: 990_000,
     descripcion: "Para negocios con operaciones más complejas",
     features: [
       "Todo Semilla +",
@@ -80,7 +80,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "brote",
     nombre: "Brote",
-    precio: 1_680_000,
+    precio: 1_450_000,
     descripcion: "Facturación recurrente y reportes avanzados",
     features: [
       "Todo Raíz +",
@@ -94,7 +94,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "cosecha",
     nombre: "Cosecha",
-    precio: 2_320_000,
+    precio: 1_990_000,
     descripcion: "Sin restricciones — el plan más completo",
     features: [
       "Todo Brote +",

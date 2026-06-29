@@ -27,6 +27,7 @@ router.get("/", async (req, res) => {
       nombre: users.nombre,
       role: users.role,
       activo: users.activo,
+      permisos_contables: users.permisos_contables,
       created_at: users.created_at,
     })
     .from(users)
@@ -99,10 +100,15 @@ router.patch("/:id", async (req, res) => {
     return res.status(422).json({ error: "No puedes desactivar tu propia cuenta." });
   }
 
-  const { nombre, role, activo } = req.body;
+  const { nombre, role, activo, permisos_contables } = req.body;
 
   if (role !== undefined && !(USER_ROLES as readonly string[]).includes(role)) {
     return res.status(400).json({ error: `Rol inválido. Opciones: ${USER_ROLES.join(", ")}.` });
+  }
+
+  const rolFinal = role !== undefined ? role : usuario.role;
+  if (permisos_contables === true && rolFinal !== "contador") {
+    return res.status(422).json({ error: "Los permisos contables solo aplican al rol Contador." });
   }
 
   const [actualizado] = await db
@@ -111,6 +117,7 @@ router.patch("/:id", async (req, res) => {
       ...(nombre !== undefined && { nombre }),
       ...(role !== undefined && { role }),
       ...(activo !== undefined && { activo }),
+      ...(permisos_contables !== undefined && { permisos_contables }),
     })
     .where(eq(users.id, usuario.id))
     .returning();
@@ -120,13 +127,14 @@ router.patch("/:id", async (req, res) => {
   res.json(sinHash);
 });
 
-// GET /api/usuarios/externos — lista de contadores externos vinculados a esta empresa
+// GET /api/usuarios/externos
 router.get("/externos", async (req, res) => {
   const accesos = await db
     .select({
       id: user_accesos.id,
       user_id: user_accesos.user_id,
       role: user_accesos.role,
+      permisos_contables: user_accesos.permisos_contables,
       created_at: user_accesos.created_at,
       nombre: users.nombre,
       email: users.email,
@@ -139,7 +147,7 @@ router.get("/externos", async (req, res) => {
   res.json(accesos);
 });
 
-// POST /api/usuarios/vincular-externo — vincula un usuario existente como contador/rol externo
+// POST /api/usuarios/vincular-externo
 router.post("/vincular-externo", async (req, res) => {
   const { email, role = "contador" } = req.body as { email?: string; role?: string };
 
@@ -149,7 +157,6 @@ router.post("/vincular-externo", async (req, res) => {
     return res.status(400).json({ error: `Rol inválido. Opciones: ${USER_ROLES.join(", ")}.` });
   }
 
-  // Buscar usuario por email (en cualquier tenant)
   const [usuarioExterno] = await db
     .select({ id: users.id, nombre: users.nombre, email: users.email, tenant_id: users.tenant_id, activo: users.activo })
     .from(users)
@@ -171,7 +178,6 @@ router.post("/vincular-externo", async (req, res) => {
     return res.status(422).json({ error: "Ese usuario ya pertenece a esta empresa." });
   }
 
-  // Verificar que no esté ya vinculado
   const [yaVinculado] = await db
     .select({ id: user_accesos.id })
     .from(user_accesos)
@@ -199,11 +205,38 @@ router.post("/vincular-externo", async (req, res) => {
     nombre: usuarioExterno.nombre,
     email: usuarioExterno.email,
     role: nuevo.role,
+    permisos_contables: nuevo.permisos_contables,
     created_at: nuevo.created_at,
   });
 });
 
-// DELETE /api/usuarios/externo/:accesoId — revoca el acceso externo
+// PATCH /api/usuarios/externo/:accesoId — actualiza permisos_contables del acceso externo
+router.patch("/externo/:accesoId", async (req, res) => {
+  const [acceso] = await db
+    .select({ id: user_accesos.id, role: user_accesos.role })
+    .from(user_accesos)
+    .where(and(eq(user_accesos.id, req.params.accesoId), eq(user_accesos.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!acceso) return res.status(404).json({ error: "Acceso no encontrado." });
+
+  const { permisos_contables } = req.body;
+
+  if (permisos_contables === true && acceso.role !== "contador") {
+    return res.status(422).json({ error: "Los permisos contables solo aplican al rol Contador." });
+  }
+
+  const [actualizado] = await db
+    .update(user_accesos)
+    .set({ ...(permisos_contables !== undefined && { permisos_contables }) })
+    .where(eq(user_accesos.id, acceso.id))
+    .returning();
+
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "acceso_externo.modificado", entidadTipo: "user_acceso", entidadId: acceso.id, detalle: { permisos_contables }, ip: req.ip });
+  res.json(actualizado);
+});
+
+// DELETE /api/usuarios/externo/:accesoId
 router.delete("/externo/:accesoId", async (req, res) => {
   const [acceso] = await db
     .select({ id: user_accesos.id })

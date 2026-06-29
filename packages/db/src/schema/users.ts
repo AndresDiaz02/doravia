@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 50 }).$type<UserRole>().notNull().default("operario"),
   password_hash: varchar("password_hash", { length: 255 }).notNull(),
   activo: boolean("activo").notNull().default(true),
+  permisos_contables: boolean("permisos_contables").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -25,6 +26,7 @@ export const user_accesos = pgTable(
     tenant_id: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 50 }).$type<UserRole>().notNull().default("contador"),
     invitado_por: uuid("invitado_por").references(() => users.id),
+    permisos_contables: boolean("permisos_contables").notNull().default(false),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

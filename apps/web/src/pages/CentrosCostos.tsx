@@ -8,6 +8,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
 import { Plus, BarChart2, Building } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 
 interface CentroCosto {
   id: string;
@@ -105,7 +106,10 @@ export default function CentrosCostos() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Centros de costos</h1>
+          <h1 className="flex items-center gap-1.5 text-2xl font-semibold text-gray-900">
+            Centros de costos
+            <HelpTooltip text="Etiqueta gastos e ingresos por área o proyecto para ver cuánto gana o cuesta cada parte del negocio." side="right" />
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Distribuye gastos e ingresos por área, proyecto o sucursal</p>
         </div>
         {!isContador && (

@@ -3,9 +3,18 @@ import { db, tenants } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
+import { isDianEnProduccion } from "../services/dian.service.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+
+// GET /api/empresa/dian-modo — indica si la facturación electrónica está activa o en stub
+router.get("/dian-modo", (_req, res) => {
+  res.json({
+    modo:      isDianEnProduccion() ? "produccion" : "stub",
+    proveedor: process.env.DIAN_PROVEEDOR ?? "stub",
+  });
+});
 
 // GET /api/empresa
 router.get("/", async (req, res) => {
@@ -84,9 +93,9 @@ router.post(
     try {
       if (!req.file) return res.status(400).json({ error: "No se recibió ningún archivo." });
 
-      const allowed = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+      const allowed = ["image/png", "image/jpeg", "image/webp"];
       if (!allowed.includes(req.file.mimetype)) {
-        return res.status(400).json({ error: "Solo se permiten imágenes PNG, JPG, WEBP o SVG." });
+        return res.status(400).json({ error: "Solo se permiten imágenes PNG, JPG o WEBP." });
       }
 
       const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;

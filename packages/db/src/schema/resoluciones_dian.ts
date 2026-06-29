@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, boolean, date, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, integer, boolean, date, timestamp, text } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 
 // Cada tenant debe tener una resolucion DIAN vigente para emitir facturas electronicas.
@@ -15,6 +15,7 @@ export const resoluciones_dian = pgTable("resoluciones_dian", {
   fecha_desde: date("fecha_desde").notNull(),
   fecha_hasta: date("fecha_hasta").notNull(),
   activa: boolean("activa").notNull().default(true),
+  clave_tecnica: text("clave_tecnica"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

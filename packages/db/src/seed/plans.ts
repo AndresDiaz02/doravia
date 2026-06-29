@@ -134,7 +134,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       ensamble:              true,
       ia_asistente:          true,
     },
-    precio_anual_cop: 1_150_000,
+    precio_anual_cop: 990_000,
   },
   {
     slug: "brote",
@@ -161,7 +161,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       ensamble:               true,
       ia_asistente:           true,
     },
-    precio_anual_cop: 1_680_000,
+    precio_anual_cop: 1_450_000,
   },
   {
     slug: "cosecha",
@@ -193,7 +193,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos:                    false,
       pos_multi_caja:         false,
     },
-    precio_anual_cop: 2_320_000,
+    precio_anual_cop: 1_990_000,
   },
 
   // ── Punto de venta (POS) ─────────────────────────────────────────────────
@@ -212,7 +212,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       gastos:     true,
       pos:        true,
     },
-    precio_anual_cop: 480_000,
+    precio_anual_cop: 450_000,
   },
   {
     slug: "punto_plus",
@@ -231,6 +231,6 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos:               true,
       pos_multi_caja:    true,
     },
-    precio_anual_cop: 840_000,
+    precio_anual_cop: 790_000,
   },
 ];

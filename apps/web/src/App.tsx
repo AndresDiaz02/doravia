@@ -42,6 +42,7 @@ import FundadorLayout from "./components/FundadorLayout";
 import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
 import SetupFundador from "./pages/SetupFundador";
+import RecuperarPassword from "./pages/RecuperarPassword";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/registro" element={<Register />} />
           <Route path="/register" element={<Register />} />
           <Route path="/setup-fundador" element={<SetupFundador />} />
+          <Route path="/recuperar-password" element={<RecuperarPassword />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />

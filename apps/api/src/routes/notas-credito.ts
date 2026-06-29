@@ -86,6 +86,15 @@ router.post("/factura/:facturaId", async (req, res) => {
     }
     if (!itemsInput?.length) return res.status(400).json({ error: "Se requiere al menos un ítem." });
 
+    // Validar items
+    for (const item of itemsInput) {
+      if (!item.descripcion?.trim()) return res.status(400).json({ error: "Cada ítem debe tener descripción." });
+      if (Number(item.cantidad) <= 0) return res.status(400).json({ error: "La cantidad de cada ítem debe ser mayor a cero." });
+      if (Number(item.precio_unitario) <= 0) return res.status(400).json({ error: "El precio unitario de cada ítem debe ser mayor a cero." });
+      const iva = item.iva_pct ?? 19;
+      if (![0, 5, 19].includes(iva)) return res.status(400).json({ error: "IVA debe ser 0, 5 o 19." });
+    }
+
     const [factura] = await db
       .select()
       .from(facturas)
@@ -108,6 +117,13 @@ router.post("/factura/:facturaId", async (req, res) => {
     const subtotal = Number(itemsCalculados.reduce((s, i) => s + i.subtotal, 0).toFixed(2));
     const iva_total = Number(itemsCalculados.reduce((s, i) => s + i.iva_valor, 0).toFixed(2));
     const total = Number((subtotal + iva_total).toFixed(2));
+
+    // La nota de crédito no puede superar el total de la factura original
+    if (total > Number(factura.total)) {
+      return res.status(422).json({
+        error: `La nota de crédito (${total.toLocaleString("es-CO")}) no puede superar el total de la factura (${Number(factura.total).toLocaleString("es-CO")}).`,
+      });
+    }
 
     const consecutivo = await nextConsecutivo(req.tenantId);
     const numero = `NC-${String(consecutivo).padStart(4, "0")}`;

@@ -188,7 +188,7 @@ router.post("/:id/convertir", requirePlanFeature("cotizacion_a_factura"), async 
     .where(eq(items_cotizacion.cotizacion_id, cot.id));
 
   try {
-    const factura = await crearFactura(req.tenant, {
+    const { factura, advertencias } = await crearFactura(req.tenant, {
       cliente_id: cot.cliente_id,
       items: items.map((i) => ({
         producto_id: i.producto_id ?? undefined,
@@ -207,7 +207,7 @@ router.post("/:id/convertir", requirePlanFeature("cotizacion_a_factura"), async 
       .set({ estado: "convertida", factura_id: factura.id })
       .where(eq(cotizaciones.id, cot.id));
 
-    res.status(201).json({ cotizacion_id: cot.id, factura });
+    res.status(201).json({ cotizacion_id: cot.id, factura, advertencias });
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return res.status(403).json({ error: err.message, code: err.code });

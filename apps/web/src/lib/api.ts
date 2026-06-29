@@ -10,7 +10,8 @@ export class ApiError extends Error {
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
-let refreshing = false;
+// Promesa compartida: evita múltiples refresh simultáneos en la misma pestaña
+let refreshPromise: Promise<boolean> | null = null;
 
 export async function apiFetch<T>(
   path: string,
@@ -28,18 +29,21 @@ export async function apiFetch<T>(
     },
   });
 
-  if (res.status === 401 && !_isRetry && !refreshing) {
+  if (res.status === 401 && !_isRetry) {
     const rt = localStorage.getItem("refresh_token");
     if (rt) {
-      refreshing = true;
-      const ok = await tryRefresh(rt).finally(() => {
-        refreshing = false;
-      });
+      // Si ya hay un refresh en curso en esta misma pestaña, esperar ese resultado
+      if (!refreshPromise) {
+        refreshPromise = tryRefresh(rt).finally(() => {
+          refreshPromise = null;
+        });
+      }
+      const ok = await refreshPromise;
       if (ok) return apiFetch<T>(path, options, true);
     }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
-    window.location.href = "/login";
+    window.location.href = "/login?expired=1";
     throw new ApiError(401, "Sesión expirada.");
   }
 
@@ -52,14 +56,24 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-async function tryRefresh(refreshToken: string): Promise<boolean> {
+async function tryRefresh(oldRefreshToken: string): Promise<boolean> {
+  // Capturamos el access_token ANTES del intento para detectar si otra pestaña ya refrescó
+  const atAntes = localStorage.getItem("access_token");
+
   try {
     const res = await fetch(`${BASE}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({ refresh_token: oldRefreshToken }),
     });
-    if (!res.ok) return false;
+
+    if (!res.ok) {
+      // Si el refresh falló, puede ser porque otra pestaña ya lo hizo y rotó el token.
+      // Si localStorage tiene un access_token diferente al que había, lo usamos.
+      const atAhora = localStorage.getItem("access_token");
+      return !!(atAhora && atAhora !== atAntes);
+    }
+
     const data = await res.json() as { accessToken: string; refreshToken: string };
     localStorage.setItem("access_token", data.accessToken);
     localStorage.setItem("refresh_token", data.refreshToken);

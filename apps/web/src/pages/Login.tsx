@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Building2, ChevronRight } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -44,6 +44,8 @@ export function Login() {
   const [eligiendo, setEligiendo] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get("expired") === "1";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -147,6 +149,12 @@ export function Login() {
           <h1 className="text-2xl font-bold text-gray-900">Doravia</h1>
           <p className="mt-1 text-sm text-gray-500">Inicia sesión en tu cuenta</p>
         </div>
+
+        {sessionExpired && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Tu sesión ha expirado. Ingresa de nuevo para continuar.
+          </div>
+        )}
 
         <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">

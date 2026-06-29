@@ -22,4 +22,5 @@ export * from "./gastos_internos.ts";
 export * from "./comisiones_contador.ts";
 export * from "./retencion_seguimiento.ts";
 export * from "./leads_doravia.ts";
+export * from "./pending_registrations.ts";
 

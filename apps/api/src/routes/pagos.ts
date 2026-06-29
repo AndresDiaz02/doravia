@@ -1,6 +1,7 @@
 import { Router } from "express";
 import crypto from "node:crypto";
 import { db, plans, tenants } from "@workspace/db";
+import { completarRegistroPendiente } from "../services/auth.service.js";
 import { eq } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 
@@ -98,6 +99,17 @@ router.post("/webhook", async (req, res) => {
     if (event.data.transaction.status !== "APPROVED") return res.sendStatus(200);
 
     const ref = event.data.transaction.reference;
+
+    // ── Registro de nueva empresa pendiente de pago ────────────────────────
+    if (ref.startsWith("DOR-REG-")) {
+      try {
+        await completarRegistroPendiente(ref);
+        console.log(`Registro completado para referencia ${ref}`);
+      } catch (err) {
+        console.error(`Error completando registro pendiente ${ref}:`, err);
+      }
+      return res.sendStatus(200);
+    }
     // Formato: DOR-{tenantId8}-{planSlug}-{timestamp}
     const partes = ref.split("-");
     if (partes.length < 3 || partes[0] !== "DOR") return res.sendStatus(200);

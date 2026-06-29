@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { db, users, tenants, plans } from "@workspace/db";
+import { db, users, tenants, plans, pending_registrations } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
 import {
   registrarTenant,
+  completarRegistroPendiente,
+  signAccessToken,
+  createRefreshToken,
   login,
   refreshAccessToken,
   logout,
@@ -17,7 +20,8 @@ import {
 const router = Router();
 
 // POST /api/auth/register
-// Crea empresa + primer usuario admin. Solo para nuevos clientes.
+// Plan gratuito ("origen"): crea empresa + usuario inmediatamente.
+// Plan de pago: guarda registro pendiente y retorna parámetros de checkout Wompi.
 router.post("/register", async (req, res) => {
   const { plan_slug, tenant_nombre, nit, usuario_nombre, email, password } = req.body;
 
@@ -27,13 +31,58 @@ router.post("/register", async (req, res) => {
     });
   }
 
-  if (password.length < 8) {
+  if ((password as string).length < 8) {
     return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
   }
 
   try {
     const resultado = await registrarTenant({ plan_slug, tenant_nombre, nit, usuario_nombre, email, password });
-    res.status(201).json(resultado);
+
+    if (resultado.payment_required) {
+      // Plan de pago: retornar datos de checkout (sin crear cuenta todavía)
+      return res.status(202).json(resultado);
+    }
+
+    // Plan gratuito: cuenta lista
+    return res.status(201).json(resultado);
+  } catch (err) {
+    if (err instanceof Error) return res.status(422).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/verificar-registro
+// Verifica si un registro pendiente ya fue completado (para usar en ResultadoPago).
+// Si está completo, devuelve tokens para auto-login.
+router.post("/verificar-registro", async (req, res) => {
+  const { wompi_reference } = req.body as { wompi_reference?: string };
+  if (!wompi_reference) return res.status(400).json({ error: "wompi_reference es requerido." });
+
+  try {
+    const [pending] = await db
+      .select()
+      .from(pending_registrations)
+      .where(eq(pending_registrations.wompi_reference, wompi_reference))
+      .limit(1);
+
+    if (!pending) return res.status(404).json({ error: "Registro no encontrado." });
+
+    if (!pending.completed_at) {
+      return res.status(202).json({ completed: false, message: "Pago aún en proceso." });
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, pending.email))
+      .limit(1);
+
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    const accessToken = signAccessToken(user, user.tenant_id);
+    const refreshToken = await createRefreshToken(user.id, user.tenant_id);
+
+    return res.json({ completed: true, accessToken, refreshToken });
   } catch (err) {
     if (err instanceof Error) return res.status(422).json({ error: err.message });
     throw err;

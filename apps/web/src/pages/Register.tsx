@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -20,8 +20,6 @@ const PLANES_INFO: Record<string, { nombre: string; precio: string }> = {
   punto_plus:  { nombre: "Punto Plus",  precio: "$840.000 / año" },
 };
 
-const PLANES_POS = ["punto", "punto_plus"];
-
 const PLANES_LISTA = [
   { slug: "origen",     label: "Origen — Gratis",             desc: "10 documentos/año · Solo facturación DIAN" },
   { slug: "origen_24",  label: "Origen 24 — $99.900/año",     desc: "24 documentos/año · Solo facturación DIAN" },
@@ -30,23 +28,33 @@ const PLANES_LISTA = [
   { slug: "origen_300", label: "Origen 300 — $329.900/año",   desc: "300 documentos/año · Solo facturación DIAN" },
   { slug: "semilla",    label: "Semilla — $730.000/año",       desc: "ERP completo · Inventario · 3 usuarios" },
   { slug: "raiz",       label: "Raíz — $1.150.000/año",        desc: "Facturación ilimitada · 5 usuarios · 3 bodegas" },
-  { slug: "brote",      label: "Brote — $1.680.000/año",       desc: "Recurrentes · CRM · Reportes comparativos" },
+  { slug: "brote",      label: "Brote — $1.680.000/año",        desc: "Recurrentes · CRM · Reportes comparativos" },
   { slug: "cosecha",    label: "Cosecha — $2.320.000/año",     desc: "Plan completo · Centros de costos · Ilimitado" },
 ];
 
-interface RegisterResponse {
+interface RegisterFreeResponse {
+  payment_required: false;
   accessToken: string;
   refreshToken: string;
 }
 
-interface CheckoutData {
-  public_key: string;
-  currency: string;
-  amount_in_cents: number;
-  reference: string;
-  signature: { integrity: string };
-  redirect_url: string;
+interface RegisterPaidResponse {
+  payment_required: true;
+  wompi_reference: string;
+  checkout: {
+    public_key: string;
+    currency: string;
+    amount_in_cents: number;
+    reference: string;
+    signature: { integrity: string };
+    redirect_url: string;
+    plan_slug: string;
+    plan_nombre: string;
+    plan_precio_cop: number;
+  };
 }
+
+type RegisterResponse = RegisterFreeResponse | RegisterPaidResponse;
 
 declare global {
   interface Window {
@@ -73,7 +81,6 @@ export function Register() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Cargar widget de Wompi al montar
   useEffect(() => {
     if (document.getElementById("wompi-script")) { setWompiListo(true); return; }
     const s = document.createElement("script");
@@ -97,56 +104,61 @@ export function Register() {
         method: "POST",
         body: JSON.stringify(form),
       });
-      await login(data.accessToken, data.refreshToken);
 
-      // Plan de pago: abrir Wompi inmediatamente
-      if (form.plan_slug !== "origen") {
-        const checkout = await apiFetch<CheckoutData>("/api/pagos/checkout", {
-          method: "POST",
-          body: JSON.stringify({ plan_slug: form.plan_slug }),
-        });
-
-        if (wompiListo && window.WidgetCheckout) {
-          window.WidgetCheckout.open({
-            currency: checkout.currency,
-            amountInCents: checkout.amount_in_cents,
-            reference: checkout.reference,
-            publicKey: checkout.public_key,
-            signature: { integrity: checkout.signature.integrity },
-            redirectUrl: checkout.redirect_url,
-          });
-          return;
-        } else {
-          const destino = PLANES_POS.includes(form.plan_slug) ? "/pos/cajas" : "/planes";
-          navigate(destino, { replace: true });
-          return;
-        }
+      if (!data.payment_required) {
+        // Plan gratuito: cuenta activa, login directo
+        await login(data.accessToken, data.refreshToken);
+        navigate("/configuracion/dian", { replace: true });
+        return;
       }
 
-      navigate("/configuracion/dian", { replace: true });
+      // Plan de pago: abrir Wompi (la cuenta AÚN NO existe)
+      const { checkout } = data;
+
+      if (wompiListo && window.WidgetCheckout) {
+        window.WidgetCheckout.open({
+          currency: checkout.currency,
+          amountInCents: checkout.amount_in_cents,
+          reference: checkout.reference,
+          publicKey: checkout.public_key,
+          signature: { integrity: checkout.signature.integrity },
+          redirectUrl: checkout.redirect_url,
+        });
+      } else {
+        // Sin widget: redirigir manualmente a Wompi (fallback)
+        const wompiUrl =
+          `https://checkout.wompi.io/p/?public-key=${encodeURIComponent(checkout.public_key)}` +
+          `&currency=${checkout.currency}` +
+          `&amount-in-cents=${checkout.amount_in_cents}` +
+          `&reference=${encodeURIComponent(checkout.reference)}` +
+          `&signature:integrity=${encodeURIComponent(checkout.signature.integrity)}` +
+          `&redirect-url=${encodeURIComponent(checkout.redirect_url)}`;
+        window.location.href = wompiUrl;
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error inesperado.");
+      setError(err instanceof ApiError ? err.message : "Error inesperado. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
   }
 
+  const planSeleccionadoEsGratis = form.plan_slug === "origen";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Doravia</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Doravia</h1>
           <p className="mt-1 text-sm text-gray-500">Crea tu cuenta y empieza a facturar</p>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm">
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
 
-            {/* Plan — fijo si viene de la URL, seleccionable si no */}
             {planFijo ? (
-              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 px-4 py-3">
                 <p className="text-xs text-action font-medium uppercase tracking-wide">Plan seleccionado</p>
-                <p className="text-sm font-semibold text-green-900 mt-0.5">
+                <p className="text-sm font-semibold text-green-900 dark:text-green-300 mt-0.5">
                   {PLANES_INFO[planFijo].nombre} — {PLANES_INFO[planFijo].precio}
                 </p>
               </div>
@@ -160,7 +172,7 @@ export function Register() {
                       className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
                         form.plan_slug === plan.slug
                           ? "border-action bg-action/5"
-                          : "border-gray-200 hover:bg-gray-50"
+                          : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                     >
                       <input
@@ -172,7 +184,7 @@ export function Register() {
                         className="mt-0.5 accent-violet-600"
                       />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{plan.label}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{plan.label}</p>
                         <p className="text-xs text-gray-500">{plan.desc}</p>
                       </div>
                     </label>
@@ -181,7 +193,7 @@ export function Register() {
               </div>
             )}
 
-            <div className="border-t border-gray-100 pt-2" />
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-2" />
 
             <div className="space-y-1.5">
               <Label htmlFor="tenant_nombre">Nombre de la empresa</Label>
@@ -193,7 +205,7 @@ export function Register() {
               <Input id="nit" required placeholder="900123456" value={form.nit} onChange={(e) => set("nit", e.target.value)} />
             </div>
 
-            <div className="border-t border-gray-100 pt-2" />
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-2" />
 
             <div className="space-y-1.5">
               <Label htmlFor="usuario_nombre">Tu nombre</Label>
@@ -211,16 +223,30 @@ export function Register() {
               <p className="text-xs text-gray-400">Mínimo 8 caracteres</p>
             </div>
 
+            {!planSeleccionadoEsGratis && (
+              <p className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                Tu cuenta se activará una vez confirmemos el pago. Serás redirigido a la pasarela de pago Wompi.
+              </p>
+            )}
+
             {error && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
             )}
 
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Creando cuenta..." : planFijo ? `Crear cuenta y pagar ${PLANES_INFO[planFijo].nombre}` : "Crear cuenta"}
+              {loading
+                ? "Procesando..."
+                : planSeleccionadoEsGratis
+                  ? "Crear cuenta gratis"
+                  : `Continuar al pago — ${PLANES_INFO[planFijo || form.plan_slug]?.precio ?? ""}`}
             </Button>
+
+            <p className="text-center text-xs text-gray-400">
+              ¿Ya tienes cuenta?{" "}
+              <a href="/login" className="text-action hover:underline">Inicia sesión</a>
+            </p>
           </form>
         </div>
-
       </div>
     </div>
   );

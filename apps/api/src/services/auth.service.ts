@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createHash, randomBytes } from "crypto";
-import { db, users, tenants, plans, refresh_tokens, user_accesos } from "@workspace/db";
+import { db, users, tenants, plans, refresh_tokens, user_accesos, pending_registrations } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
+import crypto from "node:crypto";
 import type { User } from "@workspace/db";
 
 const ACCESS_TTL_SECONDS = 60 * 60;   // 1 hora
@@ -31,7 +32,7 @@ export interface SelectionPayload {
 
 // ── Helpers JWT ──────────────────────────────────────────────────────────────
 
-function signAccessToken(user: User, tenantId: string, role?: string): string {
+export function signAccessToken(user: User, tenantId: string, role?: string): string {
   const payload: AccessPayload = {
     sub: user.id,
     tenantId,
@@ -54,7 +55,7 @@ function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
 }
 
-async function createRefreshToken(userId: string, tenantId: string): Promise<string> {
+export async function createRefreshToken(userId: string, tenantId: string): Promise<string> {
   const raw = randomBytes(32).toString("base64url");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + REFRESH_TTL_DAYS);
@@ -77,52 +78,160 @@ export interface RegistrarTenantInput {
   password: string;
 }
 
-export async function registrarTenant(input: RegistrarTenantInput) {
+export type RegistrarTenantResult =
+  | { payment_required: false; tenant: object; user: object; accessToken: string; refreshToken: string }
+  | { payment_required: true; wompi_reference: string; checkout: WompiCheckoutParams };
+
+export interface WompiCheckoutParams {
+  public_key: string;
+  currency: string;
+  amount_in_cents: number;
+  reference: string;
+  signature: { integrity: string };
+  redirect_url: string;
+  plan_slug: string;
+  plan_nombre: string;
+  plan_precio_cop: number;
+}
+
+export async function registrarTenant(input: RegistrarTenantInput): Promise<RegistrarTenantResult> {
   const [plan] = await db.select().from(plans).where(eq(plans.slug, input.plan_slug)).limit(1);
   if (!plan) throw new Error(`Plan no encontrado: ${input.plan_slug}.`);
 
+  // Validaciones de unicidad
   const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, input.nit)).limit(1);
   if (nitExistente) throw new Error("Ya existe una empresa registrada con ese NIT.");
 
   const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (emailExistente) throw new Error("Ya existe un usuario con ese correo electrónico.");
 
-  const ahora = new Date();
-  const planFin = new Date(ahora);
-  planFin.setFullYear(planFin.getFullYear() + 1);
+  // ── Plan gratuito: activar inmediatamente ──────────────────────────────────
+  if (plan.precio_anual_cop === 0) {
+    const ahora = new Date();
+    const planFin = new Date(ahora);
+    planFin.setFullYear(planFin.getFullYear() + 1);
+    const password_hash = await bcrypt.hash(input.password, 12);
 
-  const password_hash = await bcrypt.hash(input.password, 12);
-
-  const { tenant, user } = await db.transaction(async (tx) => {
-    const [tenant] = await tx
-      .insert(tenants)
-      .values({
+    const { tenant, user } = await db.transaction(async (tx) => {
+      const [tenant] = await tx.insert(tenants).values({
         nombre: input.tenant_nombre,
         nit: input.nit,
         plan_id: plan.id,
         plan_starts_at: ahora,
         plan_ends_at: planFin,
-      })
-      .returning();
+      }).returning();
 
-    const [user] = await tx
-      .insert(users)
-      .values({
+      const [user] = await tx.insert(users).values({
         tenant_id: tenant.id,
         email: input.email,
         nombre: input.usuario_nombre,
         role: "admin",
         password_hash,
-      })
-      .returning();
+      }).returning();
 
-    return { tenant, user };
+      return { tenant, user };
+    });
+
+    const accessToken = signAccessToken(user, tenant.id);
+    const refreshToken = await createRefreshToken(user.id, tenant.id);
+    return { payment_required: false, tenant, user: sinHash(user), accessToken, refreshToken };
+  }
+
+  // ── Plan de pago: crear registro pendiente y generar checkout ──────────────
+  const password_hash = await bcrypt.hash(input.password, 12);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+  // Eliminar registro pendiente anterior para este email (si existe y no fue completado)
+  await db.delete(pending_registrations)
+    .where(eq(pending_registrations.email, input.email));
+
+  const wompiRef = `DOR-REG-${Date.now()}-${plan.slug}`;
+
+  await db.insert(pending_registrations).values({
+    plan_slug: plan.slug,
+    tenant_nombre: input.tenant_nombre,
+    nit: input.nit,
+    usuario_nombre: input.usuario_nombre,
+    email: input.email,
+    password_hash,
+    wompi_reference: wompiRef,
+    expires_at: expiresAt,
   });
 
-  const accessToken = signAccessToken(user, tenant.id);
-  const refreshToken = await createRefreshToken(user.id, tenant.id);
+  // Generar firma de integridad Wompi
+  const WOMPI_PRV_KEY = process.env.WOMPI_PRV_KEY ?? "";
+  const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
+  const monto_centavos = plan.precio_anual_cop * 100;
+  const cadena = `${wompiRef}${monto_centavos}COP${WOMPI_PRV_KEY}`;
+  const firma = crypto.createHash("sha256").update(cadena).digest("hex");
 
-  return { tenant, user: sinHash(user), accessToken, refreshToken };
+  return {
+    payment_required: true,
+    wompi_reference: wompiRef,
+    checkout: {
+      public_key: process.env.WOMPI_PUB_KEY ?? "",
+      currency: "COP",
+      amount_in_cents: monto_centavos,
+      reference: wompiRef,
+      signature: { integrity: firma },
+      redirect_url: `${APP_URL}/pago/resultado`,
+      plan_slug: plan.slug,
+      plan_nombre: plan.nombre,
+      plan_precio_cop: plan.precio_anual_cop,
+    },
+  };
+}
+
+// Llamado desde el webhook de Wompi cuando se aprueba el pago de un registro pendiente
+export async function completarRegistroPendiente(wompiReference: string) {
+  const [pending] = await db
+    .select()
+    .from(pending_registrations)
+    .where(eq(pending_registrations.wompi_reference, wompiReference))
+    .limit(1);
+
+  if (!pending) throw new Error("Registro pendiente no encontrado.");
+  if (pending.completed_at) return; // idempotente: ya fue procesado
+
+  const expiresAt = new Date(pending.expires_at);
+  if (expiresAt < new Date()) throw new Error("El enlace de registro expiró. Intenta registrarte de nuevo.");
+
+  const [plan] = await db.select().from(plans).where(eq(plans.slug, pending.plan_slug)).limit(1);
+  if (!plan) throw new Error("Plan no encontrado.");
+
+  // Verificar que NIT y email siguen disponibles
+  const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, pending.nit)).limit(1);
+  if (nitExistente) throw new Error("Ya existe una empresa con ese NIT.");
+
+  const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, pending.email)).limit(1);
+  if (emailExistente) throw new Error("Ya existe un usuario con ese correo.");
+
+  const ahora = new Date();
+  const planFin = new Date(ahora);
+  planFin.setFullYear(planFin.getFullYear() + 1);
+
+  await db.transaction(async (tx) => {
+    const [tenant] = await tx.insert(tenants).values({
+      nombre: pending.tenant_nombre,
+      nit: pending.nit,
+      plan_id: plan.id,
+      plan_starts_at: ahora,
+      plan_ends_at: planFin,
+      activo: true,
+    }).returning();
+
+    await tx.insert(users).values({
+      tenant_id: tenant.id,
+      email: pending.email,
+      nombre: pending.usuario_nombre,
+      role: "admin",
+      password_hash: pending.password_hash,
+    });
+
+    await tx.update(pending_registrations)
+      .set({ completed_at: ahora })
+      .where(eq(pending_registrations.id, pending.id));
+  });
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────

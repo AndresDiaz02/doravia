@@ -59,6 +59,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   const esRutaOnboarding = req.originalUrl.startsWith("/api/empresa") ||
     req.originalUrl.startsWith("/api/auth") ||
     req.originalUrl.startsWith("/api/onboarding") ||
+    req.originalUrl.startsWith("/api/fundador") ||
     req.originalUrl.startsWith("/health");
   if (!esRutaOnboarding && !req.tenant.onboarding_completado && req.tenant.plan_starts_at) {
     const msDesdeActivacion = Date.now() - new Date(req.tenant.plan_starts_at).getTime();

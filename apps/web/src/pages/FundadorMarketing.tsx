@@ -163,8 +163,9 @@ export default function FundadorMarketing() {
       const withResp: MsgIA[] = [...nuevos, { role: "assistant", content: res.respuesta }];
       setMensajes(withResp);
       guardarChat(withResp);
-    } catch {
-      const withErr: MsgIA[] = [...nuevos, { role: "assistant", content: "Hubo un error. Intenta de nuevo." }];
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Hubo un error. Intenta de nuevo.";
+      const withErr: MsgIA[] = [...nuevos, { role: "assistant", content: `⚠️ ${msg}` }];
       setMensajes(withErr);
     } finally { setEnviandoIA(false); }
   }

@@ -29,7 +29,10 @@ export async function apiFetch<T>(
     },
   });
 
-  if (res.status === 401 && !_isRetry) {
+  // No intentar refrescar para endpoints públicos de auth (login, register, etc.)
+  const esEndpointPublico = path.startsWith("/api/auth/") || path.startsWith("/api/fundador/");
+
+  if (res.status === 401 && !_isRetry && !esEndpointPublico) {
     const rt = localStorage.getItem("refresh_token");
     if (rt) {
       // Si ya hay un refresh en curso en esta misma pestaña, esperar ese resultado

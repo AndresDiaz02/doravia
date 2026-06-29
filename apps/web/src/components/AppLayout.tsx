@@ -14,7 +14,9 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  Menu,
   Monitor,
+  Moon,
   Package,
   PackagePlus,
   Receipt,
@@ -22,15 +24,18 @@ import {
   Settings,
   ShieldCheck,
   ShoppingCart,
+  Sun,
   TrendingUp,
   UserCog,
   Users,
   Warehouse,
   Calendar,
+  X,
   Zap,
 } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
+import { useDarkMode } from "../lib/useDarkMode";
 import { apiFetch, ApiError } from "../lib/api";
 import { Dialog } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -48,34 +53,28 @@ const NAV_BASE = [
   { to: "/contabilidad/auxiliares",     label: "Auxiliares",        icon: BookOpen },
 ];
 
-// Ítems que requieren feature "cotizaciones" (Semilla+)
 const NAV_VENTAS = [
   { to: "/cotizaciones", label: "Cotizaciones", icon: ShoppingCart },
 ];
 
-// Ítems que requieren feature "gastos" (Semilla+)
 const NAV_GASTOS = [
   { to: "/gastos", label: "Gastos", icon: Receipt },
 ];
 
-// Ítems que requieren feature "inventario" (Raíz y superior)
 const NAV_INVENTARIO = [
   { to: "/bodegas",           label: "Bodegas",    icon: Warehouse },
   { to: "/inventario",        label: "Inventario", icon: Package },
   { to: "/inventario/kardex", label: "Kardex",     icon: TrendingUp },
 ];
 
-// Ítems que requieren facturacion_ilimitada (Raíz y superior)
 const NAV_COBRO = [
   { to: "/alertas/cobro", label: "Alertas de cobro", icon: AlertCircle },
 ];
 
-// Ítems que requieren facturacion_recurrente (Brote y superior)
 const NAV_BROTE = [
   { to: "/recurrentes", label: "Recurrentes", icon: CalendarClock },
 ];
 
-// Ítems exclusivos de Cosecha
 const NAV_COSECHA = [
   { to: "/centros-costos", label: "Centros de costos", icon: Building2, feature: "centros_costos" },
   { to: "/ensamble",       label: "Ensamble",          icon: PackagePlus, feature: "ensamble" },
@@ -92,9 +91,18 @@ const CONFIG = [
 
 export function AppLayout() {
   const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador, cambiarEmpresa } = useAuth();
+  const { isDark, toggleDark } = useDarkMode();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEmpresaMenu, setShowEmpresaMenu] = useState(false);
   const [cambiando, setCambiando] = useState(false);
   const empresaMenuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Cierra el sidebar en mobile al cambiar de ruta
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -105,8 +113,7 @@ export function AppLayout() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-  const location = useLocation();
-  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [passForm, setPassForm] = useState({ current: "", next: "", confirm: "" });
   const [passError, setPassError] = useState<string | null>(null);
@@ -146,17 +153,44 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+
+      {/* Overlay móvil (toca para cerrar sidebar) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-56 flex-shrink-0 flex-col border-r border-doravia-border bg-doravia-surface">
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r transition-transform duration-200",
+          "bg-doravia-surface border-doravia-border",
+          "dark:bg-gray-900 dark:border-gray-800",
+          "md:relative md:z-auto md:translate-x-0 md:w-56",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
         {/* Cabecera empresa */}
-        <div className="relative border-b border-gray-100 px-4 py-4" ref={empresaMenuRef}>
+        <div
+          className="relative border-b border-doravia-border dark:border-gray-800 px-4 py-4"
+          ref={empresaMenuRef}
+        >
           <div className="flex items-center gap-2.5">
+            {/* Cerrar sidebar en mobile */}
+            <button
+              className="md:hidden flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 mr-1"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-gradient-cold text-white">
               <Building2 className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-gray-900">{tenant?.nombre}</p>
+              <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{tenant?.nombre}</p>
               <Link to="/planes" className="text-xs text-action hover:text-action-hover flex items-center gap-0.5 w-fit">
                 {plan?.nombre}
                 <ChevronRight className="w-3 h-3" />
@@ -165,7 +199,7 @@ export function AppLayout() {
             {empresas.length > 1 && (
               <button
                 onClick={() => setShowEmpresaMenu((v) => !v)}
-                className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600"
                 title="Cambiar empresa"
               >
                 <ChevronRight className={`h-4 w-4 transition-transform ${showEmpresaMenu ? "rotate-90" : ""}`} />
@@ -173,10 +207,9 @@ export function AppLayout() {
             )}
           </div>
 
-          {/* Dropdown de empresas */}
           {showEmpresaMenu && empresas.length > 1 && (
-            <div className="absolute left-2 right-2 top-full z-50 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
-              <p className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-100">Cambiar empresa</p>
+            <div className="absolute left-2 right-2 top-full z-50 mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+              <p className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-100 dark:border-gray-700">Cambiar empresa</p>
               {empresas.map((emp) => (
                 <button
                   key={emp.tenant_id}
@@ -196,7 +229,7 @@ export function AppLayout() {
                     "w-full px-3 py-2.5 text-left text-sm transition-colors",
                     emp.es_activa
                       ? "bg-action/5 text-action font-medium cursor-default"
-                      : "text-gray-700 hover:bg-gray-50 cursor-pointer",
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer",
                   )}
                 >
                   <p className="font-medium truncate">{emp.tenant_nombre}</p>
@@ -210,12 +243,10 @@ export function AppLayout() {
         {/* Navegación */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {NAV_BASE.map(({ to, label, icon: Icon }) => {
-            // Contabilidad solo para admin y contador
             if (to.startsWith("/contabilidad") && isVendedor) return null;
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />;
           })}
 
-          {/* Cotizaciones y Gastos: Semilla+ */}
           {NAV_VENTAS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.cotizaciones === true;
             if (!hasFeature && isContador) return null;
@@ -228,24 +259,15 @@ export function AppLayout() {
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
           })}
 
-          {/* Sección inventario: visible para todos, bloqueada si no tiene el feature */}
-          <div className="my-2 border-t border-gray-100" />
+          <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
           {NAV_INVENTARIO.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.inventario === true;
             if (!hasFeature && isContador) return null;
             return (
-              <NavItem
-                key={to}
-                to={to}
-                label={label}
-                icon={Icon}
-                isActive={active(to)}
-                locked={!hasFeature}
-              />
+              <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />
             );
           })}
 
-          {/* Alertas de cobro: requiere Raíz+ */}
           {NAV_COBRO.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.facturacion_ilimitada === true;
             if (!hasFeature && isContador) return null;
@@ -254,7 +276,6 @@ export function AppLayout() {
             );
           })}
 
-          {/* Recurrentes: requiere Brote+ — solo admin/contador */}
           {!isVendedor && NAV_BROTE.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.facturacion_recurrente === true;
             if (!hasFeature && isContador) return null;
@@ -263,7 +284,6 @@ export function AppLayout() {
             );
           })}
 
-          {/* Módulos Cosecha — Centros/Ensamble/Cartera: solo admin/contador */}
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
             if (isVendedor) return null;
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
@@ -273,9 +293,8 @@ export function AppLayout() {
             );
           })}
 
-          <div className="my-2 border-t border-gray-100" />
+          <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
-          {/* Admin de cajas y cierre DIAN — solo si tiene POS */}
           {(plan?.features as Record<string, boolean> | undefined)?.pos === true && (
             <>
               {!isContador && <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />}
@@ -283,7 +302,6 @@ export function AppLayout() {
             </>
           )}
 
-          {/* Botón POS — abre la app de POS en nueva pestaña con el token */}
           {(() => {
             const hasPos = (plan?.features as Record<string, boolean> | undefined)?.pos === true;
             const posUrl = import.meta.env.VITE_POS_URL ?? "http://localhost:5174";
@@ -310,7 +328,7 @@ export function AppLayout() {
             );
           })()}
 
-          <div className="my-2 border-t border-gray-100" />
+          <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
           {!isContador && !isVendedor && CONFIG.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
@@ -325,14 +343,14 @@ export function AppLayout() {
 
           {isFundador && (
             <>
-              <div className="my-2 border-t border-gray-100" />
+              <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
               <Link
                 to="/fundador"
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active("/fundador")
                     ? "bg-slate-800 text-amber-400"
-                    : "text-slate-600 hover:bg-slate-800 hover:text-amber-400",
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-800 hover:text-amber-400",
                 )}
               >
                 <Zap className="h-4 w-4 flex-shrink-0" />
@@ -343,22 +361,29 @@ export function AppLayout() {
         </nav>
 
         {/* Footer usuario */}
-        <div className="border-t border-gray-100 p-3">
+        <div className="border-t border-doravia-border dark:border-gray-800 p-3">
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-gray-900">{user?.nombre}</p>
+              <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{user?.nombre}</p>
               <p className="truncate text-xs text-gray-400">{user?.email}</p>
             </div>
             <button
+              onClick={toggleDark}
+              className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              title={isDark ? "Modo claro" : "Modo oscuro"}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
               onClick={() => { setPassError(null); setPassOk(false); setShowPassword(true); }}
-              className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300"
               title="Cambiar contraseña"
             >
               <KeyRound className="h-4 w-4" />
             </button>
             <button
               onClick={() => void handleLogout()}
-              className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300"
               title="Cerrar sesión"
             >
               <LogOut className="h-4 w-4" />
@@ -366,6 +391,30 @@ export function AppLayout() {
           </div>
         </div>
       </aside>
+
+      {/* Área principal */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        {/* Top bar móvil */}
+        <div className="flex md:hidden items-center gap-3 border-b border-doravia-border dark:border-gray-800 bg-doravia-surface dark:bg-gray-900 px-4 py-3 flex-shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="rounded p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate flex-1">{tenant?.nombre}</p>
+          <button
+            onClick={toggleDark}
+            className="rounded p-1.5 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <main className="flex flex-1 flex-col overflow-auto">
+          <Outlet />
+        </main>
+      </div>
 
       {/* Dialog cambio de contraseña */}
       <Dialog open={showPassword} onClose={() => setShowPassword(false)} title="Cambiar contraseña">
@@ -420,11 +469,6 @@ export function AppLayout() {
           </form>
         )}
       </Dialog>
-
-      {/* Área principal */}
-      <main className="flex flex-1 flex-col overflow-auto">
-        <Outlet />
-      </main>
     </div>
   );
 }
@@ -446,7 +490,7 @@ function NavItem({
   if (locked) {
     return (
       <span
-        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 cursor-not-allowed"
+        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 dark:text-gray-600 cursor-not-allowed"
         title="Requiere plan Raíz o superior"
       >
         <Icon className="h-4 w-4 flex-shrink-0" />
@@ -463,7 +507,7 @@ function NavItem({
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
         isActive
           ? "bg-action/10 font-medium text-action"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
       )}
     >
       <Icon className="h-4 w-4 flex-shrink-0" />

@@ -22,8 +22,8 @@ export function Button({
         size === "sm" && "px-3 py-1.5 text-xs",
         size === "md" && "px-4 py-2 text-sm",
         variant === "primary" && "btn-primary-gradient text-white shadow-sm",
-        variant === "secondary" && "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
-        variant === "ghost" && "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+        variant === "secondary" && "border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700",
+        variant === "ghost" && "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
         variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
         className,
       )}

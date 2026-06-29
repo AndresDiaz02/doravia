@@ -27,3 +27,70 @@
     background: linear-gradient(135deg, #7B2FF7 0%, #FF9233 100%);
   }
 }
+
+/* ── Dark mode global overrides ─────────────────────────────────────────────
+   Overrides standard Tailwind color utilities so all 40+ pages get dark mode
+   without touching each page individually. Specificity: .dark .class wins over
+   .class because it has two selectors vs one.
+*/
+
+/* Backgrounds */
+.dark .bg-white          { background-color: #1e293b; }
+.dark .bg-gray-50        { background-color: #0f172a; }
+.dark .bg-gray-100       { background-color: #1e293b; }
+.dark .bg-gray-200       { background-color: #334155; }
+.dark .bg-red-50         { background-color: rgba(239,68,68,.12); }
+.dark .bg-green-50       { background-color: rgba(34,197,94,.12); }
+.dark .bg-yellow-50      { background-color: rgba(234,179,8,.12); }
+.dark .bg-blue-50        { background-color: rgba(59,130,246,.12); }
+.dark .bg-purple-50      { background-color: rgba(168,85,247,.12); }
+
+/* Hover backgrounds */
+.dark .hover\:bg-gray-50:hover   { background-color: #1e293b; }
+.dark .hover\:bg-gray-100:hover  { background-color: #334155; }
+.dark .hover\:bg-white:hover     { background-color: #334155; }
+
+/* Text */
+.dark .text-gray-900     { color: #f1f5f9; }
+.dark .text-gray-800     { color: #e2e8f0; }
+.dark .text-gray-700     { color: #cbd5e1; }
+.dark .text-gray-600     { color: #94a3b8; }
+.dark .text-gray-500     { color: #64748b; }
+
+/* Borders */
+.dark .border-gray-100   { border-color: #1e293b; }
+.dark .border-gray-200   { border-color: #334155; }
+.dark .border-gray-300   { border-color: #475569; }
+
+/* Divide (borders between flex/grid children) */
+.dark .divide-gray-100 > * + *  { border-color: #1e293b; }
+.dark .divide-gray-200 > * + *  { border-color: #334155; }
+
+/* Ring (focus outlines) */
+.dark .ring-gray-200     { --tw-ring-color: #334155; }
+
+/* Inputs & select native */
+.dark input:not([class*="bg-"]),
+.dark select:not([class*="bg-"]),
+.dark textarea:not([class*="bg-"]) {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+/* Placeholder text */
+.dark ::placeholder { color: #475569; }
+
+/* Tables */
+.dark table thead th { background-color: #0f172a; color: #cbd5e1; border-color: #334155; }
+.dark table tbody tr { border-color: #1e293b; }
+.dark table tbody tr:hover { background-color: #1e293b; }
+.dark table tbody td { color: #e2e8f0; }
+
+/* Scrollbar (chromium) */
+.dark ::-webkit-scrollbar-track  { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb  { background: #334155; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Select options */
+.dark option { background-color: #1e293b; color: #f1f5f9; }

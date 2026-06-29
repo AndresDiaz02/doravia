@@ -186,6 +186,15 @@ router.post("/cambiar-empresa", authenticate, async (req, res) => {
   }
 });
 
+// POST /api/auth/verify-fundador-pin — verifica PIN del panel fundadores (solo requiere auth, no requireFundador)
+router.post("/verify-fundador-pin", authenticate, (req, res) => {
+  const { pin } = req.body as { pin?: string };
+  const fundadorPin = process.env.FUNDADOR_PIN;
+  if (!fundadorPin) return res.json({ ok: true });
+  if (pin === fundadorPin) return res.json({ ok: true });
+  return res.status(403).json({ error: "PIN incorrecto." });
+});
+
 // POST /api/auth/register-fundador
 // Crea el tenant interno de Doravia + el usuario fundador, sin pasar por el flujo de compra.
 // Protegido por FUNDADOR_PIN y FUNDADOR_EMAILS.

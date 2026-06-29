@@ -26,7 +26,12 @@ if (!process.env.DATABASE_URL) {
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL no está definida");
 
-const queryClient = postgres(connectionString);
+const queryClient = postgres(connectionString, {
+  max: 20,           // pool de hasta 20 conexiones simultáneas
+  idle_timeout: 30,  // libera conexiones inactivas después de 30s
+  connect_timeout: 10,
+  prepare: false,    // necesario si Railway usa PgBouncer
+});
 export const db = drizzle(queryClient, { schema });
 
 export type DB = typeof db;

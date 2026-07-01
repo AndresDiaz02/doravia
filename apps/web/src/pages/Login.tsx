@@ -61,8 +61,8 @@ export function Login() {
         setEmpresas(data.empresas);
         setSelectionToken(data.selectionToken);
       } else {
-        await login(data.accessToken, data.refreshToken);
-        navigate("/dashboard", { replace: true });
+        const me = await login(data.accessToken, data.refreshToken);
+        navigate(me?.nit === "0000000001" ? "/contador" : "/dashboard", { replace: true });
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado.");
@@ -79,8 +79,8 @@ export function Login() {
         method: "POST",
         body: JSON.stringify({ selectionToken, tenantId }),
       });
-      await login(data.accessToken, data.refreshToken);
-      navigate("/dashboard", { replace: true });
+      const me = await login(data.accessToken, data.refreshToken);
+      navigate(me?.nit === "0000000001" ? "/contador" : "/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al seleccionar empresa.");
       if (err instanceof ApiError && err.message.includes("expiró")) {

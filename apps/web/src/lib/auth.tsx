@@ -62,7 +62,8 @@ interface AuthCtx {
   isContador: boolean;
   isVendedor: boolean;
   isFundador: boolean;
-  login: (accessToken: string, refreshToken: string) => Promise<void>;
+  isContadorHub: boolean;
+  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string } | null>;
   logout: () => Promise<void>;
   cambiarEmpresa: (tenantId: string) => Promise<void>;
 }
@@ -111,10 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadMe]);
 
   const login = useCallback(
-    async (accessToken: string, refreshToken: string) => {
+    async (accessToken: string, refreshToken: string): Promise<{ nit: string } | null> => {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       await loadMe();
+      const data = await apiFetch<MeResponse>("/api/auth/me").catch(() => null);
+      return data ? { nit: data.tenant.nit } : null;
     },
     [loadMe],
   );
@@ -151,9 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isContador = user?.role === "contador";
   const isVendedor = user?.role === "vendedor";
   const isFundador = user?.is_fundador === true;
+  const isContadorHub = tenant?.nit === "0000000001";
 
   return (
-    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, login, logout, cambiarEmpresa }}>
+    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>
       {children}
     </Ctx.Provider>
   );

@@ -53,6 +53,12 @@ function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
   return isContador ? <Navigate to={to} replace /> : null;
 }
 
+/** Redirige a contadores del hub a su panel cuando intentan entrar al ERP. */
+function GuardiaERP() {
+  const { isContadorHub } = useAuth();
+  return isContadorHub ? <Navigate to="/contador" replace /> : null;
+}
+
 /** Redirige si el usuario no tiene uno de los roles permitidos. */
 function RequiereRol({ allow, to = "/dashboard" }: { allow: string[]; to?: string }) {
   const { user } = useAuth();
@@ -76,7 +82,7 @@ export default function App() {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<><GuardiaERP /><Dashboard /></>} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/clientes/:id" element={<ClienteDetalle />} />
               <Route path="/facturas" element={<Facturas />} />

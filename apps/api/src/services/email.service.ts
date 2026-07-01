@@ -1,7 +1,6 @@
 import { Resend } from "resend";
 import type { Factura, Cliente, Tenant } from "@workspace/db";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM ?? "Doravia <notificaciones@doraviasoft.com>";
 const APP_URL = process.env.APP_URL ?? "https://app.doraviasoft.com";
 
@@ -9,8 +8,11 @@ const COP = new Intl.NumberFormat("es-CO", {
   style: "currency", currency: "COP", minimumFractionDigits: 0,
 });
 
-function emailConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY;
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
 }
 
 async function send(opts: {
@@ -19,11 +21,12 @@ async function send(opts: {
   html: string;
   attachments?: { filename: string; content: Buffer; contentType: string }[];
 }): Promise<void> {
-  if (!emailConfigured()) {
+  const client = getResend();
+  if (!client) {
     console.warn(`[EMAIL] Resend no configurado — no se envió a ${opts.to}: ${opts.subject}`);
     return;
   }
-  const { error } = await resend.emails.send({
+  const { error } = await client.emails.send({
     from: FROM,
     to: opts.to,
     subject: opts.subject,
@@ -166,8 +169,7 @@ export async function enviarConfirmacionContador(
   token: string,
 ): Promise<void> {
   const link = `${APP_URL}/registro-contador/confirmar?token=${encodeURIComponent(token)}`;
-
-  if (!emailConfigured()) {
+  if (!getResend()) {
     console.warn(`[EMAIL] Resend no configurado — link confirmación contador: ${link}`);
     return;
   }
@@ -196,8 +198,7 @@ export async function enviarResetPassword(
   token: string,
 ): Promise<void> {
   const link = `${APP_URL}/recuperar-password?token=${encodeURIComponent(token)}`;
-
-  if (!emailConfigured()) {
+  if (!getResend()) {
     console.warn(`[EMAIL] Resend no configurado — link reset password: ${link}`);
     return;
   }

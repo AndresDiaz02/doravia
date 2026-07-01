@@ -10,6 +10,34 @@ const migrations = [
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   // dark_mode por usuario (preferencia guardada en servidor, no solo en localStorage)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode boolean NOT NULL DEFAULT false`,
+  // tabla de pre-registro de contadores (tablas nuevas se crean aquí, no via db:push)
+  `CREATE TABLE IF NOT EXISTS contador_registrations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre varchar(200) NOT NULL,
+    email varchar(200) UNIQUE NOT NULL,
+    celular varchar(20),
+    firma_contable varchar(200),
+    token_confirmacion varchar(100) UNIQUE NOT NULL,
+    confirmado boolean NOT NULL DEFAULT false,
+    user_id uuid REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    confirmado_at timestamptz
+  )`,
+  // tabla de comisiones para contadores
+  `CREATE TABLE IF NOT EXISTS comisiones_contador (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    contador_user_id uuid NOT NULL REFERENCES users(id),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    tipo varchar(20) NOT NULL,
+    ano_renovacion smallint NOT NULL DEFAULT 1,
+    porcentaje numeric(5,2) NOT NULL,
+    base_cop integer NOT NULL,
+    valor_cop integer NOT NULL,
+    pagada boolean NOT NULL DEFAULT false,
+    fecha_pago timestamptz,
+    notas text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

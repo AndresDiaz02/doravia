@@ -10,19 +10,6 @@ const migrations = [
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   // dark_mode por usuario (preferencia guardada en servidor, no solo en localStorage)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode boolean NOT NULL DEFAULT false`,
-  // tabla de pre-registro de contadores externos
-  `CREATE TABLE IF NOT EXISTS contador_registrations (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre varchar(200) NOT NULL,
-    email varchar(200) UNIQUE NOT NULL,
-    celular varchar(20),
-    firma_contable varchar(200),
-    token_confirmacion varchar(100) UNIQUE NOT NULL,
-    confirmado boolean NOT NULL DEFAULT false,
-    user_id uuid REFERENCES users(id),
-    created_at timestamptz NOT NULL DEFAULT now(),
-    confirmado_at timestamptz
-  )`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

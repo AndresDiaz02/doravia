@@ -1,8 +1,8 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import { db, plans, tenants, wompi_events } from "@workspace/db";
+import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador } from "@workspace/db";
 import { completarRegistroPendiente } from "../services/auth.service.js";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
@@ -118,8 +118,14 @@ router.post("/webhook", async (req, res) => {
     // ── Registro de nueva empresa ──────────────────────────────────────────────
     if (ref.startsWith("DOR-REG-")) {
       try {
-        await completarRegistroPendiente(ref);
+        const resultado = await completarRegistroPendiente(ref);
         console.log(`Registro completado: ${ref}`);
+        // Generar comisión venta inicial si tiene contador asociado
+        if (resultado?.tenantId && resultado?.planPrecio) {
+          void generarComisionContador(resultado.tenantId, resultado.planPrecio, "venta_inicial").catch((e) =>
+            console.error("Error generando comisión inicial:", e),
+          );
+        }
       } catch (err) {
         console.error(`Error completando registro pendiente ${ref}:`, err);
       }
@@ -176,6 +182,11 @@ router.post("/webhook", async (req, res) => {
       }).where(eq(tenants.id, tenant.id));
 
       console.log(`Plan ${planSlug} activado para tenant ${tenant.id} → ${fin.toISOString()}`);
+
+      // Generar comisión para el contador asociado (si tiene uno con rol contador)
+      void generarComisionContador(tenant.id, plan.precio_anual_cop, "renovacion").catch((e) =>
+        console.error("Error generando comisión contador:", e),
+      );
     }
 
     return res.sendStatus(200);
@@ -184,6 +195,38 @@ router.post("/webhook", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });
+
+// Busca el contador asociado a un tenant y genera su comisión al 15%
+async function generarComisionContador(
+  tenantId: string,
+  planPrecio: number,
+  tipo: "venta_inicial" | "renovacion",
+): Promise<void> {
+  if (!planPrecio) return;
+
+  const [acceso] = await db
+    .select({ user_id: user_accesos.user_id })
+    .from(user_accesos)
+    .where(and(eq(user_accesos.tenant_id, tenantId), eq(user_accesos.role, "contador")))
+    .limit(1);
+
+  if (!acceso) return; // empresa sin contador asignado
+
+  const PORCENTAJE = 15;
+  const valor_cop = Math.round(planPrecio * PORCENTAJE / 100);
+
+  await db.insert(comisiones_contador).values({
+    contador_user_id: acceso.user_id,
+    tenant_id: tenantId,
+    tipo,
+    porcentaje: String(PORCENTAJE),
+    base_cop: planPrecio,
+    valor_cop,
+    pagada: false,
+  });
+
+  console.log(`Comisión ${tipo} generada: $${valor_cop} COP para contador ${acceso.user_id} (tenant ${tenantId})`);
+}
 
 export { router as pagosRouter };
 export default router;

@@ -44,6 +44,8 @@ import FundadorMarketing from "./pages/FundadorMarketing";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
 import MiPlan from "./pages/MiPlan";
+import RegistroContador from "./pages/RegistroContador";
+import ContadorDashboard from "./pages/ContadorDashboard";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -67,6 +69,8 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/setup-fundador" element={<SetupFundador />} />
           <Route path="/recuperar-password" element={<RecuperarPassword />} />
+          <Route path="/registro-contador" element={<RegistroContador />} />
+          <Route path="/registro-contador/confirmar" element={<RegistroContador />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />
@@ -92,6 +96,7 @@ export default function App() {
               <Route path="/cartera" element={<><RequiereRol allow={["admin", "contador"]} /><Cartera /></>} />
               <Route path="/planes" element={<UpgradePlan />} />
               <Route path="/mi-plan" element={<MiPlan />} />
+              <Route path="/contador" element={<ContadorDashboard />} />
               <Route path="/usuarios" element={<><SoloEscritura /><Usuarios /></>} />
               <Route path="/configuracion/dian" element={<><SoloEscritura /><ResolucionesDian /></>} />
               <Route path="/retenciones" element={<><RequiereRol allow={["admin", "contador"]} /><Retenciones /></>} />

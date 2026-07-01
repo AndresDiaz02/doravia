@@ -169,6 +169,48 @@ export async function enviarAlertaCobro(
   });
 }
 
+export async function enviarConfirmacionContador(
+  email: string,
+  nombre: string,
+  token: string,
+): Promise<void> {
+  const baseUrl = process.env.APP_URL ?? "https://app.doraviasoft.com";
+  const link = `${baseUrl}/registro-contador/confirmar?token=${encodeURIComponent(token)}`;
+
+  if (!emailConfigured()) {
+    console.warn(`[EMAIL] SMTP no configurado — confirmar contador ${email}: ${link}`);
+    return;
+  }
+
+  const cuerpo = `
+    <h2 style="color:#111827;font-size:18px;margin:0 0 8px;">Confirma tu registro como contador</h2>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
+      Hola <strong>${nombre}</strong>, gracias por registrarte como contador en Doravia.
+      Confirma tu correo para activar tu cuenta y comenzar a gestionar empresas.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${link}"
+         style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;
+                padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Confirmar mi cuenta
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">
+      Este enlace es válido por 48 horas.
+    </p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">
+      O copia en tu navegador: ${link}
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from:    `"Doravia" <${FROM}>`,
+    to:      email,
+    subject: "Confirma tu cuenta de contador en Doravia",
+    html:    baseLayout("Confirmar cuenta contador", cuerpo),
+  });
+}
+
 export async function enviarResetPassword(
   email: string,
   nombre: string,

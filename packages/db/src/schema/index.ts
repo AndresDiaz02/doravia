@@ -26,4 +26,5 @@ export * from "./pending_registrations.ts";
 export * from "./wompi_events.ts";
 export * from "./password_reset_tokens.ts";
 export * from "./tutorial_progress.ts";
+export * from "./contador_registrations.ts";
 

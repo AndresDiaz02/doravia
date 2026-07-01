@@ -165,7 +165,7 @@ router.post("/vincular-externo", async (req, res) => {
 
   if (!usuarioExterno) {
     return res.status(404).json({
-      error: "No existe un usuario con ese correo en Doravia. Pídele que se registre primero, o créalo como usuario interno.",
+      error: "No existe un usuario con ese correo en Doravia. Si es un contador, pídele que se registre en doraviasoft.com/registro-contador.",
       code: "USER_NOT_FOUND",
     });
   }

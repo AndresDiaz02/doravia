@@ -193,7 +193,7 @@ export async function completarRegistroPendiente(wompiReference: string) {
     .limit(1);
 
   if (!pending) throw new Error("Registro pendiente no encontrado.");
-  if (pending.completed_at) return; // idempotente: ya fue procesado
+  if (pending.completed_at) return null; // idempotente: ya fue procesado
 
   const expiresAt = new Date(pending.expires_at);
   if (expiresAt < new Date()) throw new Error("El enlace de registro expiró. Intenta registrarte de nuevo.");
@@ -212,6 +212,8 @@ export async function completarRegistroPendiente(wompiReference: string) {
   const planFin = new Date(ahora);
   planFin.setFullYear(planFin.getFullYear() + 1);
 
+  let nuevoTenantId: string | undefined;
+
   await db.transaction(async (tx) => {
     const [tenant] = await tx.insert(tenants).values({
       nombre: pending.tenant_nombre,
@@ -221,6 +223,8 @@ export async function completarRegistroPendiente(wompiReference: string) {
       plan_ends_at: planFin,
       activo: true,
     }).returning();
+
+    nuevoTenantId = tenant.id;
 
     await tx.insert(users).values({
       tenant_id: tenant.id,
@@ -234,6 +238,8 @@ export async function completarRegistroPendiente(wompiReference: string) {
       .set({ completed_at: ahora })
       .where(eq(pending_registrations.id, pending.id));
   });
+
+  return { tenantId: nuevoTenantId!, planPrecio: plan.precio_anual_cop };
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────

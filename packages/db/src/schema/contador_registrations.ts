@@ -8,6 +8,7 @@ export const contador_registrations = pgTable("contador_registrations", {
   celular: varchar("celular", { length: 20 }),
   firma_contable: varchar("firma_contable", { length: 200 }),
   // token para confirmar el correo
+  password_hash: varchar("password_hash", { length: 200 }).notNull(),
   token_confirmacion: varchar("token_confirmacion", { length: 100 }).unique().notNull(),
   confirmado: boolean("confirmado").notNull().default(false),
   // una vez confirmado, se crea el usuario en el hub y se vincula aquí

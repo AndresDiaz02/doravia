@@ -10,6 +10,7 @@ const migrations = [
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   // dark_mode por usuario (preferencia guardada en servidor, no solo en localStorage)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE contador_registrations ADD COLUMN IF NOT EXISTS password_hash varchar(200) NOT NULL DEFAULT ''`,
   // tabla de pre-registro de contadores (tablas nuevas se crean aquí, no via db:push)
   `CREATE TABLE IF NOT EXISTS contador_registrations (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -17,6 +18,7 @@ const migrations = [
     email varchar(200) UNIQUE NOT NULL,
     celular varchar(20),
     firma_contable varchar(200),
+    password_hash varchar(200) NOT NULL DEFAULT '',
     token_confirmacion varchar(100) UNIQUE NOT NULL,
     confirmado boolean NOT NULL DEFAULT false,
     user_id uuid REFERENCES users(id),

@@ -18,7 +18,7 @@ export default function RegistroContador() {
 }
 
 function FormularioRegistro() {
-  const [form, setForm] = useState({ nombre: "", email: "", celular: "", firma_contable: "" });
+  const [form, setForm] = useState({ nombre: "", email: "", password: "", celular: "", firma_contable: "" });
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +72,10 @@ function FormularioRegistro() {
             <div className="space-y-1.5">
               <Label htmlFor="email">Correo electrónico</Label>
               <Input id="email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input id="password" type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 8 caracteres" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="celular">Celular</Label>

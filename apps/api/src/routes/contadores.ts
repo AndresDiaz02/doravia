@@ -20,11 +20,14 @@ async function getHubTenantId(): Promise<string> {
 // ── POST /api/contadores/registro (público) ────────────────────────────────
 router.post("/registro", async (req, res) => {
   try {
-    const { nombre, email, celular, firma_contable } = req.body as {
-      nombre?: string; email?: string; celular?: string; firma_contable?: string;
+    const { nombre, email, password, celular, firma_contable } = req.body as {
+      nombre?: string; email?: string; password?: string; celular?: string; firma_contable?: string;
     };
-    if (!nombre?.trim() || !email?.trim()) {
-      return res.status(400).json({ error: "Campos requeridos: nombre, email." });
+    if (!nombre?.trim() || !email?.trim() || !password?.trim()) {
+      return res.status(400).json({ error: "Campos requeridos: nombre, email, contraseña." });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
     }
 
     const emailNorm = email.trim().toLowerCase();
@@ -41,15 +44,17 @@ router.post("/registro", async (req, res) => {
     }
 
     const token = randomBytes(32).toString("hex");
+    const password_hash = await bcrypt.hash(password, 12);
 
     if (existente) {
       await db.update(contador_registrations)
-        .set({ token_confirmacion: token, nombre: nombre.trim(), celular: celular?.trim(), firma_contable: firma_contable?.trim() })
+        .set({ token_confirmacion: token, password_hash, nombre: nombre.trim(), celular: celular?.trim(), firma_contable: firma_contable?.trim() })
         .where(eq(contador_registrations.id, existente.id));
     } else {
       await db.insert(contador_registrations).values({
         nombre: nombre.trim(),
         email: emailNorm,
+        password_hash,
         celular: celular?.trim(),
         firma_contable: firma_contable?.trim(),
         token_confirmacion: token,
@@ -84,16 +89,12 @@ router.get("/confirmar", async (req, res) => {
 
     const hubTenantId = await getHubTenantId();
 
-    // Crear usuario en el hub
-    const tempPassword = randomBytes(16).toString("hex");
-    const password_hash = await bcrypt.hash(tempPassword, 12);
-
     const [user] = await db.insert(users).values({
       tenant_id: hubTenantId,
       email: reg.email,
       nombre: reg.nombre,
       role: "contador",
-      password_hash,
+      password_hash: reg.password_hash,
     }).returning();
 
     await db.update(contador_registrations).set({

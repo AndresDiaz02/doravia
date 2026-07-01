@@ -1,24 +1,36 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import type { Factura, Cliente, Tenant } from "@workspace/db";
 
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST   ?? "smtp.gmail.com",
-  port:   Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER ?? "",
-    pass: process.env.SMTP_PASS ?? "",
-  },
-});
-
-const FROM = process.env.SMTP_FROM ?? "noreply@doravia.co";
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = process.env.RESEND_FROM ?? "Doravia <notificaciones@doraviasoft.com>";
+const APP_URL = process.env.APP_URL ?? "https://app.doraviasoft.com";
 
 const COP = new Intl.NumberFormat("es-CO", {
   style: "currency", currency: "COP", minimumFractionDigits: 0,
 });
 
 function emailConfigured(): boolean {
-  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  return !!process.env.RESEND_API_KEY;
+}
+
+async function send(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: { filename: string; content: Buffer; contentType: string }[];
+}): Promise<void> {
+  if (!emailConfigured()) {
+    console.warn(`[EMAIL] Resend no configurado — no se envió a ${opts.to}: ${opts.subject}`);
+    return;
+  }
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    attachments: opts.attachments,
+  });
+  if (error) throw new Error(`Resend error: ${error.message}`);
 }
 
 function baseLayout(titulo: string, cuerpo: string): string {
@@ -58,7 +70,6 @@ export async function enviarFacturaAceptada(
   tenant: Tenant,
   pdfBuffer: Buffer,
 ): Promise<void> {
-  if (!emailConfigured()) return;
   if (!cliente.correo) return;
 
   const fecha = new Date(factura.fecha_emision).toLocaleDateString("es-CO", {
@@ -70,7 +81,6 @@ export async function enviarFacturaAceptada(
     <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
       ${tenant.nombre} te ha enviado la siguiente factura electrónica.
     </p>
-
     <table style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:24px;">
       <tr style="background:#f9fafb;">
         <td style="padding:12px 16px;font-size:13px;color:#374151;font-weight:600;">N° Factura</td>
@@ -87,25 +97,17 @@ export async function enviarFacturaAceptada(
         </td>
       </tr>
     </table>
-
     <p style="color:#6b7280;font-size:13px;margin:0;">
-      La factura en formato PDF se adjunta a este correo. También puedes consultarla con el CUFE en la página de la DIAN.
+      La factura en formato PDF se adjunta a este correo.
     </p>
     ${factura.cufe ? `<p style="color:#9ca3af;font-size:11px;margin-top:12px;word-break:break-all;">CUFE: ${factura.cufe}</p>` : ""}
   `;
 
-  await transporter.sendMail({
-    from: `"${tenant.nombre}" <${FROM}>`,
-    to:   cliente.correo,
+  await send({
+    to: cliente.correo,
     subject: `Factura electrónica ${factura.numero} de ${tenant.nombre}`,
-    html:    baseLayout(`Factura ${factura.numero}`, cuerpo),
-    attachments: [
-      {
-        filename:    `${factura.numero}.pdf`,
-        content:     pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
+    html: baseLayout(`Factura ${factura.numero}`, cuerpo),
+    attachments: [{ filename: `${factura.numero}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
   });
 }
 
@@ -114,11 +116,9 @@ export async function enviarAlertaCobro(
   cliente: Cliente,
   tenant: Tenant,
 ): Promise<void> {
-  if (!emailConfigured()) return;
   if (!cliente.correo || facturas.length === 0) return;
 
   const totalPendiente = facturas.reduce((s, f) => s + Number(f.total), 0);
-
   const filas = facturas.map((f) => `
     <tr>
       <td style="padding:10px 14px;font-size:13px;color:#111827;border-top:1px solid #f3f4f6;">${f.numero}</td>
@@ -134,7 +134,6 @@ export async function enviarAlertaCobro(
     <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
       Tienes ${facturas.length} factura(s) pendiente(s) de pago con <strong>${tenant.nombre}</strong>.
     </p>
-
     <table style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:20px;">
       <thead>
         <tr style="background:#f9fafb;">
@@ -146,26 +145,18 @@ export async function enviarAlertaCobro(
       <tbody>${filas}</tbody>
       <tfoot>
         <tr style="background:#fef2f2;">
-          <td colspan="2" style="padding:12px 14px;font-size:13px;color:#374151;font-weight:700;border-top:2px solid #fecaca;">
-            Total pendiente
-          </td>
-          <td style="padding:12px 14px;font-size:15px;color:#dc2626;font-weight:700;border-top:2px solid #fecaca;">
-            ${COP.format(totalPendiente)}
-          </td>
+          <td colspan="2" style="padding:12px 14px;font-size:13px;color:#374151;font-weight:700;border-top:2px solid #fecaca;">Total pendiente</td>
+          <td style="padding:12px 14px;font-size:15px;color:#dc2626;font-weight:700;border-top:2px solid #fecaca;">${COP.format(totalPendiente)}</td>
         </tr>
       </tfoot>
     </table>
-
-    <p style="color:#6b7280;font-size:13px;">
-      Por favor comunícate con nosotros para coordinar el pago o si tienes alguna inquietud.
-    </p>
+    <p style="color:#6b7280;font-size:13px;">Por favor comunícate con nosotros para coordinar el pago.</p>
   `;
 
-  await transporter.sendMail({
-    from:    `"${tenant.nombre}" <${FROM}>`,
-    to:      cliente.correo,
+  await send({
+    to: cliente.correo,
     subject: `Recordatorio de pago — ${facturas.length} factura(s) pendiente(s)`,
-    html:    baseLayout("Recordatorio de pago", cuerpo),
+    html: baseLayout("Recordatorio de pago", cuerpo),
   });
 }
 
@@ -174,11 +165,10 @@ export async function enviarConfirmacionContador(
   nombre: string,
   token: string,
 ): Promise<void> {
-  const baseUrl = process.env.APP_URL ?? "https://app.doraviasoft.com";
-  const link = `${baseUrl}/registro-contador/confirmar?token=${encodeURIComponent(token)}`;
+  const link = `${APP_URL}/registro-contador/confirmar?token=${encodeURIComponent(token)}`;
 
   if (!emailConfigured()) {
-    console.warn(`[EMAIL] SMTP no configurado — confirmar contador ${email}: ${link}`);
+    console.warn(`[EMAIL] Resend no configurado — link confirmación contador: ${link}`);
     return;
   }
 
@@ -189,26 +179,15 @@ export async function enviarConfirmacionContador(
       Confirma tu correo para activar tu cuenta y comenzar a gestionar empresas.
     </p>
     <p style="margin:0 0 24px;">
-      <a href="${link}"
-         style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;
-                padding:12px 28px;border-radius:8px;text-decoration:none;">
+      <a href="${link}" style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
         Confirmar mi cuenta
       </a>
     </p>
-    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">
-      Este enlace es válido por 48 horas.
-    </p>
-    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">
-      O copia en tu navegador: ${link}
-    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">Este enlace es válido por 48 horas.</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">O copia en tu navegador: ${link}</p>
   `;
 
-  await transporter.sendMail({
-    from:    `"Doravia" <${FROM}>`,
-    to:      email,
-    subject: "Confirma tu cuenta de contador en Doravia",
-    html:    baseLayout("Confirmar cuenta contador", cuerpo),
-  });
+  await send({ to: email, subject: "Confirma tu cuenta de contador en Doravia", html: baseLayout("Confirmar cuenta contador", cuerpo) });
 }
 
 export async function enviarResetPassword(
@@ -216,13 +195,12 @@ export async function enviarResetPassword(
   nombre: string,
   token: string,
 ): Promise<void> {
+  const link = `${APP_URL}/recuperar-password?token=${encodeURIComponent(token)}`;
+
   if (!emailConfigured()) {
-    console.warn(`[EMAIL] SMTP no configurado — token reset para ${email}: ${token}`);
+    console.warn(`[EMAIL] Resend no configurado — link reset password: ${link}`);
     return;
   }
-
-  const baseUrl = process.env.APP_URL ?? "https://app.doravia.co";
-  const link = `${baseUrl}/recuperar-password?token=${encodeURIComponent(token)}`;
 
   const cuerpo = `
     <h2 style="color:#111827;font-size:18px;margin:0 0 8px;">Recupera tu contraseña</h2>
@@ -230,24 +208,13 @@ export async function enviarResetPassword(
       Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta en Doravia.
     </p>
     <p style="margin:0 0 24px;">
-      <a href="${link}"
-         style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;
-                padding:12px 28px;border-radius:8px;text-decoration:none;">
+      <a href="${link}" style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
         Restablecer contraseña
       </a>
     </p>
-    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">
-      Este enlace es válido por <strong>1 hora</strong>. Si no solicitaste este cambio, ignora este correo.
-    </p>
-    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">
-      O copia este enlace en tu navegador: ${link}
-    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;">Este enlace es válido por <strong>1 hora</strong>. Si no solicitaste este cambio, ignora este correo.</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;word-break:break-all;">O copia en tu navegador: ${link}</p>
   `;
 
-  await transporter.sendMail({
-    from:    `"Doravia" <${FROM}>`,
-    to:      email,
-    subject: "Restablece tu contraseña de Doravia",
-    html:    baseLayout("Recuperar contraseña", cuerpo),
-  });
+  await send({ to: email, subject: "Restablece tu contraseña de Doravia", html: baseLayout("Recuperar contraseña", cuerpo) });
 }

@@ -89,13 +89,15 @@ router.get("/confirmar", async (req, res) => {
 
     const hubTenantId = await getHubTenantId();
 
-    const [user] = await db.insert(users).values({
+    // Si ya existe un usuario con ese email, reutilizarlo; si no, crear uno nuevo
+    const [existingUser] = await db.select().from(users).where(eq(users.email, reg.email)).limit(1);
+    const user = existingUser ?? (await db.insert(users).values({
       tenant_id: hubTenantId,
       email: reg.email,
       nombre: reg.nombre,
       role: "contador",
       password_hash: reg.password_hash,
-    }).returning();
+    }).returning())[0];
 
     await db.update(contador_registrations).set({
       confirmado: true,

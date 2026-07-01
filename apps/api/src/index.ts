@@ -45,6 +45,7 @@ import { sql } from "drizzle-orm";
 import { isDianEnProduccion } from "./services/dian.service.js";
 
 const app = express();
+app.set("trust proxy", 1);
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,http://localhost:5174")
   .split(",")

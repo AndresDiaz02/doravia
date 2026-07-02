@@ -796,6 +796,23 @@ async function seedDatosEmpresa(tenantId: string, emp: (typeof EMPRESAS)[0], idx
       console.log(`  ✓ ${emp.nombre} — datos completos`);
     }
   }
+
+  // ── Usuario cajero para empresas con POS (idempotente) ──────────────────────
+  if (emp.addons.pos) {
+    const cajeroEmail = emp.adminEmail.replace("admin@", "cajero@");
+    const [cajeroExiste] = await db.select({ id: users.id }).from(users)
+      .where(and(eq(users.email, cajeroEmail), eq(users.tenant_id, tenantId))).limit(1);
+    if (!cajeroExiste) {
+      await db.insert(users).values({
+        tenant_id: tenantId,
+        email: cajeroEmail,
+        nombre: `Cajero — ${emp.nombre}`,
+        role: "vendedor",
+        password_hash: HASH_DEMO,
+      });
+      console.log(`  ✓ Cajero POS creado: ${cajeroEmail}`);
+    }
+  }
 }
 
 // ── Vinculación contadores → empresas (siempre idempotente) ──────────────────

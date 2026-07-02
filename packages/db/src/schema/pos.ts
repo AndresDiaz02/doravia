@@ -2,6 +2,7 @@ import { pgTable, uuid, varchar, timestamp, numeric, integer, boolean, text, jso
 import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { productos } from "./productos.ts";
+import { asientos_contables } from "./contabilidad.ts";
 
 export const METODOS_PAGO_POS = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata", "mixto"] as const;
 export type MetodoPagoPOS = (typeof METODOS_PAGO_POS)[number];
@@ -190,7 +191,7 @@ export const gastos_caja_pos = pgTable("gastos_caja_pos", {
   monto:       numeric("monto", { precision: 14, scale: 2 }).notNull(),
   concepto:    varchar("concepto", { length: 30 }).$type<ConceptoGastoCaja>().notNull().default("otros"),
   descripcion: varchar("descripcion", { length: 200 }),
-  asiento_id:  uuid("asiento_id"),
+  asiento_id:  uuid("asiento_id").references(() => asientos_contables.id),
   created_at:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -153,10 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadMe],
   );
 
-  const isContador = user?.role === "contador";
-  const isVendedor = user?.role === "vendedor";
-  const isFundador = user?.is_fundador === true;
-  const isContadorHub = tenant?.nit === "0000000001";
+  const isContador = useMemo(() => user?.role === "contador", [user?.role]);
+  const isVendedor = useMemo(() => user?.role === "vendedor", [user?.role]);
+  const isFundador = useMemo(() => user?.is_fundador === true, [user?.is_fundador]);
+  const isContadorHub = useMemo(() => tenant?.nit === "0000000001", [tenant?.nit]);
 
   return (
     <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>

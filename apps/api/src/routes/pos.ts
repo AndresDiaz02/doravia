@@ -186,7 +186,10 @@ router.post("/turnos", async (req, res) => {
     .from(turnos_pos)
     .where(and(eq(turnos_pos.caja_id, caja_id), eq(turnos_pos.estado, "abierto")));
   if (turnoExistente) {
-    return res.json(turnoExistente);
+    return res.status(409).json({
+      error: "Esta caja ya tiene un turno abierto. Ciérralo antes de abrir uno nuevo.",
+      turno: turnoExistente,
+    });
   }
 
   const [turno] = await db

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, boolean, timestamp, uniqueIndex, sql } from "drizzle-orm/pg-core";
 // Nota: usuario_pos es el nombre corto para cajeros POS (sin email)
 import { tenants } from "./tenants.ts";
 
@@ -18,7 +18,12 @@ export const users = pgTable("users", {
   // Nombre de usuario corto para cajeros POS (sin email)
   usuario_pos: varchar("usuario_pos", { length: 50 }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+(table) => [
+  uniqueIndex("users_usuario_pos_tenant_unique")
+    .on(table.tenant_id, table.usuario_pos)
+    .where(sql`${table.usuario_pos} IS NOT NULL`),
+]);
 
 // Accesos adicionales: un usuario puede ser vinculado a múltiples empresas
 // (ej. un contador externo gestionando varias empresas cliente)

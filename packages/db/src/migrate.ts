@@ -125,6 +125,15 @@ const migrations = [
           (SELECT id FROM plans WHERE slug = 'origen' LIMIT 1),
           now(), now() + interval '100 years', true, true
    WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE nit = '0000000001')`,
+  // TAREA 5 — índice único compuesto (tenant_id, usuario_pos) WHERE usuario_pos IS NOT NULL
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_usuario_pos_tenant_unique ON users(tenant_id, usuario_pos) WHERE usuario_pos IS NOT NULL`,
+  // TAREA 6 — FK self-referencial en cuentas_contables (padre_id → id)
+  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'cuentas_padre_fk') THEN ALTER TABLE cuentas_contables ADD CONSTRAINT cuentas_padre_fk FOREIGN KEY (padre_id) REFERENCES cuentas_contables(id); END IF; END $$`,
+  // TAREA 7 — FK explícita asiento_id en gastos_caja_pos
+  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'gastos_caja_asiento_fk') THEN ALTER TABLE gastos_caja_pos ADD CONSTRAINT gastos_caja_asiento_fk FOREIGN KEY (asiento_id) REFERENCES asientos_contables(id); END IF; END $$`,
+  // TAREA 9 — normalizar fechas en remisiones (varchar → date)
+  `ALTER TABLE remisiones ALTER COLUMN fecha TYPE date USING fecha::date`,
+  `ALTER TABLE remisiones ALTER COLUMN fecha_entrega TYPE date USING fecha_entrega::date`,
 ];
 
 for (const migration of migrations) {

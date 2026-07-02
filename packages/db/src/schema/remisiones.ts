@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, numeric, integer, text } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, numeric, integer, text, date } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { productos } from "./productos.ts";
@@ -14,8 +14,8 @@ export const remisiones = pgTable("remisiones", {
   cliente_id: uuid("cliente_id").references(() => clientes.id),
   nombre_cliente: varchar("nombre_cliente", { length: 200 }),
   direccion_entrega: varchar("direccion_entrega", { length: 300 }),
-  fecha: varchar("fecha", { length: 10 }).notNull(), // YYYY-MM-DD
-  fecha_entrega: varchar("fecha_entrega", { length: 10 }),
+  fecha: date("fecha").notNull(),
+  fecha_entrega: date("fecha_entrega"),
   total: numeric("total", { precision: 14, scale: 2 }).notNull().default("0"),
   estado: varchar("estado", { length: 20 }).$type<EstadoRemision>().notNull().default("borrador"),
   observaciones: text("observaciones"),

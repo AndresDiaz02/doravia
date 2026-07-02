@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, timestamp, numeric, date, smallint, boolean } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 
 export const TIPOS_CUENTA = ["activo", "pasivo", "patrimonio", "ingreso", "costo", "gasto"] as const;
@@ -19,7 +20,7 @@ export const cuentas_contables = pgTable("cuentas_contables", {
   tipo: varchar("tipo", { length: 20 }).$type<TipoCuenta>().notNull(),
   naturaleza: varchar("naturaleza", { length: 10 }).$type<NaturalezaCuenta>().notNull(),
   nivel: smallint("nivel").notNull(), // 1=clase, 2=grupo, 3=cuenta, 4=subcuenta
-  padre_id: uuid("padre_id"), // FK self-referencial manejada en app para evitar ciclismo
+  padre_id: uuid("padre_id").references((): AnyPgColumn => cuentas_contables.id),
   activo: boolean("activo").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

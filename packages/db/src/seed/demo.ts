@@ -410,6 +410,21 @@ const CONTADORES = [
 
 // ── Limpieza ──────────────────────────────────────────────────────────────────
 
+// Ejecuta un DELETE y absorbe errores de schema drift (columna/tabla inexistente).
+// Las tablas con schema diferente al esperado simplemente se omiten.
+async function safeExec(query: ReturnType<typeof sql>, label: string) {
+  try {
+    await db.execute(query);
+  } catch (e: any) {
+    // 42703 = columna no existe, 42P01 = relación no existe
+    if (e?.code === "42703" || e?.code === "42P01") {
+      console.warn(`  [limpiar] omitiendo ${label}: ${e.message}`);
+    } else {
+      throw e;
+    }
+  }
+}
+
 async function limpiarTenants(preservar: string[]) {
   const todos = await db.select({ id: tenants.id }).from(tenants);
   const eliminar = todos.map((t) => t.id).filter((id) => !preservar.includes(id));
@@ -417,44 +432,45 @@ async function limpiarTenants(preservar: string[]) {
 
   const idList = sql.join(eliminar.map((id) => sql`${id}::uuid`), sql`, `);
 
-  // Eliminar en orden (hijo primero)
-  await db.execute(sql`DELETE FROM lineas_asiento WHERE asiento_id IN (SELECT id FROM asientos_contables WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM asientos_contables WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM retenciones_factura WHERE factura_id IN (SELECT id FROM facturas WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM items_nota_credito WHERE nota_credito_id IN (SELECT id FROM notas_credito WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM notas_credito WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM items_factura WHERE factura_id IN (SELECT id FROM facturas WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM facturas WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM items_cotizacion WHERE cotizacion_id IN (SELECT id FROM cotizaciones WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM cotizaciones WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM items_venta_pos WHERE venta_id IN (SELECT id FROM ventas_pos WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM ventas_pos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM abonos_fiado WHERE fiado_id IN (SELECT id FROM fiados WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM items_fiado WHERE fiado_id IN (SELECT id FROM fiados WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM fiados WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM citas_pos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM turnos_pos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM cajas_pos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM componentes_producto WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM movimientos_inventario WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM productos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM bodegas WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM clientes WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM resoluciones_dian WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM retenciones_config WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM cuentas_contables WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM centros_costos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM tutorial_progress WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM retencion_seguimiento WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM pending_registrations WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM plantillas_factura WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM gastos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM proveedores WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM audit_log WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM user_accesos WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM comisiones_contador WHERE tenant_id IN (${idList})`);
-  await db.execute(sql`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE tenant_id IN (${idList}))`);
-  await db.execute(sql`DELETE FROM password_reset_tokens WHERE user_id IN (SELECT id FROM users WHERE tenant_id IN (${idList}))`);
+  // Eliminar en orden (hijo primero). safeExec omite tablas con schema drift.
+  await safeExec(sql`DELETE FROM lineas_asiento WHERE asiento_id IN (SELECT id FROM asientos_contables WHERE tenant_id IN (${idList}))`, "lineas_asiento");
+  await safeExec(sql`DELETE FROM asientos_contables WHERE tenant_id IN (${idList})`, "asientos_contables");
+  await safeExec(sql`DELETE FROM retenciones_factura WHERE factura_id IN (SELECT id FROM facturas WHERE tenant_id IN (${idList}))`, "retenciones_factura");
+  await safeExec(sql`DELETE FROM items_nota_credito WHERE nota_credito_id IN (SELECT id FROM notas_credito WHERE tenant_id IN (${idList}))`, "items_nota_credito");
+  await safeExec(sql`DELETE FROM notas_credito WHERE tenant_id IN (${idList})`, "notas_credito");
+  await safeExec(sql`DELETE FROM items_factura WHERE factura_id IN (SELECT id FROM facturas WHERE tenant_id IN (${idList}))`, "items_factura");
+  await safeExec(sql`DELETE FROM facturas WHERE tenant_id IN (${idList})`, "facturas");
+  await safeExec(sql`DELETE FROM items_cotizacion WHERE cotizacion_id IN (SELECT id FROM cotizaciones WHERE tenant_id IN (${idList}))`, "items_cotizacion");
+  await safeExec(sql`DELETE FROM cotizaciones WHERE tenant_id IN (${idList})`, "cotizaciones");
+  await safeExec(sql`DELETE FROM items_venta_pos WHERE venta_id IN (SELECT id FROM ventas_pos WHERE tenant_id IN (${idList}))`, "items_venta_pos");
+  await safeExec(sql`DELETE FROM ventas_pos WHERE tenant_id IN (${idList})`, "ventas_pos");
+  await safeExec(sql`DELETE FROM abonos_fiado WHERE fiado_id IN (SELECT id FROM fiados WHERE tenant_id IN (${idList}))`, "abonos_fiado");
+  await safeExec(sql`DELETE FROM items_fiado WHERE fiado_id IN (SELECT id FROM fiados WHERE tenant_id IN (${idList}))`, "items_fiado");
+  await safeExec(sql`DELETE FROM fiados WHERE tenant_id IN (${idList})`, "fiados");
+  await safeExec(sql`DELETE FROM citas_pos WHERE tenant_id IN (${idList})`, "citas_pos");
+  await safeExec(sql`DELETE FROM turnos_pos WHERE tenant_id IN (${idList})`, "turnos_pos");
+  await safeExec(sql`DELETE FROM cajas_pos WHERE tenant_id IN (${idList})`, "cajas_pos");
+  await safeExec(sql`DELETE FROM componentes_producto WHERE tenant_id IN (${idList})`, "componentes_producto");
+  await safeExec(sql`DELETE FROM movimientos_inventario WHERE tenant_id IN (${idList})`, "movimientos_inventario");
+  await safeExec(sql`DELETE FROM productos WHERE tenant_id IN (${idList})`, "productos");
+  await safeExec(sql`DELETE FROM bodegas WHERE tenant_id IN (${idList})`, "bodegas");
+  await safeExec(sql`DELETE FROM clientes WHERE tenant_id IN (${idList})`, "clientes");
+  await safeExec(sql`DELETE FROM resoluciones_dian WHERE tenant_id IN (${idList})`, "resoluciones_dian");
+  await safeExec(sql`DELETE FROM retenciones_config WHERE tenant_id IN (${idList})`, "retenciones_config");
+  await safeExec(sql`DELETE FROM cuentas_contables WHERE tenant_id IN (${idList})`, "cuentas_contables");
+  await safeExec(sql`DELETE FROM centros_costos WHERE tenant_id IN (${idList})`, "centros_costos");
+  await safeExec(sql`DELETE FROM tutorial_progress WHERE tenant_id IN (${idList})`, "tutorial_progress");
+  await safeExec(sql`DELETE FROM retencion_seguimiento WHERE tenant_id IN (${idList})`, "retencion_seguimiento");
+  await safeExec(sql`DELETE FROM pending_registrations WHERE tenant_id IN (${idList})`, "pending_registrations");
+  await safeExec(sql`DELETE FROM plantillas_factura WHERE tenant_id IN (${idList})`, "plantillas_factura");
+  await safeExec(sql`DELETE FROM gastos WHERE tenant_id IN (${idList})`, "gastos");
+  await safeExec(sql`DELETE FROM proveedores WHERE tenant_id IN (${idList})`, "proveedores");
+  await safeExec(sql`DELETE FROM audit_log WHERE tenant_id IN (${idList})`, "audit_log");
+  await safeExec(sql`DELETE FROM user_accesos WHERE tenant_id IN (${idList})`, "user_accesos");
+  await safeExec(sql`DELETE FROM comisiones_contador WHERE tenant_id IN (${idList})`, "comisiones_contador");
+  await safeExec(sql`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE tenant_id IN (${idList}))`, "refresh_tokens");
+  await safeExec(sql`DELETE FROM password_reset_tokens WHERE user_id IN (SELECT id FROM users WHERE tenant_id IN (${idList}))`, "password_reset_tokens");
+  // Estas dos son críticas — si fallan hay un FK inesperado, se lanza el error.
   await db.execute(sql`DELETE FROM users WHERE tenant_id IN (${idList})`);
   await db.execute(sql`DELETE FROM tenants WHERE id IN (${idList})`);
 

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../lib/auth";
-import { ApiError } from "../lib/api";
+import { ApiError, apiFetch } from "../lib/api";
 
 export default function Login() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  // Campo unificado: acepta usuario corto o correo electrónico
+  const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +15,20 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      await login(email, password);
+      const valor = identificador.trim();
+      // Si contiene "@" se trata como correo; de lo contrario como usuario_pos
+      if (valor.includes("@")) {
+        await login(valor, password);
+      } else {
+        // Enviar como usuario POS directamente a la API
+        const data = await apiFetch<{ accessToken: string; user: { id: string; nombre: string; email: string; role: string }; tenant: { id: string; nombre: string; nit: string }; plan: { slug: string } }>("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ usuario: valor, password }),
+        });
+        // Guardar token y recargar para que el contexto de auth detecte el nuevo token
+        localStorage.setItem("pos_token", data.accessToken);
+        window.location.reload();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión.");
     } finally {
@@ -35,13 +49,18 @@ export default function Login() {
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Correo</label>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
+              Usuario o correo
+            </label>
             <input
-              type="email" required autoFocus
-              value={email} onChange={(e) => setEmail(e.target.value)}
+              type="text" required autoFocus
+              value={identificador} onChange={(e) => setIdentificador(e.target.value)}
               className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-              placeholder="cajero@empresa.com"
+              placeholder="cajero1 o cajero@empresa.com"
             />
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              Los cajeros pueden ingresar con su nombre de usuario sin necesidad de correo.
+            </p>
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Contraseña</label>

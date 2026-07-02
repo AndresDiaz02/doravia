@@ -22,6 +22,7 @@ interface EmpresaConfig {
   actividad_economica: string | null;
   logo_base64: string | null;
   pie_factura: string | null;
+  facturacion_electronica: boolean;
 }
 
 export default function ConfiguracionEmpresa() {
@@ -34,6 +35,10 @@ export default function ConfiguracionEmpresa() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [posConfig, setPosConfig] = useState<PosConfig>({});
   const [guardandoPos, setGuardandoPos] = useState(false);
+  // Estado de facturación electrónica
+  const [guardandoFe, setGuardandoFe] = useState(false);
+  const [feError, setFeError] = useState<string | null>(null);
+  const [aceptaResponsabilidad, setAceptaResponsabilidad] = useState(false);
 
   useEffect(() => {
     void apiFetch<EmpresaConfig>("/api/empresa")
@@ -53,6 +58,23 @@ export default function ConfiguracionEmpresa() {
       });
       setPosConfig(r.pos_config ?? {});
     } finally { setGuardandoPos(false); }
+  }
+
+  async function toggleFacturacionElectronica(habilitado: boolean) {
+    setGuardandoFe(true);
+    setFeError(null);
+    try {
+      await apiFetch("/api/empresa/facturacion-electronica", {
+        method: "PATCH",
+        body: JSON.stringify({ habilitado, acepta_responsabilidad: !habilitado ? aceptaResponsabilidad : undefined }),
+      });
+      setConfig((prev) => prev ? { ...prev, facturacion_electronica: habilitado } : prev);
+      setAceptaResponsabilidad(false);
+    } catch (err) {
+      setFeError(err instanceof ApiError ? err.message : "Error al actualizar.");
+    } finally {
+      setGuardandoFe(false);
+    }
   }
 
   async function handleGuardar(e: FormEvent) {
@@ -303,6 +325,78 @@ export default function ConfiguracionEmpresa() {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        {/* ── Facturación electrónica ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Facturación electrónica</CardTitle>
+            <p className="text-sm text-gray-500">
+              Configura si esta empresa emite facturas electrónicas válidas ante la DIAN.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">{config.facturacion_electronica ? "🟢" : "⚪"}</span>
+              <span className="text-sm font-medium text-gray-900">
+                Estado actual:{" "}
+                <span className={config.facturacion_electronica ? "text-emerald-600" : "text-gray-400"}>
+                  {config.facturacion_electronica ? "Habilitada" : "Deshabilitada"}
+                </span>
+              </span>
+            </div>
+
+            {!config.facturacion_electronica ? (
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm text-gray-600">
+                  Al habilitar la facturación electrónica, podrás registrar resoluciones DIAN
+                  y emitir facturas válidas ante la DIAN desde Doravia.
+                </p>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aceptaResponsabilidad}
+                    onChange={(e) => setAceptaResponsabilidad(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-xs text-gray-600">
+                    Confirmo que esta empresa emitirá facturas electrónicas desde Doravia
+                    y me hago responsable del cumplimiento tributario correspondiente.
+                  </span>
+                </label>
+                <Button
+                  type="button"
+                  disabled={guardandoFe || !aceptaResponsabilidad}
+                  onClick={() => void toggleFacturacionElectronica(true)}
+                >
+                  {guardandoFe ? "Habilitando..." : "Habilitar facturación electrónica"}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <p className="text-sm text-amber-800">
+                  <strong>Nota:</strong> Desactivar la facturación electrónica impedirá emitir facturas
+                  válidas ante la DIAN. Solo hazlo si esta empresa dejará de facturar electrónicamente.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={guardandoFe}
+                  onClick={() => {
+                    if (window.confirm("¿Estás seguro de que deseas desactivar la facturación electrónica? Esta acción dejará un registro de auditoría.")) {
+                      void toggleFacturacionElectronica(false);
+                    }
+                  }}
+                >
+                  {guardandoFe ? "Desactivando..." : "Desactivar (no recomendado)"}
+                </Button>
+              </div>
+            )}
+
+            {feError && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{feError}</p>
+            )}
           </CardContent>
         </Card>
 

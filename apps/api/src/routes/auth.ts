@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, users, tenants, plans, pending_registrations, password_reset_tokens } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
@@ -92,14 +92,32 @@ router.post("/verificar-registro", async (req, res) => {
 });
 
 // POST /api/auth/login
+// Acepta { email, password } para usuarios normales o { usuario, password } para cajeros POS
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, usuario, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Campos requeridos: email, password." });
+  if ((!email && !usuario) || !password) {
+    return res.status(400).json({ error: "Campos requeridos: email (o usuario) y password." });
   }
 
   try {
+    // Inicio de sesión con usuario_pos (cajeros POS sin email)
+    if (usuario && !email) {
+      const [cajero] = await db
+        .select()
+        .from(users)
+        .where(and(ilike(users.usuario_pos, usuario), eq(users.activo, true)))
+        .limit(1);
+
+      if (!cajero || !cajero.usuario_pos) {
+        return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
+      }
+
+      const resultado = await login(cajero.email, password);
+      return res.json(resultado);
+    }
+
+    // Inicio de sesión normal con email
     const resultado = await login(email, password);
     res.json(resultado);
   } catch (err) {
@@ -198,6 +216,7 @@ router.get("/me", authenticate, async (req, res) => {
       activo: req.tenant.activo,
       ultimo_pago_confirmado_at: req.tenant.ultimo_pago_confirmado_at ?? null,
       onboarding_completado: req.tenant.onboarding_completado,
+      facturacion_electronica: req.tenant.facturacion_electronica,
       pos_config: req.tenant.pos_config ?? {},
     },
     plan: {

@@ -47,6 +47,8 @@ import RecuperarPassword from "./pages/RecuperarPassword";
 import MiPlan from "./pages/MiPlan";
 import RegistroContador from "./pages/RegistroContador";
 import ContadorDashboard from "./pages/ContadorDashboard";
+import CajerosPOS from "./pages/CajerosPOS";
+import Remisiones from "./pages/Remisiones";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -114,7 +116,9 @@ export default function App() {
               <Route path="/periodos-contables" element={<><RequiereRol allow={["admin", "contador"]} /><PeriodosContables /></>} />
               <Route path="/configuracion/empresa" element={<><SoloEscritura /><ConfiguracionEmpresa /></>} />
               <Route path="/pos/cajas" element={<><SoloEscritura /><AdminCajas /></>} />
+              <Route path="/pos/cajeros" element={<><SoloEscritura /><CajerosPOS /></>} />
               <Route path="/pos/cierre-dian" element={<CierreDian />} />
+              <Route path="/remisiones" element={<Remisiones />} />
               <Route path="/contabilidad/balance-prueba" element={<><RequiereRol allow={["admin", "contador"]} /><BalancePrueba /></>} />
               <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
               <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />

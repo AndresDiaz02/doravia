@@ -15,6 +15,10 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 // GET /api/resoluciones-dian — lista todas las resoluciones del tenant
 router.get("/", async (req, res) => {
+  // Solo disponible si la empresa tiene habilitada la facturación electrónica
+  if (!req.tenant.facturacion_electronica) {
+    return res.status(403).json({ error: "La facturación electrónica no está habilitada para esta empresa." });
+  }
   try {
     const rows = await db
       .select()
@@ -31,6 +35,10 @@ router.get("/", async (req, res) => {
 
 // POST /api/resoluciones-dian — registra una nueva resolución y la activa
 router.post("/", requireAdmin, async (req, res) => {
+  // Solo disponible si la empresa tiene habilitada la facturación electrónica
+  if (!req.tenant.facturacion_electronica) {
+    return res.status(403).json({ error: "La facturación electrónica no está habilitada para esta empresa." });
+  }
   try {
     const {
       numero_resolucion,
@@ -96,6 +104,10 @@ router.post("/", requireAdmin, async (req, res) => {
 
 // PATCH /api/resoluciones-dian/:id/activar — activa una resolución existente
 router.patch("/:id/activar", requireAdmin, async (req, res) => {
+  // Solo disponible si la empresa tiene habilitada la facturación electrónica
+  if (!req.tenant.facturacion_electronica) {
+    return res.status(403).json({ error: "La facturación electrónica no está habilitada para esta empresa." });
+  }
   try {
     const [resolucion] = await db
       .select()

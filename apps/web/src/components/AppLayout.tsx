@@ -56,6 +56,7 @@ const NAV_BASE = [
 
 const NAV_VENTAS = [
   { to: "/cotizaciones", label: "Cotizaciones", icon: ShoppingCart },
+  { to: "/remisiones",   label: "Remisiones",   icon: FileText },
 ];
 
 const NAV_GASTOS = [
@@ -83,13 +84,14 @@ const NAV_COSECHA = [
   { to: "/cartera",        label: "Cartera",            icon: TrendingUp,  feature: "cartera_avanzada" },
 ];
 
-const CONFIG = [
+const CONFIG_BASE = [
   { to: "/configuracion/empresa",  label: "Mi empresa",          icon: Building2 },
   { to: "/configuracion/modulos",  label: "Módulos adicionales",  icon: CreditCard },
-  { to: "/configuracion/dian",     label: "Resolución DIAN",     icon: Settings },
   { to: "/retenciones",            label: "Retenciones",         icon: Receipt },
   { to: "/periodos-contables",     label: "Períodos contables",   icon: Calendar },
 ];
+// Ítem DIAN solo visible si la empresa tiene facturación electrónica habilitada
+const CONFIG_DIAN = { to: "/configuracion/dian", label: "Resolución DIAN", icon: Settings };
 
 export function AppLayout() {
   const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador } = useAuth();
@@ -307,7 +309,10 @@ export function AppLayout() {
           {(plan?.features as Record<string, boolean> | undefined)?.pos === true && (
             <>
               {!isContador && <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />}
-              <NavItem to="/pos/cierre-dian" label="Cierre DIAN"  icon={Send}      isActive={active("/pos/cierre-dian")} />
+              {!isContador && <NavItem to="/pos/cajeros" label="Cajeros" icon={Users} isActive={active("/pos/cajeros")} />}
+              {tenant?.facturacion_electronica && (
+                <NavItem to="/pos/cierre-dian" label="Cierre DIAN" icon={Send} isActive={active("/pos/cierre-dian")} />
+              )}
             </>
           )}
 
@@ -339,9 +344,13 @@ export function AppLayout() {
 
           <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
-          {!isContador && !isVendedor && CONFIG.map(({ to, label, icon: Icon }) => (
+          {!isContador && !isVendedor && CONFIG_BASE.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
           ))}
+          {/* Resolución DIAN solo si la empresa tiene facturación electrónica */}
+          {!isContador && !isVendedor && tenant?.facturacion_electronica && (
+            <NavItem to={CONFIG_DIAN.to} label={CONFIG_DIAN.label} icon={CONFIG_DIAN.icon} isActive={active(CONFIG_DIAN.to)} />
+          )}
 
           {user?.role === "admin" && (
             <NavItem to="/usuarios" label="Usuarios" icon={UserCog} isActive={active("/usuarios")} />

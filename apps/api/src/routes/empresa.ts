@@ -34,6 +34,7 @@ router.get("/", async (req, res) => {
         actividad_economica: tenants.actividad_economica,
         logo_base64: tenants.logo_base64,
         pie_factura: tenants.pie_factura,
+        facturacion_electronica: tenants.facturacion_electronica,
       })
       .from(tenants)
       .where(eq(tenants.id, req.tenantId))
@@ -58,6 +59,7 @@ router.patch("/", requireNotContador, async (req, res) => {
     const {
       nombre, direccion, ciudad, telefono, correo,
       sitio_web, regimen, representante_legal, actividad_economica, pie_factura,
+      facturacion_electronica,
     } = req.body;
 
     const [actualizado] = await db
@@ -73,6 +75,7 @@ router.patch("/", requireNotContador, async (req, res) => {
         ...(representante_legal !== undefined && { representante_legal }),
         ...(actividad_economica !== undefined && { actividad_economica }),
         ...(pie_factura !== undefined && { pie_factura }),
+        ...(facturacion_electronica !== undefined && { facturacion_electronica }),
       })
       .where(eq(tenants.id, req.tenantId))
       .returning();
@@ -80,6 +83,39 @@ router.patch("/", requireNotContador, async (req, res) => {
     res.json(actualizado);
   } catch (err) {
     console.error("Error en PATCH /empresa:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/empresa/facturacion-electronica — habilita/deshabilita FE con registro de fecha
+router.patch("/facturacion-electronica", requireNotContador, async (req, res) => {
+  try {
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ error: "Solo el administrador puede modificar la configuración de facturación electrónica." });
+    }
+
+    const { habilitado, acepta_responsabilidad } = req.body as { habilitado: boolean; acepta_responsabilidad?: boolean };
+
+    if (typeof habilitado !== "boolean") {
+      return res.status(400).json({ error: "Campo requerido: habilitado (boolean)." });
+    }
+
+    // Si se deshabilita, registrar la fecha en pos_config para auditoría
+    if (!habilitado) {
+      const actual = (req.tenant.pos_config ?? {}) as Record<string, unknown>;
+      const nuevo = { ...actual, fe_deshabilitada_en: new Date().toISOString() };
+      await db.update(tenants)
+        .set({ facturacion_electronica: false, pos_config: nuevo })
+        .where(eq(tenants.id, req.tenantId));
+    } else {
+      await db.update(tenants)
+        .set({ facturacion_electronica: true })
+        .where(eq(tenants.id, req.tenantId));
+    }
+
+    res.json({ ok: true, habilitado, acepta_responsabilidad: acepta_responsabilidad ?? null });
+  } catch (err) {
+    console.error("Error en PATCH /empresa/facturacion-electronica:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

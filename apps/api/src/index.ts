@@ -37,6 +37,7 @@ import fundadorRouter from "./routes/fundador.js";
 import miPlanRouter from "./routes/mi-plan.js";
 import soporteRouter from "./routes/soporte.js";
 import { contadoresRouter } from "./routes/contadores.js";
+import remisionesRouter from "./routes/remisiones.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
@@ -153,6 +154,7 @@ app.use("/api/pos",            authenticate, requirePlanFeature("pos"), posRoute
 app.use("/api/audit-log",      authenticate, auditLogRouter);
 app.use("/api/mi-plan",        authenticate, miPlanRouter);
 app.use("/api/soporte",        authenticate, soporteRouter);
+app.use("/api/remisiones",     authenticate, remisionesRouter);
 app.use("/api/contadores",     contadoresRouter); // registro público + rutas autenticadas internas
 app.use("/api/fundador",       requireFundador, fundadorRouter);
 

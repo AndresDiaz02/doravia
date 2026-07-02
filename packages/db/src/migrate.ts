@@ -87,6 +87,38 @@ const migrations = [
     asiento_id uuid,
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
+  // facturacion_electronica: flag para habilitar/deshabilitar DIAN por tenant
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS facturacion_electronica boolean NOT NULL DEFAULT false`,
+  // usuario_pos: nombre corto para cajeros POS (sin email)
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS usuario_pos varchar(50)`,
+  // tabla de remisiones (documentos de entrega sin valor fiscal)
+  `CREATE TABLE IF NOT EXISTS remisiones (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    numero varchar(30) NOT NULL,
+    consecutivo integer NOT NULL,
+    cliente_id uuid REFERENCES clientes(id),
+    nombre_cliente varchar(200),
+    direccion_entrega varchar(300),
+    fecha varchar(10) NOT NULL,
+    fecha_entrega varchar(10),
+    total numeric(14,2) NOT NULL DEFAULT 0,
+    estado varchar(20) NOT NULL DEFAULT 'borrador',
+    observaciones text,
+    creado_por uuid,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  // ítems de cada remisión
+  `CREATE TABLE IF NOT EXISTS items_remision (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    remision_id uuid NOT NULL REFERENCES remisiones(id) ON DELETE CASCADE,
+    producto_id uuid REFERENCES productos(id),
+    descripcion varchar(300) NOT NULL,
+    cantidad numeric(10,4) NOT NULL,
+    precio_unitario numeric(14,4) NOT NULL DEFAULT 0,
+    total numeric(14,2) NOT NULL
+  )`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

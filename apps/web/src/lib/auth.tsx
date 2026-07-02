@@ -36,6 +36,7 @@ export interface TenantInfo {
   activo: boolean;
   ultimo_pago_confirmado_at: string | null;
   onboarding_completado: boolean;
+  facturacion_electronica: boolean;
 }
 
 export interface EmpresaAcceso {

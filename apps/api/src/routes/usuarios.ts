@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, users, user_accesos, USER_ROLES } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import { assertCanAddUsuario } from "../guards/plan-limits.js";
@@ -125,6 +125,142 @@ router.patch("/:id", async (req, res) => {
   const { password_hash: _, ...sinHash } = actualizado;
   void audit({ tenantId: req.tenantId, userId: req.userId, accion: "usuario.modificado", entidadTipo: "usuario", entidadId: usuario.id, detalle: { campo: req.body }, ip: req.ip });
   res.json(sinHash);
+});
+
+// ─── Cajeros POS (usuarios sin email visible, solo usuario_pos) ──────────────
+
+// GET /api/usuarios/cajeros — lista cajeros POS del tenant
+router.get("/cajeros", async (req, res) => {
+  try {
+    const cajeros = await db
+      .select({
+        id: users.id,
+        nombre: users.nombre,
+        usuario_pos: users.usuario_pos,
+        activo: users.activo,
+        created_at: users.created_at,
+      })
+      .from(users)
+      .where(and(eq(users.tenant_id, req.tenantId), isNotNull(users.usuario_pos)))
+      .orderBy(users.nombre);
+
+    res.json(cajeros);
+  } catch (err) {
+    console.error("Error en GET /usuarios/cajeros:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/usuarios/cajeros — crea un cajero POS
+router.post("/cajeros", async (req, res) => {
+  try {
+    const { nombre, usuario_pos, password } = req.body as {
+      nombre?: string;
+      usuario_pos?: string;
+      password?: string;
+    };
+
+    if (!nombre || !usuario_pos) {
+      return res.status(400).json({ error: "Campos requeridos: nombre, usuario_pos." });
+    }
+    if (!password || (password as string).length < 4) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+    }
+    if (/\s|@/.test(usuario_pos)) {
+      return res.status(400).json({ error: "El usuario POS no puede contener espacios ni el carácter @." });
+    }
+
+    // El email se genera internamente y nunca se muestra al usuario
+    const emailInterno = `${usuario_pos.toLowerCase()}@cajero.pos`;
+
+    // Verificar que el email interno no exista
+    const [existente] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, emailInterno))
+      .limit(1);
+
+    if (existente) {
+      return res.status(422).json({ error: "Ya existe un cajero con ese nombre de usuario en esta empresa." });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const [nuevo] = await db
+      .insert(users)
+      .values({
+        tenant_id: req.tenantId,
+        email: emailInterno,
+        nombre,
+        role: "operario",
+        password_hash,
+        usuario_pos: usuario_pos.toLowerCase(),
+      })
+      .returning();
+
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "cajero.creado", entidadTipo: "usuario", entidadId: nuevo.id, detalle: { usuario_pos: nuevo.usuario_pos }, ip: req.ip });
+    res.status(201).json({ id: nuevo.id, nombre: nuevo.nombre, usuario_pos: nuevo.usuario_pos, activo: nuevo.activo });
+  } catch (err) {
+    console.error("Error en POST /usuarios/cajeros:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/usuarios/cajeros/:id/reset-password — restablece contraseña sin validar la actual
+router.patch("/cajeros/:id/reset-password", async (req, res) => {
+  try {
+    const [cajero] = await db
+      .select({ id: users.id, usuario_pos: users.usuario_pos })
+      .from(users)
+      .where(and(eq(users.id, req.params.id), eq(users.tenant_id, req.tenantId), isNotNull(users.usuario_pos)))
+      .limit(1);
+
+    if (!cajero) return res.status(404).json({ error: "Cajero no encontrado." });
+
+    const { nueva_password } = req.body as { nueva_password?: string };
+    if (!nueva_password || (nueva_password as string).length < 4) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+    }
+
+    const password_hash = await bcrypt.hash(nueva_password, 12);
+    await db.update(users).set({ password_hash }).where(eq(users.id, cajero.id));
+
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "cajero.password_reseteada", entidadTipo: "usuario", entidadId: cajero.id, ip: req.ip });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en PATCH /usuarios/cajeros/:id/reset-password:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/usuarios/cajeros/:id — actualiza nombre o estado del cajero
+router.patch("/cajeros/:id", async (req, res) => {
+  try {
+    const [cajero] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.id, req.params.id), eq(users.tenant_id, req.tenantId), isNotNull(users.usuario_pos)))
+      .limit(1);
+
+    if (!cajero) return res.status(404).json({ error: "Cajero no encontrado." });
+
+    const { nombre, activo } = req.body as { nombre?: string; activo?: boolean };
+
+    const [actualizado] = await db
+      .update(users)
+      .set({
+        ...(nombre !== undefined && { nombre }),
+        ...(activo !== undefined && { activo }),
+      })
+      .where(eq(users.id, cajero.id))
+      .returning();
+
+    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "cajero.modificado", entidadTipo: "usuario", entidadId: cajero.id, detalle: req.body, ip: req.ip });
+    res.json({ id: actualizado.id, nombre: actualizado.nombre, usuario_pos: actualizado.usuario_pos, activo: actualizado.activo });
+  } catch (err) {
+    console.error("Error en PATCH /usuarios/cajeros/:id:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
 });
 
 // GET /api/usuarios/externos

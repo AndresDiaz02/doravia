@@ -23,36 +23,36 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0E1A] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0E1A] flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-900/50">
             <span className="text-white text-2xl font-black">D</span>
           </div>
-          <p className="text-2xl font-bold text-white">Doravia POS</p>
-          <p className="text-sm text-slate-500 mt-1">Punto de venta</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">Doravia POS</p>
+          <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">Punto de venta</p>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Correo</label>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Correo</label>
             <input
               type="email" required autoFocus
               value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-base text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
               placeholder="cajero@empresa.com"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Contraseña</label>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Contraseña</label>
             <input
               type="password" required
               value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 text-base text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
             />
           </div>
           {error && (
-            <p className="rounded-xl bg-red-950/60 border border-red-800/50 px-4 py-3 text-sm text-red-400">{error}</p>
+            <p className="rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/50 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
           <button
             type="submit" disabled={loading}

@@ -226,6 +226,8 @@ router.post("/ventas", async (req, res) => {
     return res.status(422).json({ error: (err as Error).message });
   }
 
+  try {
+
   // Verifica turno abierto
   const [turno] = await db
     .select()
@@ -330,6 +332,11 @@ router.post("/ventas", async (req, res) => {
   }
 
   res.status(201).json(result);
+
+  } catch (err) {
+    console.error("[POS POST /ventas]", err);
+    res.status(500).json({ error: "Error al registrar la venta. Inténtalo de nuevo." });
+  }
 });
 
 // ── Resumen turno ─────────────────────────────────────────────────────────────

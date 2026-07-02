@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
-import { db, movimientos_inventario, bodegas, productos, gastos } from "@workspace/db";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { db, movimientos_inventario, bodegas, productos, gastos, ventas_pos, items_venta_pos } from "@workspace/db";
+import { eq, and, sql, desc, gte } from "drizzle-orm";
+import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
 
@@ -361,5 +362,129 @@ async function assertPertenece(
 
   return true;
 }
+
+// ── Asesor de pedidos con IA ──────────────────────────────────────────────────
+router.post("/consejo-pedido", async (req, res) => {
+  const { presupuesto } = req.body as { presupuesto?: number };
+  if (!presupuesto || presupuesto <= 0) {
+    return res.status(400).json({ error: "Ingresa un presupuesto válido mayor a 0." });
+  }
+
+  try {
+    // Productos activos del tenant
+    const prods = await db
+      .select({
+        id: productos.id,
+        nombre: productos.nombre,
+        codigo: productos.codigo,
+        precio_base: productos.precio_base,
+        precio_venta: productos.precio_venta,
+        stock_actual: productos.stock_actual,
+        unidad: productos.unidad,
+      })
+      .from(productos)
+      .where(and(eq(productos.tenant_id, req.tenantId), eq(productos.activo, true)));
+
+    // Ventas últimos 30 días (por tenant, no por bodega)
+    const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const ventasRecientes = await db
+      .select({
+        producto_id: items_venta_pos.producto_id,
+        total_vendido: sql<string>`sum(${items_venta_pos.cantidad})`,
+        ingresos: sql<string>`sum(${items_venta_pos.total})`,
+      })
+      .from(items_venta_pos)
+      .innerJoin(ventas_pos, eq(items_venta_pos.venta_id, ventas_pos.id))
+      .where(and(
+        eq(ventas_pos.tenant_id, req.tenantId),
+        eq(ventas_pos.estado, "completada"),
+        gte(ventas_pos.created_at, hace30),
+      ))
+      .groupBy(items_venta_pos.producto_id);
+
+    const ventasMap: Record<string, { total_vendido: number; ingresos: number }> = {};
+    for (const v of ventasRecientes) {
+      if (v.producto_id) ventasMap[v.producto_id] = {
+        total_vendido: Number(v.total_vendido),
+        ingresos: Number(v.ingresos),
+      };
+    }
+
+    // Construir tabla de análisis
+    const analisis = prods.map((p) => {
+      const venta = ventasMap[p.id] ?? { total_vendido: 0, ingresos: 0 };
+      const costo = Number(p.precio_base);
+      const precioVenta = Number(p.precio_venta ?? p.precio_base);
+      const margen = precioVenta > 0 ? ((precioVenta - costo) / precioVenta) * 100 : 0;
+      return {
+        nombre: p.nombre,
+        codigo: p.codigo,
+        stock_actual: Number(p.stock_actual ?? 0),
+        unidad: p.unidad ?? "und",
+        costo_unitario: costo,
+        precio_venta: precioVenta,
+        margen_pct: Math.round(margen),
+        unidades_vendidas_30d: venta.total_vendido,
+        ingresos_30d: venta.ingresos,
+        rotacion: venta.total_vendido > 0 ? "alta" : "sin_ventas",
+      };
+    }).sort((a, b) => b.unidades_vendidas_30d - a.unidades_vendidas_30d);
+
+    // Solo enviamos los primeros 50 a Claude para no exceder tokens
+    const resumenProductos = analisis.slice(0, 50).map((p) =>
+      `- ${p.nombre} (${p.codigo}): stock ${p.stock_actual} ${p.unidad}, costo $${p.costo_unitario.toLocaleString("es-CO")}, margen ${p.margen_pct}%, vendido ${p.unidades_vendidas_30d} ${p.unidad} en 30 días`
+    ).join("\n");
+
+    const prompt = `Eres un asesor de inventarios para tiendas de barrio y pequeños comercios colombianos.
+
+DATOS DE LA TIENDA (últimos 30 días):
+${resumenProductos}
+
+PRESUPUESTO DISPONIBLE PARA PEDIDO: $${presupuesto.toLocaleString("es-CO")} COP
+
+Analiza los datos y genera un consejo de pedido concreto. Responde ÚNICAMENTE con JSON válido con esta estructura:
+{
+  "resumen": "2-3 oraciones explicando la situación general del inventario",
+  "alertas": ["producto que se está agotando", "otro alerta importante"],
+  "recomendaciones": [
+    {
+      "producto": "nombre del producto",
+      "cantidad_sugerida": número,
+      "motivo": "razón breve",
+      "costo_estimado": número en COP,
+      "prioridad": "alta" | "media" | "baja"
+    }
+  ],
+  "costo_total_sugerido": número en COP (debe ser <= presupuesto),
+  "presupuesto_restante": número en COP,
+  "consejo_general": "consejo práctico de 1-2 oraciones"
+}
+
+Reglas:
+- No superes el presupuesto total
+- Prioriza productos de alta rotación que estén bajos en stock
+- Incluye mínimo 3 y máximo 10 productos en recomendaciones
+- Si un producto tiene 0 ventas en 30 días, no lo incluyas salvo que sea esencial`;
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = message.content[0].type === "text" ? message.content[0].text.trim() : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: "La IA no generó una respuesta válida." });
+
+    const consejo = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+
+    // También devolvemos la tabla de análisis para que el frontend la pueda mostrar
+    res.json({ consejo, analisis: analisis.slice(0, 30) });
+  } catch (err) {
+    console.error("[consejo-pedido]", err);
+    res.status(500).json({ error: "Error al generar el consejo. Verifica la clave API." });
+  }
+});
 
 export default router;

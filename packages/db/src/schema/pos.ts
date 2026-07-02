@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, numeric, integer, boolean, text } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, numeric, integer, boolean, text, jsonb } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { productos } from "./productos.ts";
@@ -13,6 +13,23 @@ export const TIPOS_DOCUMENTO_POS = ["factura_electronica", "tiquete_pos"] as con
 export type EstadoDianPOS = (typeof ESTADOS_DIAN_POS)[number];
 export type TipoDocumentoPOS = (typeof TIPOS_DOCUMENTO_POS)[number];
 
+export interface GrameraConfig {
+  habilitada: boolean;
+  marca: string;
+  modelo: string;
+  tipo: "serial" | "keyboard";
+  baudRate?: number;
+  dataBits?: 7 | 8;
+  stopBits?: 1 | 2;
+  parity?: "none" | "even" | "odd";
+  regex: string;
+  unidad: "kg" | "g" | "lb";
+}
+
+export interface CajaConfig {
+  gramera?: GrameraConfig;
+}
+
 // Cajas registradoras del tenant
 export const cajas_pos = pgTable("cajas_pos", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -20,6 +37,7 @@ export const cajas_pos = pgTable("cajas_pos", {
   nombre: varchar("nombre", { length: 100 }).notNull(),
   descripcion: varchar("descripcion", { length: 200 }),
   activo: boolean("activo").notNull().default(true),
+  config: jsonb("config").$type<CajaConfig>(),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, DollarSign, AlertTriangle } from "lucide-react";
+import { X, DollarSign, AlertTriangle, TrendingUp, Clock, Package, Receipt } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { HelpTooltip } from "../components/HelpTooltip";
 
@@ -12,7 +12,12 @@ interface ResumenTurno {
   };
   total_ventas: number;
   cantidad_ventas: number;
+  ticket_promedio: number;
+  iva_recaudado: number;
+  descuento_total: number;
   por_metodo: Record<string, number>;
+  top_productos: Array<{ descripcion: string; cantidad: number; total: number }>;
+  por_hora: Array<{ hora: number; cantidad: number; total: number }>;
 }
 
 interface Props {
@@ -78,9 +83,13 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
     ? Math.round((Date.now() - new Date(resumen.turno.apertura_at).getTime()) / 60000)
     : 0;
 
+  const horaPico = resumen?.por_hora.length
+    ? resumen.por_hora.reduce((a, b) => (b.total > a.total ? b : a))
+    : null;
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col border border-gray-100 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl max-h-[92vh] flex flex-col border border-gray-100 dark:border-slate-700">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800 flex-shrink-0">
           <div>
@@ -102,15 +111,23 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
           </div>
         ) : resumen ? (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {/* Duración */}
-            <p className="text-xs text-gray-400 dark:text-slate-500 text-center">
-              Turno abierto {duracion >= 60 ? `${Math.floor(duracion / 60)}h ${duracion % 60}min` : `${duracion} min`} ·{" "}
-              {new Date(resumen.turno.apertura_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} →{" "}
-              ahora
-            </p>
+            {/* Duración y hora pico */}
+            <div className="flex items-center justify-between text-xs text-gray-400 dark:text-slate-500">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {duracion >= 60 ? `${Math.floor(duracion / 60)}h ${duracion % 60}min` : `${duracion} min`} ·{" "}
+                {new Date(resumen.turno.apertura_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} → ahora
+              </span>
+              {horaPico && (
+                <span className="flex items-center gap-1 text-violet-500 dark:text-violet-400">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Hora pico: {horaPico.hora}:00 ({horaPico.cantidad} ventas)
+                </span>
+              )}
+            </div>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* KPIs principales */}
+            <div className="grid grid-cols-2 gap-2.5">
               <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-center border border-blue-100 dark:border-blue-900/40">
                 <p className="text-xs text-blue-500 dark:text-blue-400 font-medium">Total ventas</p>
                 <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{cop(resumen.total_ventas)}</p>
@@ -119,17 +136,94 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
                 <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Transacciones</p>
                 <p className="text-xl font-bold text-gray-700 dark:text-slate-200">{resumen.cantidad_ventas}</p>
               </div>
+              <div className="rounded-xl bg-gray-50 dark:bg-slate-800 p-3 text-center border border-gray-100 dark:border-slate-700">
+                <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Ticket promedio</p>
+                <p className="text-lg font-bold text-gray-700 dark:text-slate-200">{cop(resumen.ticket_promedio)}</p>
+              </div>
+              <div className="rounded-xl bg-violet-50 dark:bg-violet-950/30 p-3 text-center border border-violet-100 dark:border-violet-900/40">
+                <p className="text-xs text-violet-500 dark:text-violet-400 font-medium">IVA recaudado</p>
+                <p className="text-lg font-bold text-violet-700 dark:text-violet-300">{cop(resumen.iva_recaudado)}</p>
+              </div>
             </div>
+
+            {/* Descuentos y IVA */}
+            {resumen.descuento_total > 0 && (
+              <div className="flex justify-between text-sm px-1">
+                <span className="text-gray-400 dark:text-slate-500">Descuentos otorgados</span>
+                <span className="font-medium text-orange-600 dark:text-orange-400">− {cop(resumen.descuento_total)}</span>
+              </div>
+            )}
 
             {/* Por método de pago */}
             {Object.keys(resumen.por_metodo).length > 0 && (
-              <div className="rounded-xl border border-gray-100 dark:border-slate-700 divide-y divide-gray-50 dark:divide-slate-800">
-                {Object.entries(resumen.por_metodo).map(([metodo, total]) => (
-                  <div key={metodo} className="flex justify-between px-4 py-2.5 text-sm">
-                    <span className="text-gray-600 dark:text-slate-400">{METODO_LABELS[metodo] ?? metodo}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{cop(total)}</span>
-                  </div>
-                ))}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Receipt className="h-3.5 w-3.5" /> Por método de pago
+                </p>
+                <div className="rounded-xl border border-gray-100 dark:border-slate-700 divide-y divide-gray-50 dark:divide-slate-800">
+                  {Object.entries(resumen.por_metodo).map(([metodo, total]) => {
+                    const pct = resumen.total_ventas > 0 ? (total / resumen.total_ventas) * 100 : 0;
+                    return (
+                      <div key={metodo} className="flex items-center gap-3 px-4 py-2.5">
+                        <span className="text-sm text-gray-600 dark:text-slate-400 flex-1">{METODO_LABELS[metodo] ?? metodo}</span>
+                        <div className="w-20 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-violet-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="font-semibold text-gray-900 dark:text-white text-sm w-24 text-right">{cop(total)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Top productos */}
+            {resumen.top_productos.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" /> Top productos del turno
+                </p>
+                <div className="rounded-xl border border-gray-100 dark:border-slate-700 divide-y divide-gray-50 dark:divide-slate-800">
+                  {resumen.top_productos.map((p, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2">
+                      <span className="text-xs font-bold text-gray-300 dark:text-slate-600 w-5 flex-shrink-0">{i + 1}</span>
+                      <span className="text-sm text-gray-700 dark:text-slate-300 flex-1 truncate">{p.descripcion}</span>
+                      <span className="text-xs text-gray-400 dark:text-slate-500">×{p.cantidad % 1 === 0 ? p.cantidad : p.cantidad.toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white w-20 text-right">{cop(p.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Timeline por hora */}
+            {resumen.por_hora.length > 1 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <TrendingUp className="h-3.5 w-3.5" /> Ventas por hora
+                </p>
+                <div className="rounded-xl border border-gray-100 dark:border-slate-700 p-3">
+                  {(() => {
+                    const maxTotal = Math.max(...resumen.por_hora.map((h) => h.total));
+                    return (
+                      <div className="space-y-1.5">
+                        {resumen.por_hora.map((h) => (
+                          <div key={h.hora} className="flex items-center gap-2 text-xs">
+                            <span className="w-9 text-right text-gray-400 dark:text-slate-500 flex-shrink-0">{h.hora}:00</span>
+                            <div className="flex-1 h-4 bg-gray-100 dark:bg-slate-800 rounded-md overflow-hidden">
+                              <div
+                                className="h-full bg-violet-400 dark:bg-violet-600 rounded-md transition-all"
+                                style={{ width: `${maxTotal > 0 ? (h.total / maxTotal) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <span className="w-6 text-gray-400 dark:text-slate-500 flex-shrink-0">{h.cantidad}v</span>
+                            <span className="w-20 text-right font-medium text-gray-700 dark:text-slate-300 flex-shrink-0">{cop(h.total)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
 
@@ -170,7 +264,7 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
                 }`}>
                   <span className="flex items-center gap-1">
                     {diferencia !== 0 && <AlertTriangle className="h-4 w-4" />}
-                    Diferencia
+                    {diferencia === 0 ? "Cuadre perfecto ✓" : diferencia > 0 ? "Sobrante" : "Faltante"}
                   </span>
                   <span>{diferencia >= 0 ? "+" : ""}{cop(diferencia)}</span>
                 </div>
@@ -198,8 +292,8 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
           </button>
           <button
             onClick={() => void cerrar()}
-            disabled={cerrando || loading}
-            className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-40 transition-colors"
+            disabled={cerrando || loading || (!resumen && !error)}
+            className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 py-3 text-sm font-semibold text-white transition-colors"
           >
             {cerrando ? "Cerrando..." : "Cerrar turno"}
           </button>

@@ -3,7 +3,7 @@ import { ShoppingCart, BookOpen, Clock, LogOut, Calendar, Sun, Moon } from "luci
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import SeleccionCaja from "./pages/SeleccionCaja";
+import SeleccionCaja, { type CajaConfig } from "./pages/SeleccionCaja";
 import Venta from "./pages/Venta";
 import Fiados from "./pages/Fiados";
 import HistorialVentas from "./pages/HistorialVentas";
@@ -14,6 +14,7 @@ interface TurnoActivo {
   turnoId: string;
   cajaId: string;
   cajaNombre: string;
+  cajaConfig: CajaConfig | null;
 }
 
 type Vista = "venta" | "cartera" | "historial" | "citas";
@@ -57,8 +58,8 @@ function AppInner() {
   if (!turno) {
     return (
       <SeleccionCaja
-        onTurnoAbierto={(turnoId, cajaId, cajaNombre) => {
-          setTurno({ turnoId, cajaId, cajaNombre });
+        onTurnoAbierto={(turnoId, cajaId, cajaNombre, cajaConfig) => {
+          setTurno({ turnoId, cajaId, cajaNombre, cajaConfig });
           setVista("venta");
         }}
       />
@@ -121,7 +122,7 @@ function AppInner() {
       </nav>
 
       <div className="flex-1 overflow-hidden">
-        {vista === "venta"    && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} />}
+        {vista === "venta"    && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} cajaConfig={turno.cajaConfig} />}
         {vista === "cartera"  && <Fiados cajaId={turno.cajaId} />}
         {vista === "citas"    && <Citas cajaId={turno.cajaId} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}

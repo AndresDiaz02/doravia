@@ -17,6 +17,7 @@ import { ResolucionesDian } from "./pages/ResolucionesDian";
 import Bodegas from "./pages/Bodegas";
 import Inventario from "./pages/Inventario";
 import Kardex from "./pages/Kardex";
+import AsesorPedidos from "./pages/AsesorPedidos";
 import AlertasCobro from "./pages/AlertasCobro";
 import Recurrentes from "./pages/Recurrentes";
 import Cotizaciones from "./pages/Cotizaciones";
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="/bodegas" element={<Bodegas />} />
               <Route path="/inventario" element={<Inventario />} />
               <Route path="/inventario/kardex" element={<Kardex />} />
+              <Route path="/inventario/asesor-pedidos" element={<AsesorPedidos />} />
               <Route path="/alertas/cobro" element={<AlertasCobro />} />
               <Route path="/recurrentes" element={<><RequiereRol allow={["admin", "contador"]} /><Recurrentes /></>} />
               <Route path="/cotizaciones" element={<Cotizaciones />} />

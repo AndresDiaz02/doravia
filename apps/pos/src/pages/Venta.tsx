@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle } from "lucide-react";
+import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle, Scale, Wifi, WifiOff } from "lucide-react";
 import { TutorialOverlay } from "../components/TutorialOverlay";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
+import { useGramera } from "../lib/gramera";
+import type { CajaConfig } from "./SeleccionCaja";
 
 interface Producto {
   id: string;
@@ -40,6 +42,7 @@ interface Props {
   turnoId: string;
   cajaId: string;
   cajaNombre: string;
+  cajaConfig?: CajaConfig | null;
   onCerrarTurno?: () => void;
 }
 
@@ -121,8 +124,9 @@ function useBarcodeScanner(
   }, [productos, onProductoEscaneado, onClearBusqueda, inputRef]);
 }
 
-export default function Venta({ turnoId, cajaId, cajaNombre, onCerrarTurno: _onCerrarTurno }: Props) {
+export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerrarTurno: _onCerrarTurno }: Props) {
   const { user } = useAuth();
+  const gramera = useGramera(cajaConfig);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -582,6 +586,60 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             </button>
           )}
         </div>
+
+        {/* Gramera widget */}
+        {gramera.soportada && (
+          <div className={cn(
+            "px-3 py-2 border-b flex items-center gap-2 text-xs flex-shrink-0",
+            gramera.status === "lista"
+              ? "bg-violet-50 dark:bg-violet-950/30 border-violet-100 dark:border-violet-900/40"
+              : "bg-gray-50 dark:bg-slate-900/50 border-gray-100 dark:border-slate-800"
+          )}>
+            <Scale className={cn("h-3.5 w-3.5 flex-shrink-0", gramera.status === "lista" ? "text-violet-500" : "text-gray-400 dark:text-slate-500")} />
+            {gramera.status === "lista" ? (
+              <>
+                <span className="text-violet-600 dark:text-violet-400 font-semibold min-w-[60px]">
+                  {gramera.peso !== null ? `${gramera.peso} ${gramera.unidad}` : `— ${gramera.unidad}`}
+                </span>
+                {gramera.peso !== null && carrito.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const ultimo = carrito[carrito.length - 1];
+                      if (!ultimo || gramera.peso === null) return;
+                      setCantidadDirecta(ultimo.producto.id, gramera.peso);
+                      gramera.limpiar();
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-violet-600 text-white font-medium hover:bg-violet-500 transition-colors"
+                  >
+                    Aplicar
+                  </button>
+                )}
+                <div className="flex-1" />
+                {gramera.status === "lista" && cajaConfig?.gramera?.tipo === "serial" && (
+                  <button onClick={gramera.desconectar} className="text-gray-400 dark:text-slate-500 hover:text-red-500 transition-colors">
+                    <WifiOff className="h-3 w-3" />
+                  </button>
+                )}
+              </>
+            ) : gramera.status === "conectando" ? (
+              <span className="text-gray-400 dark:text-slate-500">Conectando...</span>
+            ) : gramera.status === "error" ? (
+              <span className="text-red-500">Error al conectar</span>
+            ) : (
+              <>
+                <span className="text-gray-400 dark:text-slate-500 flex-1">Gramera desconectada</span>
+                {cajaConfig?.gramera?.tipo === "serial" && (
+                  <button
+                    onClick={() => void gramera.conectar()}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-600 text-white font-medium hover:bg-violet-500 transition-colors"
+                  >
+                    <Wifi className="h-3 w-3" /> Conectar
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Items */}
         <div className="flex-1 overflow-y-auto">

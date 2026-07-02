@@ -3,11 +3,28 @@ import { Monitor, Plus } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
-interface Caja { id: string; nombre: string; descripcion: string | null; activo: boolean; }
+interface GrameraConfig {
+  habilitada: boolean;
+  marca: string;
+  modelo: string;
+  tipo: "serial" | "keyboard";
+  baudRate?: number;
+  dataBits?: 7 | 8;
+  stopBits?: 1 | 2;
+  parity?: "none" | "even" | "odd";
+  regex: string;
+  unidad: "kg" | "g" | "lb";
+}
+
+export interface CajaConfig {
+  gramera?: GrameraConfig;
+}
+
+interface Caja { id: string; nombre: string; descripcion: string | null; activo: boolean; config: CajaConfig | null; }
 interface TurnoActivo { id: string; caja_id: string; apertura_at: string; monto_inicial: string; total_ventas: string; }
 
 interface Props {
-  onTurnoAbierto: (turnoId: string, cajaId: string, cajaNombre: string) => void;
+  onTurnoAbierto: (turnoId: string, cajaId: string, cajaNombre: string, cajaConfig: CajaConfig | null) => void;
 }
 
 export default function SeleccionCaja({ onTurnoAbierto }: Props) {
@@ -35,7 +52,7 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
   async function handleAbrirTurno(caja: Caja) {
     const turnoExistente = turnosActivos[caja.id];
     if (turnoExistente) {
-      onTurnoAbierto(turnoExistente.id, caja.id, caja.nombre);
+      onTurnoAbierto(turnoExistente.id, caja.id, caja.nombre, caja.config);
       return;
     }
     setCajaSeleccionada(caja);
@@ -50,7 +67,7 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
         method: "POST",
         body: JSON.stringify({ caja_id: cajaSeleccionada.id, monto_inicial: Number(montoInicial) }),
       });
-      onTurnoAbierto(turno.id, cajaSeleccionada.id, cajaSeleccionada.nombre);
+      onTurnoAbierto(turno.id, cajaSeleccionada.id, cajaSeleccionada.nombre, cajaSeleccionada.config);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al abrir turno.");
     } finally {

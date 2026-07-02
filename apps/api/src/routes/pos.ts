@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos } from "@workspace/db";
+import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between } from "drizzle-orm";
 import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
+import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
 
@@ -48,11 +50,14 @@ router.post("/cajas", async (req, res) => {
 });
 
 router.patch("/cajas/:id", async (req, res) => {
-  const { nombre, descripcion, activo } = req.body as { nombre?: string; descripcion?: string; activo?: boolean };
+  const { nombre, descripcion, activo, config } = req.body as {
+    nombre?: string; descripcion?: string; activo?: boolean; config?: Record<string, unknown>;
+  };
   const updates: Record<string, unknown> = {};
   if (nombre !== undefined) updates.nombre = nombre;
   if (descripcion !== undefined) updates.descripcion = descripcion;
   if (activo !== undefined) updates.activo = activo;
+  if (config !== undefined) updates.config = config;
 
   const [updated] = await db
     .update(cajas_pos)
@@ -62,6 +67,86 @@ router.patch("/cajas/:id", async (req, res) => {
 
   if (!updated) return res.status(404).json({ error: "Caja no encontrada." });
   res.json(updated);
+});
+
+// ── Detectar protocolo de gramera con IA ──────────────────────────────────────
+
+router.post("/cajas/:id/gramera-detectar", async (req, res) => {
+  const { marca, modelo } = req.body as { marca?: string; modelo?: string };
+  if (!marca || !modelo) {
+    return res.status(400).json({ error: "Se requieren marca y modelo de la gramera." });
+  }
+
+  const [caja] = await db
+    .select()
+    .from(cajas_pos)
+    .where(and(eq(cajas_pos.id, req.params.id), eq(cajas_pos.tenant_id, req.tenantId)));
+  if (!caja) return res.status(404).json({ error: "Caja no encontrada." });
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `Eres un experto en integración de básculas/grameras de punto de venta.
+
+Dado el siguiente equipo: ${marca} ${modelo}
+
+Determina cómo se conecta esta báscula a un computador y devuelve ÚNICAMENTE un JSON válido con esta estructura exacta:
+
+{
+  "tipo": "serial" o "keyboard",
+  "baudRate": número (solo si tipo es serial, ej: 9600),
+  "dataBits": 7 u 8 (solo si tipo es serial),
+  "stopBits": 1 o 2 (solo si tipo es serial),
+  "parity": "none", "even" u "odd" (solo si tipo es serial),
+  "regex": "expresión regular para extraer el peso numérico del string de la báscula",
+  "unidad": "kg", "g" o "lb",
+  "nota": "breve explicación del protocolo"
+}
+
+Reglas:
+- "keyboard": la báscula emula teclado y envía el peso + Enter (común en básculas USB económicas)
+- "serial": usa puerto serial RS-232 o USB-Serial con protocolo propietario
+- El regex debe capturar solo el número (ej: para "   2.450 Kg\\r\\n" el regex sería "(\\d+\\.?\\d*)")
+- Si no conoces el modelo exacto, usa el tipo más común para esa marca
+- Responde SOLO el JSON, sin texto adicional`;
+
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = message.content[0].type === "text" ? message.content[0].text.trim() : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: "La IA no devolvió un protocolo válido." });
+
+    const protocolo = JSON.parse(jsonMatch[0]) as Partial<GrameraConfig> & { nota?: string };
+
+    const grameraConfig: GrameraConfig = {
+      habilitada: true,
+      marca,
+      modelo,
+      tipo: protocolo.tipo ?? "serial",
+      baudRate: protocolo.baudRate,
+      dataBits: protocolo.dataBits,
+      stopBits: protocolo.stopBits,
+      parity: protocolo.parity,
+      regex: protocolo.regex ?? "(\\d+\\.?\\d*)",
+      unidad: protocolo.unidad ?? "kg",
+    };
+
+    const configActual = caja.config ?? {};
+    const [updated] = await db
+      .update(cajas_pos)
+      .set({ config: { ...configActual, gramera: grameraConfig } })
+      .where(eq(cajas_pos.id, caja.id))
+      .returning();
+
+    res.json({ config: updated.config, nota: protocolo.nota ?? "" });
+  } catch (err) {
+    console.error("[gramera-detectar]", err);
+    res.status(500).json({ error: "Error al consultar la IA. Verifica la clave API." });
+  }
 });
 
 // ── Turnos ────────────────────────────────────────────────────────────────────
@@ -353,17 +438,70 @@ router.get("/turnos/:id/resumen", async (req, res) => {
     .from(ventas_pos)
     .where(and(eq(ventas_pos.turno_id, turno.id), eq(ventas_pos.estado, "completada")));
 
+  // Ítems de todas las ventas del turno (para top productos)
+  const ventaIds = ventasTurno.map((v) => v.id);
+  let itemsTurno: Array<{ descripcion: string; cantidad: string; total: string; iva_valor: string; descuento_pct: string; precio_unitario: string; cantidad_num: number; }> = [];
+  if (ventaIds.length > 0) {
+    const rawItems = await db
+      .select({
+        descripcion: items_venta_pos.descripcion,
+        cantidad: items_venta_pos.cantidad,
+        total: items_venta_pos.total,
+        iva_valor: items_venta_pos.iva_valor,
+        descuento_pct: items_venta_pos.descuento_pct,
+        precio_unitario: items_venta_pos.precio_unitario,
+      })
+      .from(items_venta_pos)
+      .where(sql`${items_venta_pos.venta_id} = ANY(ARRAY[${sql.join(ventaIds.map((id) => sql`${id}::uuid`), sql`, `)}])`);
+    itemsTurno = rawItems.map((i) => ({ ...i, cantidad_num: Number(i.cantidad) }));
+  }
+
+  // Agregar por producto (descripción como key)
+  const productosMap: Record<string, { descripcion: string; cantidad: number; total: number }> = {};
+  for (const it of itemsTurno) {
+    const key = it.descripcion;
+    if (!productosMap[key]) productosMap[key] = { descripcion: key, cantidad: 0, total: 0 };
+    productosMap[key].cantidad += Number(it.cantidad);
+    productosMap[key].total += Number(it.total);
+  }
+  const topProductos = Object.values(productosMap)
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, 8);
+
+  // Ventas por hora
+  const ventasPorHora: Record<number, { cantidad: number; total: number }> = {};
+  for (const v of ventasTurno) {
+    const hora = new Date(v.created_at).getHours();
+    if (!ventasPorHora[hora]) ventasPorHora[hora] = { cantidad: 0, total: 0 };
+    ventasPorHora[hora].cantidad += 1;
+    ventasPorHora[hora].total += Number(v.total);
+  }
+  const porHora = Object.entries(ventasPorHora)
+    .map(([h, d]) => ({ hora: Number(h), ...d }))
+    .sort((a, b) => a.hora - b.hora);
+
   const porMetodo: Record<string, number> = {};
   for (const v of ventasTurno) {
     const m = v.metodo_pago;
     porMetodo[m] = (porMetodo[m] ?? 0) + Number(v.total);
   }
 
+  const totalVentas = ventasTurno.reduce((s, v) => s + Number(v.total), 0);
+  const ivaRecaudado = itemsTurno.reduce((s, i) => s + Number(i.iva_valor), 0);
+  const descuentoTotal = itemsTurno.reduce(
+    (s, i) => s + Number(i.cantidad) * Number(i.precio_unitario) * (Number(i.descuento_pct) / 100), 0
+  );
+
   res.json({
     turno,
-    total_ventas: ventasTurno.reduce((s, v) => s + Number(v.total), 0),
+    total_ventas: totalVentas,
     cantidad_ventas: ventasTurno.length,
+    ticket_promedio: ventasTurno.length > 0 ? totalVentas / ventasTurno.length : 0,
+    iva_recaudado: ivaRecaudado,
+    descuento_total: descuentoTotal,
     por_metodo: porMetodo,
+    top_productos: topProductos,
+    por_hora: porHora,
   });
 });
 

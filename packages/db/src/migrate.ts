@@ -59,6 +59,8 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS lineas_asiento_asiento_idx ON lineas_asiento(asiento_id)`,
   `CREATE INDEX IF NOT EXISTS cotizaciones_tenant_idx ON cotizaciones(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
+  // config por caja (grameras, impresoras, periféricos)
+  `ALTER TABLE cajas_pos ADD COLUMN IF NOT EXISTS config jsonb`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

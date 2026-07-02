@@ -63,9 +63,10 @@ const NAV_GASTOS = [
 ];
 
 const NAV_INVENTARIO = [
-  { to: "/bodegas",           label: "Bodegas",    icon: Warehouse },
-  { to: "/inventario",        label: "Inventario", icon: Package },
-  { to: "/inventario/kardex", label: "Kardex",     icon: TrendingUp },
+  { to: "/bodegas",                      label: "Bodegas",         icon: Warehouse },
+  { to: "/inventario",                   label: "Inventario",      icon: Package },
+  { to: "/inventario/kardex",            label: "Kardex",          icon: TrendingUp },
+  { to: "/inventario/asesor-pedidos",    label: "Asesor de pedidos", icon: ShoppingCart },
 ];
 
 const NAV_COBRO = [

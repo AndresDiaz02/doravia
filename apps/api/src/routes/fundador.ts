@@ -5,7 +5,7 @@ import {
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia,
 } from "@workspace/db";
-import { eq, and, gte, lte, max, count, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -53,6 +53,28 @@ function anualizar(gastos: { monto_cop: number; frecuencia: string; activo: bool
     .reduce((s, g) => s + (g.frecuencia === "mensual" ? g.monto_cop * 12 : g.monto_cop), 0);
 }
 
+// IDs de tenants del sistema que no deben aparecer en el panel fundador
+async function getSistemaTenantIds(): Promise<string[]> {
+  // Hub Contadores siempre excluido por NIT
+  const [hub] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, "0000000001")).limit(1);
+  const ids: string[] = [];
+  if (hub) ids.push(hub.id);
+
+  // El tenant del fundador se identifica por FUNDADOR_EMAILS
+  const fundadorEmails = (process.env.FUNDADOR_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (fundadorEmails.length > 0) {
+    const fundadores = await db
+      .select({ tenant_id: users.tenant_id })
+      .from(users)
+      .where(inArray(users.email, fundadorEmails));
+    for (const u of fundadores) {
+      if (u.tenant_id && !ids.includes(u.tenant_id)) ids.push(u.tenant_id);
+    }
+  }
+  return ids;
+}
+
 // Datos de actividad compartidos entre endpoints
 async function getActividadMaps() {
   const ultimosLogin = await db
@@ -82,6 +104,7 @@ async function getActividadMaps() {
 
 router.get("/metricas", async (_req, res, next) => {
   try {
+    const excluir = await getSistemaTenantIds();
     const empresaRows = await db
       .select({
         id: tenants.id,
@@ -95,7 +118,8 @@ router.get("/metricas", async (_req, res, next) => {
         ultimo_pago_confirmado_at: tenants.ultimo_pago_confirmado_at,
       })
       .from(tenants)
-      .innerJoin(plans, eq(plans.id, tenants.plan_id));
+      .innerJoin(plans, eq(plans.id, tenants.plan_id))
+      .where(excluir.length ? notInArray(tenants.id, excluir) : undefined);
 
     const activas = empresaRows.filter((e) => e.activo);
     const arr = activas.reduce((s, e) => s + (e.precio_anual ?? 0), 0);
@@ -173,6 +197,7 @@ router.get("/metricas", async (_req, res, next) => {
 
 router.get("/empresas", async (_req, res, next) => {
   try {
+    const excluir = await getSistemaTenantIds();
     const rows = await db
       .select({
         id: tenants.id, nombre: tenants.nombre, nit: tenants.nit,
@@ -187,6 +212,7 @@ router.get("/empresas", async (_req, res, next) => {
       })
       .from(tenants)
       .innerJoin(plans, eq(plans.id, tenants.plan_id))
+      .where(excluir.length ? notInArray(tenants.id, excluir) : undefined)
       .orderBy(tenants.nombre);
 
     const { loginMap, factMap, factTotalMap } = await getActividadMaps();
@@ -366,17 +392,19 @@ router.get("/embajadores", async (_req, res, next) => {
 
 router.get("/contadores", async (_req, res, next) => {
   try {
+    // Solo accesos de rol "contador" — no admins ni otros roles
     const accesos = await db
       .select({
         user_id: user_accesos.user_id,
         tenant_id: user_accesos.tenant_id,
-        tenant_nombre: tenants.nombre,
-        tenant_plan: plans.nombre,
+        nombre: tenants.nombre,
+        plan: plans.nombre,
         precio_anual: plans.precio_anual_cop,
       })
       .from(user_accesos)
       .innerJoin(tenants, eq(tenants.id, user_accesos.tenant_id))
-      .innerJoin(plans, eq(plans.id, tenants.plan_id));
+      .innerJoin(plans, eq(plans.id, tenants.plan_id))
+      .where(eq(user_accesos.role, "contador"));
 
     const userIds = [...new Set(accesos.map((a) => a.user_id))];
     if (userIds.length === 0) { res.json([]); return; }
@@ -401,7 +429,13 @@ router.get("/contadores", async (_req, res, next) => {
       usersRows.map((u) => {
         const misEmpresas = accesos.filter((a) => a.user_id === u.id);
         const com = comisionMap.get(u.id) ?? { pendiente: 0, pagada: 0 };
-        return { ...u, empresas_gestionadas: misEmpresas.length, empresas: misEmpresas, ...com };
+        return {
+          ...u,
+          empresas_gestionadas: misEmpresas.length,
+          empresas: misEmpresas,
+          comision_pendiente: com.pendiente,
+          comision_pagada: com.pagada,
+        };
       }),
     );
   } catch (err) { next(err); }

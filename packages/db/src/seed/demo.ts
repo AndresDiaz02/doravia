@@ -848,16 +848,51 @@ async function vincularContadoresAEmpresas() {
 // ── Seed principal ────────────────────────────────────────────────────────────
 
 export async function seedDemo() {
-  // Idempotente: skip si ya existen las empresas demo, pero SIEMPRE vincula contadores
+  // Cargar planes y fechas (necesarios en ambos paths)
+  const planesDB = await db.select({ id: plans.id, slug: plans.slug, precio: plans.precio_anual_cop })
+    .from(plans);
+  const planMap = Object.fromEntries(planesDB.map((p) => [p.slug, p]));
+
+  const ahora = new Date();
+  const planFin = new Date(ahora); planFin.setFullYear(planFin.getFullYear() + 1);
+  const seisMesesAtras = new Date(ahora); seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
+
+  // Idempotente: si ya existe Fogón Dorado, completar datos faltantes en TODAS las empresas
   const [existe] = await db.select({ id: tenants.id })
     .from(tenants).where(eq(tenants.nit, "900100001")).limit(1);
   if (existe) {
     console.log("✓ Demo ya existe — verificando datos por empresa...");
     for (let idx = 0; idx < EMPRESAS.length; idx++) {
       const emp = EMPRESAS[idx];
-      const [tenant] = await db.select({ id: tenants.id })
+      let [tenant] = await db.select({ id: tenants.id })
         .from(tenants).where(eq(tenants.nit, emp.nit)).limit(1);
-      if (!tenant) continue;
+
+      // Si el tenant no existe aún, crearlo (puede pasar si el seed anterior crasheó a mitad)
+      if (!tenant) {
+        const plan = planMap[emp.planSlug];
+        if (!plan) { console.error(`  ✗ Plan ${emp.planSlug} no encontrado para ${emp.nombre}`); continue; }
+        try {
+          const [newTenant] = await db.insert(tenants).values({
+            nombre: emp.nombre, nit: emp.nit, plan_id: plan.id,
+            plan_starts_at: seisMesesAtras, plan_ends_at: planFin,
+            activo: true, ciudad: emp.ciudad, direccion: emp.direccion,
+            regimen: emp.regimen as "comun" | "simplificado",
+            actividad_economica: emp.actividad, onboarding_completado: true,
+            addons: Object.keys(emp.addons).length ? emp.addons : null,
+            ultimo_pago_confirmado_at: seisMesesAtras,
+          }).returning();
+          await db.insert(users).values({
+            tenant_id: newTenant.id, email: emp.adminEmail, nombre: emp.adminNombre,
+            role: "admin", password_hash: HASH_DEMO,
+          });
+          tenant = newTenant;
+          console.log(`  + Tenant creado: ${emp.nombre}`);
+        } catch (e) {
+          console.error(`  ✗ Error creando tenant ${emp.nombre}:`, e);
+          continue;
+        }
+      }
+
       try {
         await seedDatosEmpresa(tenant.id, emp, idx);
       } catch (e) {
@@ -897,15 +932,6 @@ export async function seedDemo() {
 
   // Limpiar tenants anteriores
   await limpiarTenants(preservar);
-
-  // Cargar planes
-  const planesDB = await db.select({ id: plans.id, slug: plans.slug, precio: plans.precio_anual_cop })
-    .from(plans);
-  const planMap = Object.fromEntries(planesDB.map((p) => [p.slug, p]));
-
-  const ahora = new Date();
-  const planFin = new Date(ahora); planFin.setFullYear(planFin.getFullYear() + 1);
-  const seisMesesAtras = new Date(ahora); seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
 
   // Crear 5 contadores en el hub
   const contadorUsers: { id: string; email: string; empresasIdx: number[] }[] = [];

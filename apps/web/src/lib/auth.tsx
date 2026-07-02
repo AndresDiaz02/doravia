@@ -136,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPlan(null);
     setTenant(null);
     setEmpresas([]);
+    window.location.href = "https://doraviasoft.com";
   }, []);
 
   const cambiarEmpresa = useCallback(

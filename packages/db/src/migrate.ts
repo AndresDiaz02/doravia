@@ -51,6 +51,14 @@ const migrations = [
     used boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
+  // índices de rendimiento — tablas sin index en el schema inicial
+  `CREATE INDEX IF NOT EXISTS clientes_tenant_idx ON clientes(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS productos_tenant_idx ON productos(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS gastos_tenant_fecha_idx ON gastos(tenant_id, fecha)`,
+  `CREATE INDEX IF NOT EXISTS asientos_tenant_fecha_idx ON asientos_contables(tenant_id, fecha)`,
+  `CREATE INDEX IF NOT EXISTS lineas_asiento_asiento_idx ON lineas_asiento(asiento_id)`,
+  `CREATE INDEX IF NOT EXISTS cotizaciones_tenant_idx ON cotizaciones(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

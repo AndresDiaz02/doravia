@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, DollarSign, AlertTriangle, TrendingUp, Clock, Package, Receipt } from "lucide-react";
+import { X, DollarSign, AlertTriangle, TrendingUp, Clock, Package, Receipt, Wallet, RotateCcw } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { HelpTooltip } from "../components/HelpTooltip";
 
@@ -18,6 +18,10 @@ interface ResumenTurno {
   por_metodo: Record<string, number>;
   top_productos: Array<{ descripcion: string; cantidad: number; total: number }>;
   por_hora: Array<{ hora: number; cantidad: number; total: number }>;
+  total_gastos_caja: number;
+  gastos_caja: Array<{ concepto: string; monto: string; descripcion: string | null }>;
+  total_devoluciones: number;
+  devoluciones: Array<{ monto_devuelto: string; motivo: string | null }>;
 }
 
 interface Props {
@@ -56,7 +60,10 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
   }, [turnoId]);
 
   const efectivoEsperado = resumen
-    ? Number(resumen.turno.monto_inicial) + (resumen.por_metodo["efectivo"] ?? 0)
+    ? Number(resumen.turno.monto_inicial)
+      + (resumen.por_metodo["efectivo"] ?? 0)
+      - resumen.total_gastos_caja
+      - resumen.total_devoluciones
     : 0;
 
   const diferencia = montoDeclarado ? Number(montoDeclarado) - efectivoEsperado : 0;
@@ -227,6 +234,50 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
               </div>
             )}
 
+            {/* Gastos de caja chica */}
+            {resumen.total_gastos_caja > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Wallet className="h-3.5 w-3.5" /> Gastos de caja chica
+                </p>
+                <div className="rounded-xl border border-gray-100 dark:border-slate-700 divide-y divide-gray-50 dark:divide-slate-800">
+                  {resumen.gastos_caja.map((g, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2">
+                      <span className="text-sm text-gray-700 dark:text-slate-300 flex-1 truncate">
+                        {g.descripcion ?? g.concepto}
+                      </span>
+                      <span className="text-sm font-semibold text-red-500">− {cop(g.monto)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400">
+                    <span>Total gastos</span>
+                    <span>− {cop(resumen.total_gastos_caja)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Devoluciones */}
+            {resumen.total_devoluciones > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <RotateCcw className="h-3.5 w-3.5" /> Devoluciones
+                </p>
+                <div className="rounded-xl border border-gray-100 dark:border-slate-700 divide-y divide-gray-50 dark:divide-slate-800">
+                  {resumen.devoluciones.map((d, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2">
+                      <span className="text-sm text-gray-600 dark:text-slate-400 flex-1">{d.motivo ?? "Devolución"}</span>
+                      <span className="text-sm font-semibold text-orange-500">− {cop(d.monto_devuelto)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-4 py-2 text-sm font-bold text-orange-600 dark:text-orange-400">
+                    <span>Total devoluciones</span>
+                    <span>− {cop(resumen.total_devoluciones)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Cuadre de caja */}
             <div className="rounded-xl bg-gray-50 dark:bg-slate-800 p-4 space-y-3 border border-gray-100 dark:border-slate-700">
               <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -241,6 +292,18 @@ export default function CierreTurno({ turnoId, cajaNombre, onCerrado, onCancelar
                 <span>+ Ventas en efectivo</span>
                 <span className="font-medium text-gray-700 dark:text-slate-200">{cop(resumen.por_metodo["efectivo"] ?? 0)}</span>
               </div>
+              {resumen.total_gastos_caja > 0 && (
+                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400">
+                  <span>− Gastos de caja</span>
+                  <span className="font-medium text-red-500">− {cop(resumen.total_gastos_caja)}</span>
+                </div>
+              )}
+              {resumen.total_devoluciones > 0 && (
+                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400">
+                  <span>− Devoluciones</span>
+                  <span className="font-medium text-orange-500">− {cop(resumen.total_devoluciones)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-semibold text-gray-800 dark:text-white border-t border-gray-200 dark:border-slate-700 pt-2">
                 <span>Esperado en caja</span>
                 <span>{cop(efectivoEsperado)}</span>

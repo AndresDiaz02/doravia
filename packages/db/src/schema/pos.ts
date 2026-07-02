@@ -174,3 +174,40 @@ export const citas_pos = pgTable("citas_pos", {
 
 export type CitaPos = typeof citas_pos.$inferSelect;
 export type NewCitaPos = typeof citas_pos.$inferInsert;
+
+// ── Gastos de caja chica (POS) ───────────────────────────────────────────────
+export const CONCEPTOS_GASTO_CAJA = [
+  "domicilio", "cambio_moneda", "papeleria", "aseo", "transporte", "otros"
+] as const;
+export type ConceptoGastoCaja = (typeof CONCEPTOS_GASTO_CAJA)[number];
+
+export const gastos_caja_pos = pgTable("gastos_caja_pos", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  tenant_id:   uuid("tenant_id").notNull().references(() => tenants.id),
+  turno_id:    uuid("turno_id").notNull().references(() => turnos_pos.id),
+  caja_id:     uuid("caja_id").notNull().references(() => cajas_pos.id),
+  usuario_id:  uuid("usuario_id").notNull(),
+  monto:       numeric("monto", { precision: 14, scale: 2 }).notNull(),
+  concepto:    varchar("concepto", { length: 30 }).$type<ConceptoGastoCaja>().notNull().default("otros"),
+  descripcion: varchar("descripcion", { length: 200 }),
+  asiento_id:  uuid("asiento_id"),
+  created_at:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type GastoCajaPOS = typeof gastos_caja_pos.$inferSelect;
+
+// ── Devoluciones POS ─────────────────────────────────────────────────────────
+export const devoluciones_pos = pgTable("devoluciones_pos", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  tenant_id:       uuid("tenant_id").notNull().references(() => tenants.id),
+  venta_id:        uuid("venta_id").notNull().references(() => ventas_pos.id),
+  turno_id:        uuid("turno_id").notNull().references(() => turnos_pos.id),
+  usuario_id:      uuid("usuario_id").notNull(),
+  monto_devuelto:  numeric("monto_devuelto", { precision: 14, scale: 2 }).notNull(),
+  metodo_devolucion: varchar("metodo_devolucion", { length: 20 }).notNull().default("efectivo"),
+  motivo:          varchar("motivo", { length: 200 }),
+  asiento_id:      uuid("asiento_id"),
+  created_at:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type DevolucionPOS = typeof devoluciones_pos.$inferSelect;

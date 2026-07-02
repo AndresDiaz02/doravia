@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos } from "@workspace/db";
+import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between } from "drizzle-orm";
 import { users } from "@workspace/db";
-import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
+import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
@@ -492,6 +492,20 @@ router.get("/turnos/:id/resumen", async (req, res) => {
     (s, i) => s + Number(i.cantidad) * Number(i.precio_unitario) * (Number(i.descuento_pct) / 100), 0
   );
 
+  // Gastos de caja chica del turno
+  const gastosCaja = await db
+    .select()
+    .from(gastos_caja_pos)
+    .where(eq(gastos_caja_pos.turno_id, turno.id));
+  const totalGastosCaja = gastosCaja.reduce((s, g) => s + Number(g.monto), 0);
+
+  // Devoluciones del turno
+  const devolucionesTurno = await db
+    .select()
+    .from(devoluciones_pos)
+    .where(eq(devoluciones_pos.turno_id, turno.id));
+  const totalDevoluciones = devolucionesTurno.reduce((s, d) => s + Number(d.monto_devuelto), 0);
+
   res.json({
     turno,
     total_ventas: totalVentas,
@@ -502,7 +516,137 @@ router.get("/turnos/:id/resumen", async (req, res) => {
     por_metodo: porMetodo,
     top_productos: topProductos,
     por_hora: porHora,
+    gastos_caja: gastosCaja,
+    total_gastos_caja: totalGastosCaja,
+    devoluciones: devolucionesTurno,
+    total_devoluciones: totalDevoluciones,
   });
+});
+
+// ── Gastos de caja chica ──────────────────────────────────────────────────────
+
+router.get("/gastos-caja", async (req, res) => {
+  const { turno_id } = req.query as { turno_id?: string };
+  const conditions = [eq(gastos_caja_pos.tenant_id, req.tenantId)];
+  if (turno_id) conditions.push(eq(gastos_caja_pos.turno_id, turno_id));
+  const rows = await db
+    .select()
+    .from(gastos_caja_pos)
+    .where(and(...conditions))
+    .orderBy(desc(gastos_caja_pos.created_at));
+  res.json(rows);
+});
+
+router.post("/gastos-caja", async (req, res) => {
+  const { turno_id, caja_id, monto, concepto, descripcion } = req.body as {
+    turno_id: string; caja_id: string; monto: number;
+    concepto?: string; descripcion?: string;
+  };
+  if (!turno_id || !caja_id || !monto || monto <= 0) {
+    return res.status(400).json({ error: "turno_id, caja_id y monto son requeridos." });
+  }
+
+  try {
+    const [turno] = await db.select().from(turnos_pos)
+      .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId)));
+    if (!turno || turno.estado !== "abierto") {
+      return res.status(400).json({ error: "El turno no está abierto." });
+    }
+
+    const [gasto] = await db.insert(gastos_caja_pos).values({
+      tenant_id: req.tenantId,
+      turno_id,
+      caja_id,
+      usuario_id: req.userId,
+      monto: String(monto),
+      concepto: (concepto ?? "otros") as "otros",
+      descripcion: descripcion ?? null,
+    }).returning();
+
+    try {
+      const asientoId = await crearAsientoGastoCaja(req.tenantId, gasto);
+      await db.update(gastos_caja_pos).set({ asiento_id: asientoId }).where(eq(gastos_caja_pos.id, gasto.id));
+      gasto.asiento_id = asientoId;
+    } catch {
+      // asiento falla silenciosamente — el gasto queda registrado
+    }
+
+    res.status(201).json(gasto);
+  } catch (err) {
+    console.error("[POST gastos-caja]", err);
+    res.status(500).json({ error: "Error al registrar el gasto." });
+  }
+});
+
+// ── Devoluciones POS ──────────────────────────────────────────────────────────
+
+router.get("/devoluciones", async (req, res) => {
+  const { venta_id } = req.query as { venta_id?: string };
+  const conditions = [eq(devoluciones_pos.tenant_id, req.tenantId)];
+  if (venta_id) conditions.push(eq(devoluciones_pos.venta_id, venta_id));
+  const rows = await db
+    .select()
+    .from(devoluciones_pos)
+    .where(and(...conditions))
+    .orderBy(desc(devoluciones_pos.created_at));
+  res.json(rows);
+});
+
+router.post("/devoluciones", async (req, res) => {
+  const { venta_id, monto_devuelto, motivo, metodo_devolucion } = req.body as {
+    venta_id: string; monto_devuelto: number; motivo?: string; metodo_devolucion?: string;
+  };
+  if (!venta_id || !monto_devuelto || monto_devuelto <= 0) {
+    return res.status(400).json({ error: "venta_id y monto_devuelto son requeridos." });
+  }
+
+  try {
+    const [venta] = await db.select().from(ventas_pos)
+      .where(and(eq(ventas_pos.id, venta_id), eq(ventas_pos.tenant_id, req.tenantId)));
+    if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
+    if (venta.estado === "anulada") return res.status(400).json({ error: "Esta venta ya fue anulada." });
+
+    if (monto_devuelto > Number(venta.total)) {
+      return res.status(400).json({ error: "El monto devuelto no puede superar el total de la venta." });
+    }
+
+    // Verificar que el turno de la venta esté abierto (devolución en el mismo turno o uno posterior)
+    const [turno] = await db.select().from(turnos_pos)
+      .where(and(eq(turnos_pos.id, venta.turno_id), eq(turnos_pos.tenant_id, req.tenantId)));
+    if (!turno) return res.status(400).json({ error: "Turno original no encontrado." });
+
+    // Buscar turno abierto actual para la caja
+    const [turnoAbierto] = await db.select().from(turnos_pos)
+      .where(and(
+        eq(turnos_pos.caja_id, venta.caja_id),
+        eq(turnos_pos.tenant_id, req.tenantId),
+        eq(turnos_pos.estado, "abierto"),
+      ));
+    const turnoDevolucion = turnoAbierto ?? turno;
+
+    const [devolucion] = await db.insert(devoluciones_pos).values({
+      tenant_id: req.tenantId,
+      venta_id,
+      turno_id: turnoDevolucion.id,
+      usuario_id: req.userId,
+      monto_devuelto: String(monto_devuelto),
+      metodo_devolucion: metodo_devolucion ?? "efectivo",
+      motivo: motivo ?? null,
+    }).returning();
+
+    try {
+      const asientoId = await crearAsientoDevolucionPOS(req.tenantId, devolucion);
+      await db.update(devoluciones_pos).set({ asiento_id: asientoId }).where(eq(devoluciones_pos.id, devolucion.id));
+      devolucion.asiento_id = asientoId;
+    } catch {
+      // asiento falla silenciosamente
+    }
+
+    res.status(201).json(devolucion);
+  } catch (err) {
+    console.error("[POST devoluciones]", err);
+    res.status(500).json({ error: "Error al registrar la devolución." });
+  }
 });
 
 // ── Fiados ────────────────────────────────────────────────────────────────────

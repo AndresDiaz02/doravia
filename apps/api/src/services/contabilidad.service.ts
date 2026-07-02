@@ -1,6 +1,6 @@
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
-import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado } from "@workspace/db";
+import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja } from "@workspace/db";
 
 /**
  * Verifica que la fecha no caiga dentro de un período contable cerrado.
@@ -46,6 +46,16 @@ const METODO_PAGO_A_CUENTA: Record<string, string> = {
   nequi:         "1110",
   daviplata:     "1110",
   mixto:         "1110", // Conservador: banco
+};
+
+// Mapa de concepto de caja chica → código PUC de gasto
+const CONCEPTO_CAJA_A_PUC: Record<ConceptoGastoCaja, string> = {
+  domicilio:      "5195",
+  cambio_moneda:  "1105", // sal de caja — no es gasto, es retiro para cambio
+  papeleria:      "5195",
+  aseo:           "5195",
+  transporte:     "5195",
+  otros:          "5195",
 };
 
 // Mapa de categoría de gasto → código PUC
@@ -444,4 +454,80 @@ export async function getMayorCuenta(tenantId: string, cuentaCodigo: string) {
       )
     )
     .orderBy(asientos_contables.fecha);
+}
+
+/**
+ * Asiento por gasto de caja chica:
+ *   Débito:  5195 Gastos varios (o PUC del concepto)  = monto
+ *   Crédito: 1105 Caja general                        = monto
+ */
+export async function crearAsientoGastoCaja(
+  tenantId: string,
+  gasto: GastoCajaPOS,
+): Promise<string> {
+  const fecha = gasto.created_at.toISOString().split("T")[0];
+  const numero = await getConsecutivoAsiento(tenantId, gasto.created_at.getFullYear());
+  const codigoGasto = CONCEPTO_CAJA_A_PUC[gasto.concepto] ?? "5195";
+
+  const [cGasto, cCaja] = await Promise.all([
+    getCuenta(tenantId, codigoGasto),
+    getCuenta(tenantId, CODIGOS.CAJA),
+  ]);
+
+  const [asiento] = await db
+    .insert(asientos_contables)
+    .values({
+      tenant_id: tenantId,
+      numero,
+      fecha,
+      descripcion: `Gasto caja ${gasto.concepto}${gasto.descripcion ? ` — ${gasto.descripcion}` : ""}`,
+      origen: "factura",
+      referencia_id: gasto.id,
+    })
+    .returning();
+
+  await db.insert(lineas_asiento).values([
+    { asiento_id: asiento.id, cuenta_id: cGasto.id, descripcion: gasto.descripcion ?? gasto.concepto, debito: String(gasto.monto), credito: "0" },
+    { asiento_id: asiento.id, cuenta_id: cCaja.id,  descripcion: "Salida caja chica POS", debito: "0", credito: String(gasto.monto) },
+  ]);
+
+  return asiento.id;
+}
+
+/**
+ * Asiento por devolución POS:
+ *   Débito:  4135 Ingresos comercio   = monto_devuelto (reversa del ingreso)
+ *   Crédito: 1105 Caja / 1110 Bancos  = monto_devuelto (según método)
+ */
+export async function crearAsientoDevolucionPOS(
+  tenantId: string,
+  devolucion: DevolucionPOS,
+): Promise<string> {
+  const fecha = devolucion.created_at.toISOString().split("T")[0];
+  const numero = await getConsecutivoAsiento(tenantId, devolucion.created_at.getFullYear());
+  const codigoContraparte = METODO_PAGO_A_CUENTA[devolucion.metodo_devolucion] ?? CODIGOS.CAJA;
+
+  const [cIngresos, cCaja] = await Promise.all([
+    getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
+    getCuenta(tenantId, codigoContraparte),
+  ]);
+
+  const [asiento] = await db
+    .insert(asientos_contables)
+    .values({
+      tenant_id: tenantId,
+      numero,
+      fecha,
+      descripcion: `Devolución POS${devolucion.motivo ? ` — ${devolucion.motivo}` : ""}`,
+      origen: "factura",
+      referencia_id: devolucion.id,
+    })
+    .returning();
+
+  await db.insert(lineas_asiento).values([
+    { asiento_id: asiento.id, cuenta_id: cIngresos.id, descripcion: "Reversa ingreso — devolución POS", debito: String(devolucion.monto_devuelto), credito: "0" },
+    { asiento_id: asiento.id, cuenta_id: cCaja.id,     descripcion: `Devolución en ${devolucion.metodo_devolucion}`, debito: "0", credito: String(devolucion.monto_devuelto) },
+  ]);
+
+  return asiento.id;
 }

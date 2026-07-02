@@ -61,6 +61,32 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
   // config por caja (grameras, impresoras, periféricos)
   `ALTER TABLE cajas_pos ADD COLUMN IF NOT EXISTS config jsonb`,
+  // gastos de caja chica durante el turno POS
+  `CREATE TABLE IF NOT EXISTS gastos_caja_pos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    turno_id uuid NOT NULL REFERENCES turnos_pos(id),
+    caja_id uuid NOT NULL REFERENCES cajas_pos(id),
+    usuario_id uuid NOT NULL,
+    monto numeric(14,2) NOT NULL,
+    concepto varchar(30) NOT NULL DEFAULT 'otros',
+    descripcion varchar(200),
+    asiento_id uuid,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  // devoluciones en el POS (reverso de venta)
+  `CREATE TABLE IF NOT EXISTS devoluciones_pos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    venta_id uuid NOT NULL REFERENCES ventas_pos(id),
+    turno_id uuid NOT NULL REFERENCES turnos_pos(id),
+    usuario_id uuid NOT NULL,
+    monto_devuelto numeric(14,2) NOT NULL,
+    metodo_devolucion varchar(20) NOT NULL DEFAULT 'efectivo',
+    motivo varchar(200),
+    asiento_id uuid,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

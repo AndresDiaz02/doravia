@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, BookOpen, Clock, LogOut, Calendar, Sun, Moon } from "lucide-react";
+import { ShoppingCart, BookOpen, Clock, LogOut, Calendar, Sun, Moon, Wallet } from "lucide-react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -9,6 +9,7 @@ import Fiados from "./pages/Fiados";
 import HistorialVentas from "./pages/HistorialVentas";
 import CierreTurno from "./pages/CierreTurno";
 import Citas from "./pages/Citas";
+import GastosCaja from "./pages/GastosCaja";
 
 interface TurnoActivo {
   turnoId: string;
@@ -17,7 +18,7 @@ interface TurnoActivo {
   cajaConfig: CajaConfig | null;
 }
 
-type Vista = "venta" | "cartera" | "historial" | "citas";
+type Vista = "venta" | "cartera" | "historial" | "citas" | "gastos";
 
 function useTheme() {
   const [dark, setDark] = useState(() => localStorage.getItem("pos_theme") !== "light");
@@ -75,6 +76,7 @@ function AppInner() {
     ...(carteraVisible ? [{ id: "cartera" as Vista, label: "Cartera",  icon: <BookOpen className="h-4 w-4" /> }] : []),
     ...(citasVisible   ? [{ id: "citas"   as Vista, label: "Agenda",   icon: <Calendar className="h-4 w-4" /> }] : []),
     { id: "historial", label: "Historial", icon: <Clock className="h-4 w-4" /> },
+    { id: "gastos",    label: "Caja",      icon: <Wallet className="h-4 w-4" /> },
   ];
 
   return (
@@ -126,6 +128,7 @@ function AppInner() {
         {vista === "cartera"  && <Fiados cajaId={turno.cajaId} />}
         {vista === "citas"    && <Citas cajaId={turno.cajaId} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
+        {vista === "gastos"    && <GastosCaja turnoId={turno.turnoId} cajaId={turno.cajaId} />}
       </div>
 
       {showCierre && (

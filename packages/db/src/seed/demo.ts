@@ -574,14 +574,62 @@ function generarFacturas(
   return { facturasList, itemsList, totalConsecutivo: consecutivo - 1 };
 }
 
+// ── Vinculación contadores → empresas (siempre idempotente) ──────────────────
+
+async function vincularContadoresAEmpresas() {
+  const planesDB = await db.select({ id: plans.id, slug: plans.slug, precio: plans.precio_anual_cop }).from(plans);
+
+  for (const c of CONTADORES) {
+    const [contUser] = await db.select({ id: users.id })
+      .from(users).where(eq(users.email, c.email)).limit(1);
+    if (!contUser) continue;
+
+    for (const empIdx of c.empresasIdx) {
+      const empNit = EMPRESAS[empIdx].nit;
+      const [empresa] = await db.select({ id: tenants.id, planId: tenants.plan_id })
+        .from(tenants).where(eq(tenants.nit, empNit)).limit(1);
+      if (!empresa) continue;
+
+      await db.insert(user_accesos).values({
+        user_id: contUser.id,
+        tenant_id: empresa.id,
+        role: "contador",
+        permisos_contables: true,
+      }).onConflictDoNothing();
+
+      // Comisión solo si no existe aún
+      const [comExiste] = await db.select({ id: comisiones_contador.id })
+        .from(comisiones_contador)
+        .where(eq(comisiones_contador.contador_user_id, contUser.id))
+        .limit(1);
+      if (!comExiste) {
+        const plan = planesDB.find((p) => p.id === empresa.planId);
+        if (plan && plan.precio > 0) {
+          await db.insert(comisiones_contador).values({
+            contador_user_id: contUser.id,
+            tenant_id: empresa.id,
+            tipo: "venta_inicial",
+            porcentaje: "15.00",
+            base_cop: plan.precio,
+            valor_cop: Math.round(plan.precio * 0.15),
+            pagada: false,
+          });
+        }
+      }
+    }
+  }
+  console.log("  ✓ Contadores vinculados a empresas.");
+}
+
 // ── Seed principal ────────────────────────────────────────────────────────────
 
 export async function seedDemo() {
-  // Idempotente: skip si ya existen las empresas demo
+  // Idempotente: skip si ya existen las empresas demo, pero SIEMPRE vincula contadores
   const [existe] = await db.select({ id: tenants.id })
     .from(tenants).where(eq(tenants.nit, "900100001")).limit(1);
   if (existe) {
-    console.log("✓ Demo ya existe, omitiendo.");
+    console.log("✓ Demo ya existe — verificando vínculos contador↔empresa...");
+    await vincularContadoresAEmpresas();
     return;
   }
 
@@ -826,34 +874,7 @@ export async function seedDemo() {
     console.log(`  ✓ ${emp.nombre} — ${totalFacturas} facturas`);
   }
 
-  // Vincular contadores a empresas
-  for (const contador of contadorUsers) {
-    for (const empIdx of contador.empresasIdx) {
-      const empresa = empresasCreadas.find((e) => e.idx === empIdx);
-      if (!empresa) continue;
-      await db.insert(user_accesos).values({
-        user_id: contador.id,
-        tenant_id: empresa.id,
-        role: "contador",
-        permisos_contables: true,
-      }).onConflictDoNothing();
-
-      // Comisión de venta inicial (15%)
-      const plan = planesDB.find((p) => p.slug === empresa.plan);
-      if (plan && plan.precio > 0) {
-        await db.insert(comisiones_contador).values({
-          contador_user_id: contador.id,
-          tenant_id: empresa.id,
-          tipo: "venta_inicial",
-          porcentaje: "15.00",
-          base_cop: plan.precio,
-          valor_cop: Math.round(plan.precio * 0.15),
-          pagada: false,
-        });
-      }
-    }
-  }
-  console.log("  ✓ Contadores vinculados a empresas.");
+  await vincularContadoresAEmpresas();
 
   // ── Resumen de credenciales ───────────────────────────────────────────────
   console.log("\n════════════════════════════════════════════════════════════");

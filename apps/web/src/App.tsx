@@ -80,6 +80,7 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/contador" element={<ContadorDashboard />} />
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<><GuardiaERP /><Dashboard /></>} />
@@ -102,7 +103,7 @@ export default function App() {
               <Route path="/cartera" element={<><RequiereRol allow={["admin", "contador"]} /><Cartera /></>} />
               <Route path="/planes" element={<UpgradePlan />} />
               <Route path="/mi-plan" element={<MiPlan />} />
-              <Route path="/contador" element={<ContadorDashboard />} />
+              {/* /contador se maneja fuera del AppLayout */}
               <Route path="/usuarios" element={<><SoloEscritura /><Usuarios /></>} />
               <Route path="/configuracion/dian" element={<><SoloEscritura /><ResolucionesDian /></>} />
               <Route path="/retenciones" element={<><RequiereRol allow={["admin", "contador"]} /><Retenciones /></>} />

@@ -488,11 +488,12 @@ function generarFacturas(
   clienteIds: string[],
   prods: ProdRef[],
   totalFacturas: number,
+  startConsecutivo = 1,
 ) {
   const facturasList: any[] = [];
   const itemsList: any[] = [];
 
-  let consecutivo = 1;
+  let consecutivo = startConsecutivo;
 
   for (let i = 0; i < totalFacturas; i++) {
     // Distribuir uniformemente en los últimos 6 meses
@@ -574,6 +575,137 @@ function generarFacturas(
   return { facturasList, itemsList, totalConsecutivo: consecutivo - 1 };
 }
 
+// ── Datos por empresa (idempotente si ya tiene clientes) ─────────────────────
+
+async function seedDatosEmpresa(tenantId: string, emp: (typeof EMPRESAS)[0], idx: number) {
+  // Bodega
+  const [bodegaExiste] = await db.select({ id: bodegas.id }).from(bodegas)
+    .where(eq(bodegas.tenant_id, tenantId)).limit(1);
+  const bodegaReg = bodegaExiste ?? (await db.insert(bodegas).values({
+    tenant_id: tenantId,
+    nombre: "Bodega Principal",
+    activo: true,
+  }).returning())[0];
+
+  // Cajas POS
+  if (emp.addons.pos) {
+    const [cajaExiste] = await db.select({ id: cajas_pos.id }).from(cajas_pos)
+      .where(eq(cajas_pos.tenant_id, tenantId)).limit(1);
+    if (!cajaExiste) {
+      await db.insert(cajas_pos).values({ tenant_id: tenantId, nombre: "Caja 1 — Principal", activo: true });
+      if (emp.addons.pos_multi_caja) {
+        await db.insert(cajas_pos).values({ tenant_id: tenantId, nombre: "Caja 2 — Secundaria", activo: true });
+      }
+    }
+  }
+
+  // Resolución DIAN
+  const [resolExiste] = await db.select({ id: resoluciones_dian.id, consecutivo_actual: resoluciones_dian.consecutivo_actual })
+    .from(resoluciones_dian).where(eq(resoluciones_dian.tenant_id, tenantId)).limit(1);
+  const resolReg = resolExiste ?? (await db.insert(resoluciones_dian).values({
+    tenant_id: tenantId,
+    numero_resolucion: `18764000000${String(idx + 1).padStart(5, "0")}`,
+    fecha_resolucion: "2024-01-15",
+    prefijo: "FV",
+    consecutivo_desde: 1,
+    consecutivo_hasta: 10000,
+    consecutivo_actual: 0,
+    fecha_desde: "2024-01-15",
+    fecha_hasta: "2027-01-15",
+    activa: true,
+  }).returning())[0];
+  const startConsecutivo = (resolReg.consecutivo_actual ?? 0) + 1;
+
+  // Clientes
+  const clientesInsertados = await db.insert(clientes).values(
+    emp.clientesData.map((c) => ({
+      tenant_id: tenantId,
+      tipo_persona: c.doc === "NIT" ? "juridica" as const : "natural" as const,
+      tipo_documento: c.doc as "CC" | "NIT",
+      numero_documento: c.nro,
+      digito_verificacion: c.doc === "NIT" ? "7" : undefined,
+      nombre: c.nombre,
+      municipio: c.ciudad,
+      departamento: emp.departamento,
+      activo: true,
+    }))
+  ).returning();
+  const clienteIds = clientesInsertados.map((c) => c.id);
+
+  // Productos
+  const productosInsertados = await db.insert(productos).values(
+    emp.productosData.map((p) => ({
+      tenant_id: tenantId,
+      codigo: p.codigo,
+      nombre: p.nombre,
+      tipo: "producto" as const,
+      unidad: "und",
+      precio_base: String(Math.round(p.precio * 0.75)),
+      precio_venta: String(p.precio),
+      iva_pct: String(p.iva),
+      stock_actual: String(rnd(20, 200)),
+      activo: true,
+    }))
+  ).returning();
+
+  // Movimientos inventario (entrada inicial)
+  await db.insert(movimientos_inventario).values(
+    productosInsertados.map((p) => ({
+      tenant_id: tenantId,
+      bodega_id: bodegaReg.id,
+      producto_id: p.id,
+      tipo: "entrada" as const,
+      cantidad: p.stock_actual ?? "50",
+      costo_unitario: p.precio_base,
+      referencia_tipo: "ajuste_manual",
+      observaciones: "Stock inicial — ambiente de simulación",
+    }))
+  );
+
+  const prodRefs: ProdRef[] = productosInsertados.map((p, i) => ({
+    id: p.id,
+    nombre: p.nombre,
+    precio: emp.productosData[i].precio,
+    iva: emp.productosData[i].iva,
+  }));
+
+  // Facturas (6 meses)
+  const totalFacturas = emp.facturasPorMes * 6;
+  const { facturasList, itemsList, totalConsecutivo } = generarFacturas(
+    tenantId, resolReg.id, "FV", clienteIds, prodRefs, totalFacturas, startConsecutivo,
+  );
+
+  const LOTE = 50;
+  const facturasConId: { id: string; numero: string }[] = [];
+  for (let i = 0; i < facturasList.length; i += LOTE) {
+    const lote = facturasList.slice(i, i + LOTE);
+    const insertadas = await db.insert(facturas).values(lote as any).returning();
+    facturasConId.push(...insertadas.map((f) => ({ id: f.id, numero: f.numero })));
+  }
+
+  let itemOffset = 0;
+  const itemsConFacturaId: object[] = [];
+  for (const factura of facturasConId) {
+    while (itemOffset < itemsList.length) {
+      const item = itemsList[itemOffset] as { factura_id: string };
+      if (item.factura_id !== factura.numero) break;
+      itemsConFacturaId.push({ ...item, factura_id: factura.id });
+      itemOffset++;
+    }
+  }
+  if (itemsConFacturaId.length) {
+    for (let i = 0; i < itemsConFacturaId.length; i += LOTE) {
+      await db.insert(items_factura).values(itemsConFacturaId.slice(i, i + LOTE) as any);
+    }
+  }
+
+  await db.update(resoluciones_dian)
+    .set({ consecutivo_actual: startConsecutivo - 1 + totalConsecutivo })
+    .where(eq(resoluciones_dian.id, resolReg.id));
+
+  console.log(`  ✓ ${emp.nombre} — ${totalFacturas} facturas`);
+}
+
 // ── Vinculación contadores → empresas (siempre idempotente) ──────────────────
 
 async function vincularContadoresAEmpresas() {
@@ -628,7 +760,17 @@ export async function seedDemo() {
   const [existe] = await db.select({ id: tenants.id })
     .from(tenants).where(eq(tenants.nit, "900100001")).limit(1);
   if (existe) {
-    console.log("✓ Demo ya existe — verificando vínculos contador↔empresa...");
+    console.log("✓ Demo ya existe — rellenando datos faltantes...");
+    for (let idx = 0; idx < EMPRESAS.length; idx++) {
+      const emp = EMPRESAS[idx];
+      const [tenant] = await db.select({ id: tenants.id })
+        .from(tenants).where(eq(tenants.nit, emp.nit)).limit(1);
+      if (!tenant) continue;
+      const [clienteExiste] = await db.select({ id: clientes.id })
+        .from(clientes).where(eq(clientes.tenant_id, tenant.id)).limit(1);
+      if (clienteExiste) continue; // ya tiene datos
+      await seedDatosEmpresa(tenant.id, emp, idx);
+    }
     await vincularContadoresAEmpresas();
     return;
   }
@@ -740,138 +882,8 @@ export async function seedDemo() {
       password_hash: HASH_DEMO,
     });
 
-    // Bodega
-    const [bodega] = await db.insert(bodegas).values({
-      tenant_id: tenant.id,
-      nombre: "Bodega Principal",
-      activo: true,
-    }).returning();
-
-    // Caja POS si aplica
-    if (emp.addons.pos) {
-      await db.insert(cajas_pos).values({
-        tenant_id: tenant.id,
-        nombre: "Caja 1 — Principal",
-        activo: true,
-      });
-      if (emp.addons.pos_multi_caja) {
-        await db.insert(cajas_pos).values({
-          tenant_id: tenant.id,
-          nombre: "Caja 2 — Secundaria",
-          activo: true,
-        });
-      }
-    }
-
-    // Resolución DIAN genérica
-    const [resolucion] = await db.insert(resoluciones_dian).values({
-      tenant_id: tenant.id,
-      numero_resolucion: `18764000000${String(idx + 1).padStart(5, "0")}`,
-      fecha_resolucion: "2024-01-15",
-      prefijo: "FV",
-      consecutivo_desde: 1,
-      consecutivo_hasta: 10000,
-      consecutivo_actual: 0,
-      fecha_desde: "2024-01-15",
-      fecha_hasta: "2027-01-15",
-      activa: true,
-    }).returning();
-
-    // Clientes
-    const clientesInsertados = await db.insert(clientes).values(
-      emp.clientesData.map((c) => ({
-        tenant_id: tenant.id,
-        tipo_persona: c.doc === "NIT" ? "juridica" as const : "natural" as const,
-        tipo_documento: c.doc as "CC" | "NIT",
-        numero_documento: c.nro,
-        digito_verificacion: c.doc === "NIT" ? "7" : undefined,
-        nombre: c.nombre,
-        municipio: c.ciudad,
-        departamento: emp.departamento,
-        activo: true,
-      }))
-    ).returning();
-    const clienteIds = clientesInsertados.map((c) => c.id);
-
-    // Productos
-    const productosInsertados = await db.insert(productos).values(
-      emp.productosData.map((p) => ({
-        tenant_id: tenant.id,
-        codigo: p.codigo,
-        nombre: p.nombre,
-        tipo: "producto" as const,
-        unidad: "und",
-        precio_base: String(Math.round(p.precio * 0.75)),
-        precio_venta: String(p.precio),
-        iva_pct: String(p.iva),
-        stock_actual: String(rnd(20, 200)),
-        activo: true,
-      }))
-    ).returning();
-
-    // Movimientos de inventario (entrada inicial)
-    await db.insert(movimientos_inventario).values(
-      productosInsertados.map((p) => ({
-        tenant_id: tenant.id,
-        bodega_id: bodega.id,
-        producto_id: p.id,
-        tipo: "entrada" as const,
-        cantidad: p.stock_actual ?? "50",
-        costo_unitario: p.precio_base,
-        referencia_tipo: "ajuste_manual",
-        observaciones: "Stock inicial — ambiente de simulación",
-      }))
-    );
-
-    const prodRefs: ProdRef[] = productosInsertados.map((p, i) => ({
-      id: p.id,
-      nombre: p.nombre,
-      precio: emp.productosData[i].precio,
-      iva: emp.productosData[i].iva,
-    }));
-
-    // Facturas (6 meses)
-    const totalFacturas = emp.facturasPorMes * 6;
-    const { facturasList, itemsList, totalConsecutivo } = generarFacturas(
-      tenant.id, resolucion.id, "FV", clienteIds, prodRefs, totalFacturas,
-    );
-
-    // Insert facturas en lotes de 50
-    const LOTE = 50;
-    const facturasConId: { id: string; numero: string }[] = [];
-    for (let i = 0; i < facturasList.length; i += LOTE) {
-      const lote = facturasList.slice(i, i + LOTE);
-      const insertadas = await db.insert(facturas).values(lote as any).returning();
-      facturasConId.push(...insertadas.map((f) => ({ id: f.id, numero: f.numero })));
-    }
-
-    // Mapear items a sus factura IDs reales por número (la posición corresponde)
-    let itemOffset = 0;
-    const itemsConFacturaId: object[] = [];
-    for (const factura of facturasConId) {
-      // Los items están agrupados por factura en el orden de generación
-      // El número de items por factura varía; los buscamos por factura_id placeholder
-      while (itemOffset < itemsList.length) {
-        const item = itemsList[itemOffset] as { factura_id: string };
-        if (item.factura_id !== factura.numero) break;
-        itemsConFacturaId.push({ ...item, factura_id: factura.id });
-        itemOffset++;
-      }
-    }
-
-    if (itemsConFacturaId.length) {
-      for (let i = 0; i < itemsConFacturaId.length; i += LOTE) {
-        await db.insert(items_factura).values(itemsConFacturaId.slice(i, i + LOTE) as any);
-      }
-    }
-
-    // Actualizar consecutivo en resolución
-    await db.update(resoluciones_dian)
-      .set({ consecutivo_actual: totalConsecutivo })
-      .where(eq(resoluciones_dian.id, resolucion.id));
-
+    await seedDatosEmpresa(tenant.id, emp, idx);
     empresasCreadas.push({ id: tenant.id, idx, nombre: emp.nombre, plan: emp.planSlug });
-    console.log(`  ✓ ${emp.nombre} — ${totalFacturas} facturas`);
   }
 
   await vincularContadoresAEmpresas();

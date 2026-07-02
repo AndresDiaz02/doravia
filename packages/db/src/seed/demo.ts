@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import {
   db, plans, tenants, users, clientes, productos, bodegas, facturas, items_factura,
   resoluciones_dian, user_accesos, comisiones_contador, contador_registrations,
@@ -575,19 +575,72 @@ function generarFacturas(
   return { facturasList, itemsList, totalConsecutivo: consecutivo - 1 };
 }
 
-// ── Datos por empresa (idempotente si ya tiene clientes) ─────────────────────
+// ── Asientos contables demo (partida doble por factura) ──────────────────────
+
+type FacturaResumen = {
+  id: string; numero: string; total: string; subtotal: string;
+  descuento_total: string; iva_total: string; fecha_emision: Date; estado: string;
+};
+
+async function crearAsientosDemo(tenantId: string, factsList: FacturaResumen[]) {
+  if (!factsList.length) return;
+
+  const cuentasRows = await db
+    .select({ id: cuentas_contables.id, codigo: cuentas_contables.codigo })
+    .from(cuentas_contables)
+    .where(and(
+      inArray(cuentas_contables.codigo, ["1305", "4135", "2408"]),
+      isNull(cuentas_contables.tenant_id),
+    ));
+
+  const cuentaMap: Record<string, string> = {};
+  for (const c of cuentasRows) cuentaMap[c.codigo] = c.id;
+
+  if (!cuentaMap["1305"] || !cuentaMap["4135"]) {
+    console.warn("  [seed] PUC sin cuentas 1305/4135, omitiendo asientos.");
+    return;
+  }
+
+  let seq = 1;
+  for (const f of factsList) {
+    const fecha = new Date(f.fecha_emision);
+    const anio = fecha.getFullYear();
+    const [asiento] = await (db.insert(asientos_contables).values({
+      tenant_id: tenantId,
+      numero: `ASI-${anio}-${String(seq++).padStart(5, "0")}`,
+      fecha: fecha.toISOString().split("T")[0],
+      descripcion: `Factura de venta ${f.numero}`,
+      origen: "factura" as const,
+      referencia_id: f.id,
+    } as any).returning());
+
+    const total    = Number(f.total);
+    const subtotal = Number(f.subtotal) - Number(f.descuento_total);
+    const iva      = Number(f.iva_total);
+
+    const lineas = [
+      { asiento_id: asiento.id, cuenta_id: cuentaMap["1305"], descripcion: "Clientes",           debito: String(total),    credito: "0" },
+      { asiento_id: asiento.id, cuenta_id: cuentaMap["4135"], descripcion: "Ingresos por venta", debito: "0",              credito: String(subtotal) },
+    ] as any[];
+    if (iva > 0 && cuentaMap["2408"]) {
+      lineas.push({ asiento_id: asiento.id, cuenta_id: cuentaMap["2408"], descripcion: "IVA generado", debito: "0", credito: String(iva) });
+    }
+    await db.insert(lineas_asiento).values(lineas as any);
+    await db.update(facturas).set({ asiento_id: asiento.id } as any).where(eq(facturas.id, f.id));
+  }
+}
+
+// ── Datos por empresa (completamente idempotente por paso) ────────────────────
 
 async function seedDatosEmpresa(tenantId: string, emp: (typeof EMPRESAS)[0], idx: number) {
-  // Bodega
+  // ── Bodega ──────────────────────────────────────────────────────────────────
   const [bodegaExiste] = await db.select({ id: bodegas.id }).from(bodegas)
     .where(eq(bodegas.tenant_id, tenantId)).limit(1);
   const bodegaReg = bodegaExiste ?? (await db.insert(bodegas).values({
-    tenant_id: tenantId,
-    nombre: "Bodega Principal",
-    activo: true,
+    tenant_id: tenantId, nombre: "Bodega Principal", activo: true,
   }).returning())[0];
 
-  // Cajas POS
+  // ── Cajas POS ───────────────────────────────────────────────────────────────
   if (emp.addons.pos) {
     const [cajaExiste] = await db.select({ id: cajas_pos.id }).from(cajas_pos)
       .where(eq(cajas_pos.tenant_id, tenantId)).limit(1);
@@ -599,8 +652,9 @@ async function seedDatosEmpresa(tenantId: string, emp: (typeof EMPRESAS)[0], idx
     }
   }
 
-  // Resolución DIAN
-  const [resolExiste] = await db.select({ id: resoluciones_dian.id, consecutivo_actual: resoluciones_dian.consecutivo_actual })
+  // ── Resolución DIAN ─────────────────────────────────────────────────────────
+  const [resolExiste] = await db
+    .select({ id: resoluciones_dian.id, consecutivo_actual: resoluciones_dian.consecutivo_actual })
     .from(resoluciones_dian).where(eq(resoluciones_dian.tenant_id, tenantId)).limit(1);
   const resolReg = resolExiste ?? (await db.insert(resoluciones_dian).values({
     tenant_id: tenantId,
@@ -614,96 +668,134 @@ async function seedDatosEmpresa(tenantId: string, emp: (typeof EMPRESAS)[0], idx
     fecha_hasta: "2027-01-15",
     activa: true,
   }).returning())[0];
-  const startConsecutivo = (resolReg.consecutivo_actual ?? 0) + 1;
 
-  // Clientes
-  const clientesInsertados = await db.insert(clientes).values(
-    emp.clientesData.map((c) => ({
-      tenant_id: tenantId,
-      tipo_persona: c.doc === "NIT" ? "juridica" as const : "natural" as const,
-      tipo_documento: c.doc as "CC" | "NIT",
-      numero_documento: c.nro,
-      digito_verificacion: c.doc === "NIT" ? "7" : undefined,
-      nombre: c.nombre,
-      municipio: c.ciudad,
-      departamento: emp.departamento,
-      activo: true,
-    }))
-  ).returning();
-  const clienteIds = clientesInsertados.map((c) => c.id);
-
-  // Productos
-  const productosInsertados = await db.insert(productos).values(
-    emp.productosData.map((p) => ({
-      tenant_id: tenantId,
-      codigo: p.codigo,
-      nombre: p.nombre,
-      tipo: "producto" as const,
-      unidad: "und",
-      precio_base: String(Math.round(p.precio * 0.75)),
-      precio_venta: String(p.precio),
-      iva_pct: String(p.iva),
-      stock_actual: String(rnd(20, 200)),
-      activo: true,
-    }))
-  ).returning();
-
-  // Movimientos inventario (entrada inicial)
-  await db.insert(movimientos_inventario).values(
-    productosInsertados.map((p) => ({
-      tenant_id: tenantId,
-      bodega_id: bodegaReg.id,
-      producto_id: p.id,
-      tipo: "entrada" as const,
-      cantidad: p.stock_actual ?? "50",
-      costo_unitario: p.precio_base,
-      referencia_tipo: "ajuste_manual",
-      observaciones: "Stock inicial — ambiente de simulación",
-    }))
-  );
-
-  const prodRefs: ProdRef[] = productosInsertados.map((p, i) => ({
-    id: p.id,
-    nombre: p.nombre,
-    precio: emp.productosData[i].precio,
-    iva: emp.productosData[i].iva,
-  }));
-
-  // Facturas (6 meses)
-  const totalFacturas = emp.facturasPorMes * 6;
-  const { facturasList, itemsList, totalConsecutivo } = generarFacturas(
-    tenantId, resolReg.id, "FV", clienteIds, prodRefs, totalFacturas, startConsecutivo,
-  );
-
-  const LOTE = 50;
-  const facturasConId: { id: string; numero: string }[] = [];
-  for (let i = 0; i < facturasList.length; i += LOTE) {
-    const lote = facturasList.slice(i, i + LOTE);
-    const insertadas = await db.insert(facturas).values(lote as any).returning();
-    facturasConId.push(...insertadas.map((f) => ({ id: f.id, numero: f.numero })));
+  // ── Clientes (idempotente) ──────────────────────────────────────────────────
+  const [clienteExiste] = await db.select({ id: clientes.id }).from(clientes)
+    .where(eq(clientes.tenant_id, tenantId)).limit(1);
+  let clienteIds: string[];
+  if (clienteExiste) {
+    clienteIds = (await db.select({ id: clientes.id }).from(clientes)
+      .where(eq(clientes.tenant_id, tenantId))).map((c) => c.id);
+  } else {
+    const insertados = await db.insert(clientes).values(
+      emp.clientesData.map((c) => ({
+        tenant_id: tenantId,
+        tipo_persona: c.doc === "NIT" ? "juridica" as const : "natural" as const,
+        tipo_documento: c.doc as "CC" | "NIT",
+        numero_documento: c.nro,
+        digito_verificacion: c.doc === "NIT" ? "7" : undefined,
+        nombre: c.nombre,
+        municipio: c.ciudad,
+        departamento: emp.departamento,
+        activo: true,
+      })),
+    ).returning();
+    clienteIds = insertados.map((c) => c.id);
   }
 
-  let itemOffset = 0;
-  const itemsConFacturaId: object[] = [];
-  for (const factura of facturasConId) {
-    while (itemOffset < itemsList.length) {
-      const item = itemsList[itemOffset] as { factura_id: string };
-      if (item.factura_id !== factura.numero) break;
-      itemsConFacturaId.push({ ...item, factura_id: factura.id });
-      itemOffset++;
+  // ── Productos (idempotente) ─────────────────────────────────────────────────
+  const [productoExiste] = await db
+    .select({ id: productos.id, nombre: productos.nombre, precio_venta: productos.precio_venta, iva_pct: productos.iva_pct })
+    .from(productos).where(eq(productos.tenant_id, tenantId)).limit(1);
+  let prodRefs: ProdRef[];
+  if (productoExiste) {
+    const existentes = await db
+      .select({ id: productos.id, nombre: productos.nombre, precio_venta: productos.precio_venta, iva_pct: productos.iva_pct })
+      .from(productos).where(eq(productos.tenant_id, tenantId));
+    prodRefs = existentes.map((p) => ({
+      id: p.id, nombre: p.nombre,
+      precio: Number(p.precio_venta), iva: Number(p.iva_pct),
+    }));
+  } else {
+    const productosInsertados = await db.insert(productos).values(
+      emp.productosData.map((p) => ({
+        tenant_id: tenantId,
+        codigo: p.codigo,
+        nombre: p.nombre,
+        tipo: "producto" as const,
+        unidad: "und",
+        precio_base: String(Math.round(p.precio * 0.75)),
+        precio_venta: String(p.precio),
+        iva_pct: String(p.iva),
+        stock_actual: String(rnd(20, 200)),
+        activo: true,
+      })),
+    ).returning();
+
+    await db.insert(movimientos_inventario).values(
+      productosInsertados.map((p) => ({
+        tenant_id: tenantId,
+        bodega_id: bodegaReg.id,
+        producto_id: p.id,
+        tipo: "entrada" as const,
+        cantidad: p.stock_actual ?? "50",
+        costo_unitario: p.precio_base,
+        referencia_tipo: "ajuste_manual",
+        observaciones: "Stock inicial — ambiente de simulación",
+      })),
+    );
+
+    prodRefs = productosInsertados.map((p, i) => ({
+      id: p.id, nombre: p.nombre,
+      precio: emp.productosData[i].precio, iva: emp.productosData[i].iva,
+    }));
+  }
+
+  // ── Facturas (idempotente) ──────────────────────────────────────────────────
+  const [facturaExiste] = await db.select({ id: facturas.id }).from(facturas)
+    .where(eq(facturas.tenant_id, tenantId)).limit(1);
+
+  if (!facturaExiste) {
+    const startConsecutivo = (resolReg.consecutivo_actual ?? 0) + 1;
+    const totalFacturas = emp.facturasPorMes * 6;
+    const { facturasList, itemsList, totalConsecutivo } = generarFacturas(
+      tenantId, resolReg.id, "FV", clienteIds, prodRefs, totalFacturas, startConsecutivo,
+    );
+
+    const LOTE = 50;
+    const facturasConId: FacturaResumen[] = [];
+    for (let i = 0; i < facturasList.length; i += LOTE) {
+      const insertadas = await db.insert(facturas).values(facturasList.slice(i, i + LOTE) as any).returning();
+      facturasConId.push(...insertadas.map((f) => ({
+        id: f.id, numero: f.numero, total: f.total, subtotal: f.subtotal,
+        descuento_total: f.descuento_total, iva_total: f.iva_total,
+        fecha_emision: f.fecha_emision, estado: f.estado,
+      })));
+    }
+
+    // Mapeo por numero (resistente a orden de retorno de la BD)
+    const facturaByNumero = new Map(facturasConId.map((f) => [f.numero, f.id]));
+    const itemsConId = (itemsList as any[])
+      .map((item) => ({ ...item, factura_id: facturaByNumero.get(item.factura_id) ?? null }))
+      .filter((item) => item.factura_id !== null);
+
+    for (let i = 0; i < itemsConId.length; i += LOTE) {
+      await db.insert(items_factura).values(itemsConId.slice(i, i + LOTE) as any);
+    }
+
+    await db.update(resoluciones_dian)
+      .set({ consecutivo_actual: startConsecutivo - 1 + totalConsecutivo })
+      .where(eq(resoluciones_dian.id, resolReg.id));
+
+    await crearAsientosDemo(tenantId, facturasConId.filter((f) => f.estado === "aceptada"));
+    console.log(`  ✓ ${emp.nombre} — ${totalFacturas} facturas + asientos`);
+  } else {
+    // Facturas ya existen: verificar si faltan asientos
+    const [asientoExiste] = await db.select({ id: asientos_contables.id }).from(asientos_contables)
+      .where(eq(asientos_contables.tenant_id, tenantId)).limit(1);
+    if (!asientoExiste) {
+      const factsAceptadas = await db
+        .select({ id: facturas.id, numero: facturas.numero, total: facturas.total,
+          subtotal: facturas.subtotal, descuento_total: facturas.descuento_total,
+          iva_total: facturas.iva_total, fecha_emision: facturas.fecha_emision, estado: facturas.estado })
+        .from(facturas)
+        .where(eq(facturas.tenant_id, tenantId));
+      await crearAsientosDemo(tenantId, factsAceptadas.filter((f) => f.estado === "aceptada"));
+      console.log(`  ✓ ${emp.nombre} — asientos creados retroactivamente`);
+    } else {
+      console.log(`  ✓ ${emp.nombre} — datos completos`);
     }
   }
-  if (itemsConFacturaId.length) {
-    for (let i = 0; i < itemsConFacturaId.length; i += LOTE) {
-      await db.insert(items_factura).values(itemsConFacturaId.slice(i, i + LOTE) as any);
-    }
-  }
-
-  await db.update(resoluciones_dian)
-    .set({ consecutivo_actual: startConsecutivo - 1 + totalConsecutivo })
-    .where(eq(resoluciones_dian.id, resolReg.id));
-
-  console.log(`  ✓ ${emp.nombre} — ${totalFacturas} facturas`);
 }
 
 // ── Vinculación contadores → empresas (siempre idempotente) ──────────────────
@@ -760,16 +852,17 @@ export async function seedDemo() {
   const [existe] = await db.select({ id: tenants.id })
     .from(tenants).where(eq(tenants.nit, "900100001")).limit(1);
   if (existe) {
-    console.log("✓ Demo ya existe — rellenando datos faltantes...");
+    console.log("✓ Demo ya existe — verificando datos por empresa...");
     for (let idx = 0; idx < EMPRESAS.length; idx++) {
       const emp = EMPRESAS[idx];
       const [tenant] = await db.select({ id: tenants.id })
         .from(tenants).where(eq(tenants.nit, emp.nit)).limit(1);
       if (!tenant) continue;
-      const [clienteExiste] = await db.select({ id: clientes.id })
-        .from(clientes).where(eq(clientes.tenant_id, tenant.id)).limit(1);
-      if (clienteExiste) continue; // ya tiene datos
-      await seedDatosEmpresa(tenant.id, emp, idx);
+      try {
+        await seedDatosEmpresa(tenant.id, emp, idx);
+      } catch (e) {
+        console.error(`  ✗ Error en ${emp.nombre}:`, e);
+      }
     }
     await vincularContadoresAEmpresas();
     return;

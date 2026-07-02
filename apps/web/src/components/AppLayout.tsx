@@ -91,7 +91,7 @@ const CONFIG = [
 ];
 
 export function AppLayout() {
-  const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador, cambiarEmpresa } = useAuth();
+  const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador } = useAuth();
   const { isDark, toggleDark } = useDarkMode(user?.dark_mode);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEmpresaMenu, setShowEmpresaMenu] = useState(false);
@@ -222,9 +222,14 @@ export function AppLayout() {
                     setCambiando(true);
                     setShowEmpresaMenu(false);
                     try {
-                      await cambiarEmpresa(emp.tenant_id);
-                      navigate("/dashboard", { replace: true });
-                    } finally {
+                      const data = await apiFetch<{ accessToken: string; refreshToken: string }>(
+                        "/api/auth/cambiar-empresa",
+                        { method: "POST", body: JSON.stringify({ tenantId: emp.tenant_id }) },
+                      );
+                      localStorage.setItem("access_token", data.accessToken);
+                      localStorage.setItem("refresh_token", data.refreshToken);
+                      window.location.href = emp.nit === "0000000001" ? "/contador" : "/dashboard";
+                    } catch {
                       setCambiando(false);
                     }
                   }}

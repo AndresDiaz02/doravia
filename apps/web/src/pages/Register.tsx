@@ -78,6 +78,7 @@ export function Register() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [wompiListo, setWompiListo] = useState(false);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -229,11 +230,29 @@ export function Register() {
               </p>
             )}
 
+            <label className="flex items-start gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                required
+                checked={aceptaTerminos}
+                onChange={(e) => setAceptaTerminos(e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer"
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                He leído y acepto los{" "}
+                <a href="https://doraviasoft.com/terminos" target="_blank" rel="noopener" className="text-action underline">Términos y Condiciones</a>
+                , la{" "}
+                <a href="https://doraviasoft.com/privacidad" target="_blank" rel="noopener" className="text-action underline">Política de Privacidad</a>
+                {" "}y la{" "}
+                <a href="https://doraviasoft.com/terminos#reembolsos" target="_blank" rel="noopener" className="text-action underline">Política de Reembolsos</a>
+              </span>
+            </label>
+
             {error && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading || !aceptaTerminos} className="w-full">
               {loading
                 ? "Procesando..."
                 : planSeleccionadoEsGratis

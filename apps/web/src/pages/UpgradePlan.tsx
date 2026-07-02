@@ -323,6 +323,14 @@ export default function UpgradePlan() {
           </div>
         </section>
 
+        <p className="text-center text-xs text-gray-400">
+          Al realizar un pago aceptas nuestros{" "}
+          <a href="https://doraviasoft.com/terminos" target="_blank" rel="noopener" className="text-action hover:underline">Términos y Condiciones</a>
+          {" "}y la{" "}
+          <a href="https://doraviasoft.com/terminos#reembolsos" target="_blank" rel="noopener" className="text-action hover:underline">Política de Reembolsos</a>
+          .
+        </p>
+
         <div className="text-center">
           <button
             className="text-sm text-gray-500 hover:text-gray-700 underline"

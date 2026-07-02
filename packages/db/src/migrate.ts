@@ -42,6 +42,15 @@ const migrations = [
   )`,
   // clave técnica DIAN en resoluciones (agregada al schema pero nunca aplicada via push)
   `ALTER TABLE resoluciones_dian ADD COLUMN IF NOT EXISTS clave_tecnica text`,
+  // tabla de recuperación de contraseña
+  `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES users(id),
+    token_hash varchar(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   // tenant hub para contadores (NIT especial 0000000001)
   `INSERT INTO tenants (nombre, nit, plan_id, plan_starts_at, plan_ends_at, activo, onboarding_completado)
    SELECT 'Hub Contadores Doravia', '0000000001',

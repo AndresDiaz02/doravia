@@ -23,6 +23,7 @@ import gastosRouter from "./routes/gastos.js";
 import iaRouter from "./routes/ia.js";
 import tutorialesRouter from "./routes/tutoriales.js";
 import pagosRouter from "./routes/pagos.js";
+import { boldRouter } from "./routes/bold.js";
 import retencionesRouter from "./routes/retenciones.js";
 import notasCreditoRouter from "./routes/notas-credito.js";
 import exportarRouter from "./routes/exportar.js";
@@ -141,6 +142,7 @@ app.use("/api/gastos",        authenticate, requirePlanFeature("gastos"),       
 app.use("/api/ia",            authenticate, requirePlanFeature("ia_asistente"),            iaRouter);
 app.use("/api/tutoriales",   authenticate, tutorialesRouter);
 app.use("/api/pagos",         pagosRouter); // checkout usa authenticate internamente; webhook es público
+app.use("/api/pagos/bold",    boldRouter);  // Bold: intent, pay, status, webhook
 
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────
 app.use("/api/retenciones",    authenticate, retencionesRouter);

@@ -12,7 +12,10 @@ export default function ResultadoPago() {
   const [isRegistro, setIsRegistro] = useState(false);
   const [registroError, setRegistroError] = useState<string | null>(null);
 
+  // Bold usa ?ref= mientras Wompi usa ?reference=
+  const refBold = params.get("ref") ?? "";
   const ref = params.get("reference") ?? "";
+  const esBold = refBold.startsWith("DORAVIA-");
   const esRegistro = ref.startsWith("DOR-REG-");
 
   const planSlug = (() => {
@@ -27,6 +30,18 @@ export default function ResultadoPago() {
   const esPOS = ["punto", "punto_plus"].includes(planSlug);
 
   useEffect(() => {
+    // Flujo Bold: ?ref=DORAVIA-xxx
+    if (esBold) {
+      const statusParam = params.get("status");
+      if (statusParam === "approved") {
+        setStatus("approved");
+        return;
+      }
+      // Consultar estado en la API
+      verificarPagoBold(refBold);
+      return;
+    }
+
     const wompiId = params.get("id");
 
     if (!wompiId) {
@@ -44,6 +59,30 @@ export default function ResultadoPago() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function verificarPagoBold(referenceId: string, intento = 1) {
+    try {
+      const data = await apiFetch<{ estado: string; transaction_id?: string }>(
+        `/api/pagos/bold/status/${referenceId}`,
+      );
+      if (data.estado === "APPROVED") {
+        setStatus("approved");
+      } else if (data.estado === "REJECTED" || data.estado === "FAILED") {
+        setStatus("declined");
+      } else if (intento < 6) {
+        // RUNNING o PENDING — reintentar
+        setTimeout(() => verificarPagoBold(referenceId, intento + 1), 2500);
+      } else {
+        setStatus("pending");
+      }
+    } catch {
+      if (intento < 3) {
+        setTimeout(() => verificarPagoBold(referenceId, intento + 1), 2000);
+      } else {
+        setStatus("pending");
+      }
+    }
+  }
 
   async function verificarRegistro(wompiReference: string, intento = 1) {
     try {
@@ -114,38 +153,54 @@ export default function ResultadoPago() {
           <p className="text-gray-500 mt-2">{msg.desc}</p>
         </div>
 
-        {status !== "loading" && status !== "approved" && (
+        {status !== "loading" && (
           <div className="space-y-3">
             {isRegistro ? (
-              <Link
-                to="/login"
-                className="inline-block bg-action hover:bg-action-hover text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-              >
-                Ir al inicio de sesión
-              </Link>
-            ) : (
-              esPOS ? (
+              <>
+                {status !== "approved" && (
+                  <Link
+                    to="/login"
+                    className="inline-block bg-action hover:bg-action-hover text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                  >
+                    Ir al inicio de sesión
+                  </Link>
+                )}
+                {status === "declined" && (
+                  <p className="text-xs text-gray-400">
+                    ¿El pago fue aprobado pero no entras?{" "}
+                    <a href="/login" className="text-action hover:underline">Intenta iniciar sesión</a>
+                  </p>
+                )}
+              </>
+            ) : esPOS ? (
+              status === "approved" ? (
                 <Link
                   to="/pos/cajas"
                   className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
                 >
                   Configurar cajas POS →
                 </Link>
-              ) : (
-                <Link
-                  to="/dashboard"
-                  className="inline-block bg-action hover:bg-action-hover text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-                  onClick={() => window.location.reload()}
-                >
-                  Ir al Dashboard
-                </Link>
-              )
-            )}
-            {status === "declined" && isRegistro && (
-              <p className="text-xs text-gray-400">
-                ¿El pago fue aprobado pero no entras?{" "}
-                <a href="/login" className="text-action hover:underline">Intenta iniciar sesión</a>
-              </p>
+              ) : null
+            ) : (
+              <>
+                {status === "approved" && (
+                  <Link
+                    to="/dashboard"
+                    className="inline-block bg-action hover:bg-action-hover text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                    onClick={() => window.location.reload()}
+                  >
+                    Ir al Dashboard
+                  </Link>
+                )}
+                {(status === "declined" || status === "pending") && (
+                  <Link
+                    to="/planes"
+                    className="inline-block border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold px-6 py-3 rounded-lg transition-colors"
+                  >
+                    Intentar de nuevo
+                  </Link>
+                )}
+              </>
             )}
           </div>
         )}

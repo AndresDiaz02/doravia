@@ -28,4 +28,5 @@ export * from "./password_reset_tokens.ts";
 export * from "./tutorial_progress.ts";
 export * from "./contador_registrations.ts";
 export * from "./remisiones.ts";
+export * from "./bold_payments.ts";
 

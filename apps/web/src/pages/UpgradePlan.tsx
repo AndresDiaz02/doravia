@@ -1,26 +1,10 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, cop } from "../lib/api";
+import { cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
-import { Check, Zap, FileText, BarChart3 } from "lucide-react";
-
-interface CheckoutData {
-  public_key: string;
-  currency: string;
-  amount_in_cents: number;
-  reference: string;
-  signature: { integrity: string };
-  redirect_url: string;
-}
-
-declare global {
-  interface Window {
-    WidgetCheckout?: {
-      open: (params: Record<string, unknown>) => void;
-    };
-  }
-}
+import { Check, Zap, FileText, BarChart3, X } from "lucide-react";
+import PagoBold from "../components/PagoBold";
 
 interface OrigenCapacidad {
   slug: string;
@@ -114,50 +98,26 @@ const ORIGEN_SLUGS = ["origen", "origen_24", "origen_60", "origen_120", "origen_
 export default function UpgradePlan() {
   const navigate = useNavigate();
   const { plan: planActual } = useAuth();
-  const [procesando, setProcesando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wompiCargado, setWompiCargado] = useState(false);
 
-  useEffect(() => {
-    if (document.getElementById("wompi-script")) {
-      setWompiCargado(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = "wompi-script";
-    script.src = "https://checkout.wompi.io/widget.js";
-    script.setAttribute("data-render", "false");
-    script.onload = () => setWompiCargado(true);
-    document.body.appendChild(script);
-  }, []);
+  // Estado para el modal de pago Bold
+  const [planBold, setPlanBold] = useState<{ slug: string; nombre: string; precio: number } | null>(null);
 
-  async function iniciarPago(planSlug: string) {
-    if (planSlug === "origen") return; // gratis, no requiere pago
-    setProcesando(planSlug);
+  function abrirPagoBold(planSlug: string) {
+    if (planSlug === "origen") return;
+    // Buscar precio del plan
+    const planOrigen = ORIGEN_CAPACIDADES.find((c) => c.slug === planSlug);
+    const planERP = PLANES_ERP.find((p) => p.slug === planSlug);
+    const precio = planOrigen?.precio ?? planERP?.precio ?? 0;
+    const nombre = planERP?.nombre ?? planSlug;
+    if (precio === 0) return;
+    setPlanBold({ slug: planSlug, nombre, precio });
     setError(null);
-    try {
-      const data = await apiFetch<CheckoutData>("/api/pagos/checkout", {
-        method: "POST",
-        body: JSON.stringify({ plan_slug: planSlug }),
-      });
+  }
 
-      if (!wompiCargado || !window.WidgetCheckout) {
-        throw new Error("El widget de pagos no está disponible. Recarga la página e intenta de nuevo.");
-      }
-
-      window.WidgetCheckout.open({
-        currency: data.currency,
-        amountInCents: data.amount_in_cents,
-        reference: data.reference,
-        publicKey: data.public_key,
-        signature: { integrity: data.signature.integrity },
-        redirectUrl: data.redirect_url,
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Error al iniciar el pago.");
-    } finally {
-      setProcesando(null);
-    }
+  // Para compatibilidad, redirigir a Bold como pasarela primaria
+  function iniciarPago(planSlug: string) {
+    abrirPagoBold(planSlug);
   }
 
   const planSlugActual = (planActual as { slug?: string } | null)?.slug ?? "origen";
@@ -165,6 +125,7 @@ export default function UpgradePlan() {
   const nivelActualERP = ORDEN_ERP.indexOf(planSlugActual);
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-5xl mx-auto space-y-12">
 
@@ -235,10 +196,10 @@ export default function UpgradePlan() {
                         ) : c.precio === 0 ? null : (
                           <button
                             onClick={() => void iniciarPago(c.slug)}
-                            disabled={procesando !== null || !enOrigen}
+                            disabled={!enOrigen}
                             className="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {procesando === c.slug ? "Preparando…" : "Cambiar →"}
+                            Cambiar →
                           </button>
                         )}
                       </td>
@@ -307,14 +268,9 @@ export default function UpgradePlan() {
                   ) : (
                     <Button
                       onClick={() => void iniciarPago(plan.slug)}
-                      disabled={procesando !== null}
                       variant={esUpgrade ? "primary" : "secondary"}
                     >
-                      {procesando === plan.slug
-                        ? "Preparando…"
-                        : esUpgrade
-                        ? `Activar ${plan.nombre}`
-                        : `Cambiar a ${plan.nombre}`}
+                      {esUpgrade ? `Activar ${plan.nombre}` : `Cambiar a ${plan.nombre}`}
                     </Button>
                   )}
                 </div>
@@ -342,5 +298,38 @@ export default function UpgradePlan() {
 
       </div>
     </div>
+
+    {/* ── Modal de pago Bold ───────────────────────────────────────────────── */}
+    {planBold && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">
+                Pagar plan {planBold.nombre}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(planBold.precio)} / año
+              </p>
+            </div>
+            <button
+              onClick={() => setPlanBold(null)}
+              className="rounded-full p-1.5 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-5 w-5 text-gray-500" />
+            </button>
+          </div>
+          <div className="px-6 py-5">
+            <PagoBold
+              planSlug={planBold.slug}
+              monto={planBold.precio}
+              descripcion={`Plan ${planBold.nombre} Doravia — Anual`}
+              onCancelar={() => setPlanBold(null)}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

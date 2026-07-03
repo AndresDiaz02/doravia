@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db, remisiones, items_remision } from "@workspace/db";
-import { eq, and, desc, max, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import type { EstadoRemision } from "@workspace/db";
+import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 
 const router = Router();
 
@@ -84,13 +85,8 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "La remisión debe tener al menos un ítem." });
     }
 
-    // Calcular consecutivo: MAX(consecutivo) + 1 por tenant
-    const [{ max: maxConsecutivo }] = await db
-      .select({ max: max(remisiones.consecutivo) })
-      .from(remisiones)
-      .where(eq(remisiones.tenant_id, req.tenantId));
-
-    const consecutivo = (maxConsecutivo ?? 0) + 1;
+    // Calcular consecutivo con bloqueo para evitar duplicados en inserciones concurrentes
+    const consecutivo = await siguienteConsecutivo("remisiones", "consecutivo", req.tenantId);
     const anio = fecha.slice(0, 4);
     const numero = `REM-${anio}-${String(consecutivo).padStart(4, "0")}`;
 

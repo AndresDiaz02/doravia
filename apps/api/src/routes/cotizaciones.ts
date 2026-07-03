@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db, cotizaciones, items_cotizacion, clientes, facturas } from "@workspace/db";
-import { eq, and, desc, max, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { crearFactura } from "../services/factura.service.js";
 import { requirePlanFeature } from "../middleware/require-plan-feature.js";
 import { PlanLimitError } from "@workspace/shared";
+import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 
 const router = Router();
 
@@ -81,13 +82,8 @@ router.post("/", async (req, res) => {
 
   if (!cliente) return res.status(404).json({ error: "Cliente no encontrado." });
 
-  // Autonumeración
-  const [{ val }] = await db
-    .select({ val: sql<number>`COALESCE(MAX(${cotizaciones.consecutivo}), 0)` })
-    .from(cotizaciones)
-    .where(eq(cotizaciones.tenant_id, req.tenantId));
-
-  const consecutivo = (val ?? 0) + 1;
+  // Autonumeración con bloqueo para evitar duplicados en inserciones concurrentes
+  const consecutivo = await siguienteConsecutivo("cotizaciones", "consecutivo", req.tenantId);
   const numero = `COT-${String(consecutivo).padStart(4, "0")}`;
 
   const itemsCalc = items.map((i: {

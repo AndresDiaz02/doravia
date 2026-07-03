@@ -4,6 +4,7 @@ import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between } from "drizzle-orm";
 import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
+import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
@@ -346,12 +347,8 @@ router.post("/ventas", async (req, res) => {
     .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId), eq(turnos_pos.estado, "abierto")));
   if (!turno) return res.status(400).json({ error: "El turno no está abierto." });
 
-  // Genera consecutivo
-  const [{ conteo }] = await db
-    .select({ conteo: count() })
-    .from(ventas_pos)
-    .where(eq(ventas_pos.tenant_id, req.tenantId));
-  const consecutivo = Number(conteo) + 1;
+  // Genera consecutivo con bloqueo para evitar duplicados en inserciones concurrentes
+  const consecutivo = await siguienteConsecutivo("ventas_pos", "consecutivo", req.tenantId);
   const numero = `POS-${String(consecutivo).padStart(6, "0")}`;
 
   // Calcula totales

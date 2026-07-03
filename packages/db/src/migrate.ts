@@ -153,6 +153,10 @@ const migrations = [
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
+  // Índices únicos como segunda capa de protección contra consecutivos duplicados
+  `CREATE UNIQUE INDEX IF NOT EXISTS ventas_pos_tenant_consecutivo_unique ON ventas_pos(tenant_id, consecutivo)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS remisiones_tenant_consecutivo_unique ON remisiones(tenant_id, consecutivo)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS cotizaciones_tenant_consecutivo_unique ON cotizaciones(tenant_id, consecutivo)`,
   // PLEMSI — integración facturación electrónica DIAN vía Plemsi
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,

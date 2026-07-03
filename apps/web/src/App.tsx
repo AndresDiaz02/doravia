@@ -51,6 +51,7 @@ import CajerosPOS from "./pages/CajerosPOS";
 import Remisiones from "./pages/Remisiones";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
+import Checkout from "./pages/Checkout";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/recuperar-password" element={<RecuperarPassword />} />
           <Route path="/registro-contador" element={<RegistroContador />} />
           <Route path="/registro-contador/confirmar" element={<RegistroContador />} />
+          <Route path="/checkout" element={<Checkout />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />

@@ -71,8 +71,9 @@
         <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Retenciones (IVA, fuente)</div>
       </div>
       <div style="text-align:center;font-size:14px;color:#9FA8C0;margin-bottom:28px;">Solo pagas por los documentos que realmente necesitas. Nada más.</div>
-      <div class="origen-cta">
+      <div class="origen-cta" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
         <a href="#" class="btn-primary" id="origenBtn">Empezar gratis →</a>
+        <a href="#" id="origenBtnSecundario" style="font-size:13px;opacity:0.65;text-decoration:underline;color:#B8C0D6;display:none;">Crear cuenta gratis primero</a>
       </div>
     </div>
 
@@ -167,24 +168,33 @@
 <script>
   const ERP_URL = 'https://app.doraviasoft.com';
   const origenData = [
-    {docs:'10', price:'Gratis', tag:'Para siempre, sin costo', isFree:true, slug:'origen'},
-    {docs:'24', price:'$99.900', tag:null, isFree:false, slug:'origen_24'},
-    {docs:'60', price:'$169.900', tag:null, isFree:false, slug:'origen_60'},
-    {docs:'120', price:'$249.900', tag:null, isFree:false, slug:'origen_120'},
-    {docs:'300', price:'$329.900', tag:null, isFree:false, slug:'origen_300'},
+    {docs:'10', price:'Gratis', tag:'Para siempre, sin costo', isFree:true, slug:'origen', monto:0},
+    {docs:'24', price:'$99.900', tag:null, isFree:false, slug:'origen_24', monto:99900},
+    {docs:'60', price:'$169.900', tag:null, isFree:false, slug:'origen_60', monto:169900},
+    {docs:'120', price:'$249.900', tag:null, isFree:false, slug:'origen_120', monto:249900},
+    {docs:'300', price:'$329.900', tag:null, isFree:false, slug:'origen_300', monto:329900},
   ];
   const slider=document.getElementById('origenSlider');
   const docsLabel=document.getElementById('origenDocsLabel');
   const priceEl=document.getElementById('origenPrice');
   const freeTagEl=document.getElementById('origenFreeTag');
   const btnEl=document.getElementById('origenBtn');
+  const btnSecEl=document.getElementById('origenBtnSecundario');
   function updateOrigen(){
     const d=origenData[slider.value];
     docsLabel.textContent=d.docs;
     priceEl.innerHTML=d.isFree?d.price:`${d.price}<span>/año</span>`;
     if(d.tag){freeTagEl.style.display='inline-block';freeTagEl.textContent=d.tag;}else{freeTagEl.style.display='none';}
-    btnEl.textContent=d.isFree?'Empezar gratis →':'Elegir este plan →';
-    btnEl.href=ERP_URL+'/register?plan='+d.slug;
+    if(d.isFree){
+      btnEl.textContent='Empezar gratis →';
+      btnEl.href=ERP_URL+'/register?plan='+d.slug;
+      btnSecEl.style.display='none';
+    } else {
+      btnEl.textContent='Comprar ahora →';
+      btnEl.href=ERP_URL+'/checkout?plan='+d.slug+'&monto='+d.monto;
+      btnSecEl.style.display='inline-block';
+      btnSecEl.href=ERP_URL+'/register?plan='+d.slug;
+    }
   }
   slider.addEventListener('input',updateOrigen);
   updateOrigen();

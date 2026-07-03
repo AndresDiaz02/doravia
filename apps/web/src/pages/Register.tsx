@@ -66,6 +66,7 @@ export function Register() {
   const [params] = useSearchParams();
   const planFromUrl = params.get("plan") ?? "";
   const planFijo = planFromUrl in PLANES_INFO ? planFromUrl : "";
+  const redirectAfterRegister = params.get("redirect") ?? "";
 
   const [form, setForm] = useState({
     plan_slug: planFijo || "semilla",
@@ -109,7 +110,7 @@ export function Register() {
       if (!data.payment_required) {
         // Plan gratuito: cuenta activa, login directo
         await login(data.accessToken, data.refreshToken);
-        navigate("/configuracion/dian", { replace: true });
+        navigate(redirectAfterRegister || "/configuracion/dian", { replace: true });
         return;
       }
 

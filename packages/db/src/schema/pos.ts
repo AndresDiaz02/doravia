@@ -3,6 +3,7 @@ import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { productos } from "./productos.ts";
 import { asientos_contables } from "./contabilidad.ts";
+import { bodegas } from "./bodegas.ts";
 
 export const METODOS_PAGO_POS = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata", "mixto"] as const;
 export type MetodoPagoPOS = (typeof METODOS_PAGO_POS)[number];
@@ -47,6 +48,8 @@ export const turnos_pos = pgTable("turnos_pos", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
   caja_id: uuid("caja_id").notNull().references(() => cajas_pos.id),
+  // Bodega desde la cual se descuenta el inventario en este turno
+  bodega_id: uuid("bodega_id").references(() => bodegas.id),
   usuario_id: uuid("usuario_id").notNull(),
   monto_inicial: numeric("monto_inicial", { precision: 14, scale: 2 }).notNull().default("0"),
   monto_final_declarado: numeric("monto_final_declarado", { precision: 14, scale: 2 }),

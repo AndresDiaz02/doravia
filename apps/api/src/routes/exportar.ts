@@ -218,6 +218,51 @@ router.get("/inventario", async (req, res) => {
   }
 });
 
+// GET /api/exportar/productos
+// Exporta todos los productos del tenant con stock actual, precio e IVA
+router.get("/productos", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        codigo:       productos.codigo,
+        nombre:       productos.nombre,
+        descripcion:  productos.descripcion,
+        tipo:         productos.tipo,
+        precio_base:  productos.precio_base,
+        precio_venta: productos.precio_venta,
+        iva_pct:      productos.iva_pct,
+        stock_actual: productos.stock_actual,
+        unidad:       productos.unidad,
+        activo:       productos.activo,
+      })
+      .from(productos)
+      .where(eq(productos.tenant_id, req.tenantId))
+      .orderBy(productos.nombre);
+
+    const data = rows.map((p) => ({
+      "Código":       p.codigo,
+      "Nombre":       p.nombre,
+      "Descripción":  p.descripcion ?? "",
+      "Tipo":         p.tipo === "producto" ? "Producto" : "Servicio",
+      "Precio base":  Number(p.precio_base),
+      "Precio venta": Number(p.precio_venta ?? p.precio_base),
+      "IVA %":        Number(p.iva_pct),
+      "Stock actual": Number(p.stock_actual ?? 0),
+      "Unidad":       p.unidad ?? "",
+      "Activo":       p.activo ? "Sí" : "No",
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [10, 35, 30, 10, 14, 14, 8, 12, 8, 6].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Productos");
+    enviarExcel(res, wb, "productos.xlsx");
+  } catch (err) {
+    console.error("Error en GET /exportar/productos:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // GET /api/exportar/datos-empresa
 // Exporta todos los datos personales del tenant como JSON (Ley 1581 — portabilidad de datos).
 // Solo para administradores.

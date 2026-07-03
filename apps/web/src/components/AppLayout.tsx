@@ -2,6 +2,7 @@ import { type ElementType, useState, type FormEvent, useRef, useEffect, useCallb
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
+  Bell,
   BookOpen,
   Building2,
   CalendarClock,
@@ -93,6 +94,16 @@ const CONFIG_BASE = [
 // Ítem DIAN solo visible si la empresa tiene facturación electrónica habilitada
 const CONFIG_DIAN = { to: "/configuracion/dian", label: "Resolución DIAN", icon: Settings };
 
+interface Notificacion {
+  id: string;
+  tipo: string;
+  titulo: string;
+  descripcion: string;
+  urgencia: "alta" | "media" | "baja";
+  link: string;
+  count?: number;
+}
+
 export function AppLayout() {
   const { user, tenant, plan, empresas, logout, isContador, isVendedor, isFundador } = useAuth();
   const { isDark, toggleDark } = useDarkMode(user?.dark_mode);
@@ -102,6 +113,35 @@ export function AppLayout() {
   const empresaMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // ── Notificaciones inteligentes ──────────────────────────────────────────────
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+  const [showNotif, setShowNotif] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const cargarNotificaciones = useCallback(() => {
+    void apiFetch<Notificacion[]>("/api/notificaciones").then(setNotificaciones).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    cargarNotificaciones();
+    // Polling cada 5 minutos
+    const t = setInterval(cargarNotificaciones, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [cargarNotificaciones]);
+
+  // Cerrar dropdown al hacer clic afuera
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotif(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const notifUrgentes = notificaciones.filter((n) => n.urgencia === "alta").length;
 
   // Cierra el sidebar en mobile al cambiar de ruta
   useEffect(() => {
@@ -385,6 +425,26 @@ export function AppLayout() {
               <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{user?.nombre}</p>
               <p className="truncate text-xs text-gray-400">{user?.email}</p>
             </div>
+            {/* Campana de notificaciones (desktop) */}
+            <div className="relative hidden md:block">
+              <button
+                onClick={() => setShowNotif((v) => !v)}
+                className="relative flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                title="Notificaciones"
+              >
+                <Bell className="h-4 w-4" />
+                {notifUrgentes > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {notifUrgentes > 9 ? "9+" : notifUrgentes}
+                  </span>
+                )}
+              </button>
+              {showNotif && (
+                <div className="absolute bottom-full mb-2 right-0">
+                  <NotifDropdown notificaciones={notificaciones} onClose={() => setShowNotif(false)} />
+                </div>
+              )}
+            </div>
             <button
               onClick={toggleDark}
               className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -421,6 +481,24 @@ export function AppLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate flex-1">{tenant?.nombre}</p>
+          {/* Campana de notificaciones (móvil) */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setShowNotif((v) => !v)}
+              className="relative rounded p-1.5 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Notificaciones"
+            >
+              <Bell className="h-4 w-4" />
+              {notifUrgentes > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {notifUrgentes > 9 ? "9+" : notifUrgentes}
+                </span>
+              )}
+            </button>
+            {showNotif && (
+              <NotifDropdown notificaciones={notificaciones} onClose={() => setShowNotif(false)} />
+            )}
+          </div>
           <button
             onClick={toggleDark}
             className="rounded p-1.5 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -490,6 +568,73 @@ export function AppLayout() {
           </form>
         )}
       </Dialog>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Dropdown de notificaciones inteligentes
+// ─────────────────────────────────────────────────────────────
+
+const URGENCIA_COLOR: Record<string, string> = {
+  alta:  "text-red-600 bg-red-50 border-red-200",
+  media: "text-amber-700 bg-amber-50 border-amber-200",
+  baja:  "text-gray-600 bg-gray-50 border-gray-200",
+};
+
+const URGENCIA_PUNTO: Record<string, string> = {
+  alta:  "bg-red-500",
+  media: "bg-amber-400",
+  baja:  "bg-gray-400",
+};
+
+function NotifDropdown({ notificaciones, onClose }: { notificaciones: Notificacion[]; onClose: () => void }) {
+  const navigate = useNavigate();
+  return (
+    <div className="w-80 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl z-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Notificaciones
+          {notificaciones.length > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+              {notificaciones.length}
+            </span>
+          )}
+        </p>
+      </div>
+      {notificaciones.length === 0 ? (
+        <div className="px-4 py-6 text-center">
+          <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">Sin alertas activas</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-80 overflow-y-auto">
+          {notificaciones.map((n) => (
+            <li key={n.id}>
+              <button
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => {
+                  onClose();
+                  void navigate(n.link);
+                }}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${URGENCIA_PUNTO[n.urgencia] ?? "bg-gray-400"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{n.titulo}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.descripcion}</p>
+                  </div>
+                  {n.count && n.count > 0 && (
+                    <span className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${URGENCIA_COLOR[n.urgencia] ?? ""}`}>
+                      {n.count}
+                    </span>
+                  )}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

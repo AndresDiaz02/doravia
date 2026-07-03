@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
-import { Plus, Upload, Download } from "lucide-react";
-import { apiFetch, ApiError, cop } from "../lib/api";
+import { Plus, Upload, Download, FileDown } from "lucide-react";
+import { apiFetch, ApiError, cop, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -159,6 +159,10 @@ export function Productos() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Productos y servicios</h1>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/productos", "productos.xlsx")}>
+            <FileDown className="h-4 w-4" />
+            Exportar Excel
+          </Button>
           <Button variant="secondary" onClick={descargarPlantilla}>
             <Download className="h-4 w-4" />
             Plantilla

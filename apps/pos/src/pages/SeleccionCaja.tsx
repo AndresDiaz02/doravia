@@ -21,7 +21,8 @@ export interface CajaConfig {
 }
 
 interface Caja { id: string; nombre: string; descripcion: string | null; activo: boolean; config: CajaConfig | null; }
-interface TurnoActivo { id: string; caja_id: string; apertura_at: string; monto_inicial: string; total_ventas: string; }
+interface TurnoActivo { id: string; caja_id: string; bodega_id: string | null; apertura_at: string; monto_inicial: string; total_ventas: string; }
+interface Bodega { id: string; nombre: string; }
 
 interface Props {
   onTurnoAbierto: (turnoId: string, cajaId: string, cajaNombre: string, cajaConfig: CajaConfig | null) => void;
@@ -31,9 +32,11 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
   const { user, logout } = useAuth();
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [turnosActivos, setTurnosActivos] = useState<Record<string, TurnoActivo>>({});
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [loading, setLoading] = useState(true);
   const [abriendo, setAbriendo] = useState<string | null>(null);
   const [montoInicial, setMontoInicial] = useState("0");
+  const [bodegaSeleccionada, setBodegaSeleccionada] = useState<string>("");
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +44,15 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
     Promise.all([
       apiFetch<Caja[]>("/api/pos/cajas"),
       apiFetch<TurnoActivo[]>("/api/pos/turnos/activos"),
-    ]).then(([cajasData, turnosData]) => {
+      apiFetch<Bodega[]>("/api/bodegas").catch(() => [] as Bodega[]),
+    ]).then(([cajasData, turnosData, bodegasData]) => {
       setCajas(cajasData.filter((c) => c.activo));
       const map: Record<string, TurnoActivo> = {};
       for (const t of turnosData) map[t.caja_id] = t;
       setTurnosActivos(map);
+      setBodegas(bodegasData);
+      // Preseleccionar la primera bodega si solo hay una
+      if (bodegasData.length === 1) setBodegaSeleccionada(bodegasData[0].id);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -56,16 +63,27 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
       return;
     }
     setCajaSeleccionada(caja);
+    // Si solo hay una bodega, ya estará preseleccionada
   }
 
   async function confirmarApertura() {
     if (!cajaSeleccionada) return;
+    // Si hay múltiples bodegas y no se seleccionó ninguna, bloquear
+    if (bodegas.length > 1 && !bodegaSeleccionada) {
+      setError("Selecciona una bodega para este turno.");
+      return;
+    }
     setAbriendo(cajaSeleccionada.id);
     setError(null);
     try {
+      const body: Record<string, unknown> = {
+        caja_id: cajaSeleccionada.id,
+        monto_inicial: Number(montoInicial),
+      };
+      if (bodegaSeleccionada) body.bodega_id = bodegaSeleccionada;
       const turno = await apiFetch<TurnoActivo>("/api/pos/turnos", {
         method: "POST",
-        body: JSON.stringify({ caja_id: cajaSeleccionada.id, monto_inicial: Number(montoInicial) }),
+        body: JSON.stringify(body),
       });
       onTurnoAbierto(turno.id, cajaSeleccionada.id, cajaSeleccionada.nombre, cajaSeleccionada.config);
     } catch (err) {
@@ -139,11 +157,12 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
           </div>
         )}
 
-        {/* Modal monto inicial */}
+        {/* Modal monto inicial + bodega */}
         {cajaSeleccionada && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
               <p className="text-lg font-semibold text-gray-900 dark:text-white">Abrir turno — {cajaSeleccionada.nombre}</p>
+
               <div className="space-y-1.5">
                 <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Monto inicial en caja ($)</label>
                 <input
@@ -154,6 +173,29 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
                   autoFocus
                 />
               </div>
+
+              {/* Selector de bodega — solo aparece si el tenant tiene más de una bodega */}
+              {bodegas.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">
+                    Bodega de inventario
+                  </label>
+                  <select
+                    value={bodegaSeleccionada}
+                    onChange={(e) => setBodegaSeleccionada(e.target.value)}
+                    className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="">Selecciona una bodega…</option>
+                    {bodegas.map((b) => (
+                      <option key={b.id} value={b.id}>{b.nombre}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">
+                    El inventario se descontará de esta bodega al vender.
+                  </p>
+                </div>
+              )}
+
               {error && <p className="rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/50 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
               <div className="flex gap-3">
                 <button

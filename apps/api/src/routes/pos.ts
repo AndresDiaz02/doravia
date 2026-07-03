@@ -170,7 +170,11 @@ router.get("/turnos", async (req, res) => {
 });
 
 router.post("/turnos", async (req, res) => {
-  const { caja_id, monto_inicial } = req.body as { caja_id?: string; monto_inicial?: number };
+  const { caja_id, monto_inicial, bodega_id } = req.body as {
+    caja_id?: string;
+    monto_inicial?: number;
+    bodega_id?: string;
+  };
   if (!caja_id) return res.status(400).json({ error: "Campo requerido: caja_id." });
 
   // Verifica que la caja sea del tenant
@@ -192,11 +196,30 @@ router.post("/turnos", async (req, res) => {
     });
   }
 
+  // Determinar bodega: usar la enviada si existe y pertenece al tenant; si no, la primera activa
+  let bodegaFinal: string | null = null;
+  if (bodega_id) {
+    const [bod] = await db
+      .select({ id: bodegas.id })
+      .from(bodegas)
+      .where(and(eq(bodegas.id, bodega_id), eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)));
+    if (!bod) return res.status(404).json({ error: "Bodega no encontrada o inactiva." });
+    bodegaFinal = bod.id;
+  } else {
+    const [bodPrincipal] = await db
+      .select({ id: bodegas.id })
+      .from(bodegas)
+      .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
+      .limit(1);
+    bodegaFinal = bodPrincipal?.id ?? null;
+  }
+
   const [turno] = await db
     .insert(turnos_pos)
     .values({
       tenant_id: req.tenantId,
       caja_id,
+      bodega_id: bodegaFinal,
       usuario_id: req.userId,
       monto_inicial: String(monto_inicial ?? 0),
     })
@@ -374,14 +397,19 @@ router.post("/ventas", async (req, res) => {
       }))
     );
 
-    // Descuenta inventario (la bodega del tenant — se usa la primera activa)
-    const [bodegaPrincipal] = await tx
-      .select({ id: bodegas.id })
-      .from(bodegas)
-      .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
-      .limit(1);
+    // Descuenta inventario usando la bodega del turno activo (multi-bodega)
+    // Si el turno no tiene bodega asignada, se usa la primera bodega activa del tenant
+    let bodegaIdParaInventario = turno.bodega_id;
+    if (!bodegaIdParaInventario) {
+      const [bodPrincipal] = await tx
+        .select({ id: bodegas.id })
+        .from(bodegas)
+        .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
+        .limit(1);
+      bodegaIdParaInventario = bodPrincipal?.id ?? null;
+    }
 
-    if (bodegaPrincipal) {
+    if (bodegaIdParaInventario) {
       for (const item of items) {
         if (!item.producto_id) continue;
         await tx
@@ -392,7 +420,7 @@ router.post("/ventas", async (req, res) => {
         await tx.insert(movimientos_inventario).values({
           tenant_id: req.tenantId,
           producto_id: item.producto_id,
-          bodega_id: bodegaPrincipal.id,
+          bodega_id: bodegaIdParaInventario,
           tipo: "salida",
           cantidad: String(item.cantidad),
           costo_unitario: String(item.precio_unitario),

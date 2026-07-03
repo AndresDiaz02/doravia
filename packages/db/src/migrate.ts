@@ -134,6 +134,8 @@ const migrations = [
   // TAREA 9 — normalizar fechas en remisiones (varchar → date)
   `ALTER TABLE remisiones ALTER COLUMN fecha TYPE date USING fecha::date`,
   `ALTER TABLE remisiones ALTER COLUMN fecha_entrega TYPE date USING fecha_entrega::date`,
+  // TAREA 10 — bodega_id en turnos_pos para soporte multi-bodega en POS
+  `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS bodega_id uuid REFERENCES bodegas(id)`,
 ];
 
 for (const migration of migrations) {

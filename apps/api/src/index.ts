@@ -38,6 +38,7 @@ import miPlanRouter from "./routes/mi-plan.js";
 import soporteRouter from "./routes/soporte.js";
 import { contadoresRouter } from "./routes/contadores.js";
 import remisionesRouter from "./routes/remisiones.js";
+import notificacionesRouter from "./routes/notificaciones.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
@@ -157,6 +158,7 @@ app.use("/api/soporte",        authenticate, soporteRouter);
 app.use("/api/remisiones",     authenticate, remisionesRouter);
 app.use("/api/contadores",     contadoresRouter); // registro público + rutas autenticadas internas
 app.use("/api/fundador",       requireFundador, fundadorRouter);
+app.use("/api/notificaciones", authenticate, notificacionesRouter);
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

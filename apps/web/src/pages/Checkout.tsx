@@ -1,4 +1,4 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import PagoBold from "../components/PagoBold";
 
 const PLANES: Record<string, { nombre: string; descripcion: string; color: string; textoColor: string }> = {
@@ -16,16 +16,11 @@ const PLANES: Record<string, { nombre: string; descripcion: string; color: strin
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   const plan = searchParams.get("plan") ?? "semilla";
   const monto = Number(searchParams.get("monto") ?? "730000");
   const planInfo = PLANES[plan] ?? PLANES.semilla;
   const montoFormateado = monto.toLocaleString("es-CO");
-
-  function alPagarExitoso(referenceId: string) {
-    navigate(`/registro-post-pago?ref=${referenceId}&plan=${plan}&monto=${monto}`);
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
@@ -62,19 +57,16 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* Formulario de pago Bold — sin autenticación */}
-        <PagoBold
-          planSlug={plan}
-          monto={monto}
-          descripcion={`Plan ${planInfo.nombre} Doravia — Anual`}
-          apiBase="/api/pagos/bold/public"
-          onPagoExitoso={alPagarExitoso}
-          onCancelar={() => { window.location.href = "https://doraviasoft.com"; }}
-        />
-
-        <p className="text-xs text-gray-400 text-center mt-4">
-          Pago seguro procesado por Bold · Aceptamos tarjeta, PSE, Nequi y Bancolombia
-        </p>
+        {/* Botón de pago Bold — sin autenticación */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <PagoBold
+            planSlug={plan}
+            monto={monto}
+            descripcion={`Plan ${planInfo.nombre} Doravia — Anual`}
+            apiBase="/api/pagos/bold/public"
+            onCancelar={() => { window.location.href = "https://doraviasoft.com"; }}
+          />
+        </div>
       </div>
     </div>
   );

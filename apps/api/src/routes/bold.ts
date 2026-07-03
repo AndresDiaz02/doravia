@@ -1,16 +1,16 @@
 import { Router } from "express";
-import { db, plans, tenants, bold_payments, user_accesos, comisiones_contador, users } from "@workspace/db";
+import { db, plans, tenants, bold_payments, user_accesos, comisiones_contador } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 import { verifyAccessToken } from "../services/auth.service.js";
-import { bold, type BoldPaymentAttempt as BoldPaymentAttemptType } from "../services/bold.service.js";
+import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
 
 const router = Router();
 
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
 const POS_PLANS = ["punto", "punto_plus"];
 
-// ── Lógica de activar plan (idéntica a Wompi) ─────────────────────────────────
+// ── Lógica de activar plan ────────────────────────────────────────────────────
 async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
   if (POS_PLANS.includes(planSlug)) {
     const [t] = await db.select({ addons: tenants.addons }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
@@ -85,19 +85,8 @@ async function generarComisionContador(
   console.log(`[Bold] Comisión ${tipo} generada: $${valor_cop} COP para contador ${acceso.user_id}`);
 }
 
-// ── GET /api/pagos/bold/bancos-pse ────────────────────────────────────────────
-router.get("/bancos-pse", async (_req, res) => {
-  try {
-    const result = await bold.bancosPSE();
-    if (!result.ok) return res.status(502).json({ error: result.error ?? "Error consultando bancos PSE." });
-    return res.json(result.data);
-  } catch (err) {
-    console.error("[Bold] Error en GET /bancos-pse:", err);
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
-
-// ── POST /api/pagos/bold/intent ───────────────────────────────────────────────
+// ── POST /api/pagos/bold/intent (clientes existentes, autenticados) ───────────
+// Genera referencia + firma para el botón Bold. No llama a Bold API.
 router.post("/intent", authenticate, async (req, res) => {
   try {
     const { plan_id, monto, descripcion } = req.body as {
@@ -112,32 +101,8 @@ router.post("/intent", authenticate, async (req, res) => {
 
     const tenantId = req.tenantId;
     const reference_id = `DORAVIA-${tenantId.slice(0, 8)}-${Date.now()}`;
-    const callback_url = `${APP_URL}/resultado-pago?ref=${reference_id}`;
     const desc = descripcion ?? `Suscripción Doravia — ${plan_id}`;
 
-    // Datos del usuario para Bold
-    const [userData] = await db
-      .select({ nombre: users.nombre, email: users.email })
-      .from(users)
-      .where(eq(users.id, req.userId))
-      .limit(1);
-    const userName = userData?.nombre ?? "Usuario Doravia";
-    const userEmail = userData?.email ?? "";
-
-    const intentBody = {
-      reference_id,
-      amount: { currency: "COP" as const, total_amount: monto },
-      description: desc,
-      callback_url,
-      customer: { name: userName, email: userEmail },
-    };
-
-    const result = await bold.crearIntencion(intentBody);
-    if (!result.ok) {
-      return res.status(502).json({ error: result.error ?? "No se pudo crear la intención de pago." });
-    }
-
-    // Guardar en bold_payments con estado PENDING
     await db.insert(bold_payments).values({
       tenant_id: tenantId,
       reference_id,
@@ -146,111 +111,23 @@ router.post("/intent", authenticate, async (req, res) => {
       moneda: "COP",
       estado: "PENDING",
       descripcion: desc,
-      callback_url,
-      bold_response: result.data,
+      callback_url: `${APP_URL}/pago/resultado?ref=${reference_id}`,
     });
 
-    return res.json({ reference_id, ...result.data });
+    const firma = generarFirma(reference_id, monto);
+
+    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY });
   } catch (err) {
     console.error("[Bold] Error en POST /intent:", err);
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// ── POST /api/pagos/bold/pay ──────────────────────────────────────────────────
-router.post("/pay", authenticate, async (req, res) => {
-  try {
-    const { reference_id, payment_method, payer, device_fingerprint } = req.body as {
-      reference_id?: string;
-      payment_method?: Record<string, unknown>;
-      payer?: Record<string, unknown>;
-      device_fingerprint?: Record<string, unknown>;
-    };
-
-    if (!reference_id || !payment_method || !payer) {
-      return res.status(400).json({ error: "reference_id, payment_method y payer son requeridos." });
-    }
-
-    const tenantId = req.tenantId;
-
-    // Verificar que el pago pertenece a este tenant
-    const [registro] = await db
-      .select()
-      .from(bold_payments)
-      .where(and(eq(bold_payments.reference_id, reference_id), eq(bold_payments.tenant_id, tenantId)))
-      .limit(1);
-
-    if (!registro) {
-      return res.status(404).json({ error: "Referencia de pago no encontrada." });
-    }
-
-    const payBody = {
-      reference_id,
-      payer: payer as BoldPaymentAttemptType["payer"],
-      payment_method,
-      device_fingerprint: device_fingerprint ?? {},
-    };
-
-    const result = await bold.ejecutarPago(payBody as BoldPaymentAttemptType);
-
-    const boldData = result.data ?? {};
-    const transaction_id = boldData.transaction_id as string | undefined;
-    const boldStatus = (boldData.status as string | undefined) ?? "";
-    const next_actions = boldData.next_actions as Array<{ type: string; redirect_url?: string }> | undefined;
-    const metodoPago = (payment_method.name as string | undefined) ?? "";
-
-    // Actualizar registro
-    await db.update(bold_payments).set({
-      transaction_id: transaction_id ?? registro.transaction_id,
-      metodo_pago: metodoPago,
-      estado: boldStatus || "RUNNING",
-      bold_response: boldData,
-      updated_at: new Date(),
-    }).where(eq(bold_payments.reference_id, reference_id));
-
-    if (!result.ok) {
-      // Marcar como rechazado
-      await db.update(bold_payments).set({ estado: "REJECTED", updated_at: new Date() })
-        .where(eq(bold_payments.reference_id, reference_id));
-      return res.status(402).json({ error: result.error ?? "Pago rechazado.", data: boldData });
-    }
-
-    // Verificar si requiere acción adicional (3DS / redirect)
-    if (next_actions && next_actions.length > 0) {
-      const redirect = next_actions.find((a) => a.redirect_url);
-      return res.json({
-        requires_action: true,
-        redirect_url: redirect?.redirect_url,
-        next_actions,
-        transaction_id,
-        status: boldStatus,
-      });
-    }
-
-    // Pago aprobado directamente
-    if (boldStatus === "APPROVED") {
-      await db.update(bold_payments).set({ estado: "APPROVED", updated_at: new Date() })
-        .where(eq(bold_payments.reference_id, reference_id));
-      if (registro.plan_id) {
-        await activarPlan(tenantId, registro.plan_id);
-      }
-    }
-
-    return res.json({ requires_action: false, status: boldStatus, transaction_id, data: boldData });
-  } catch (err) {
-    console.error("[Bold] Error en POST /pay:", err);
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
-
-// ── GET /api/pagos/bold/status/:reference_id ─────────────────────────────────
-// Este endpoint verifica el token pero NO bloquea por suscripción vencida,
-// porque el usuario puede necesitar verificar el resultado tras renovar el plan.
+// ── GET /api/pagos/bold/status/:reference_id (clientes autenticados) ──────────
 router.get("/status/:reference_id", async (req, res) => {
   try {
     const { reference_id } = req.params;
 
-    // Verificar JWT sin chequeo de suscripción
     const header = req.headers.authorization;
     if (!header?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Se requiere autenticación." });
@@ -273,33 +150,36 @@ router.get("/status/:reference_id", async (req, res) => {
       return res.status(404).json({ error: "Referencia de pago no encontrada." });
     }
 
-    // Consultar estado actual en Bold
     const result = await bold.estadoPago(reference_id);
     if (!result.ok) {
-      // Retornar el estado local si Bold no responde
       return res.json({ reference_id, estado: registro.estado, transaction_id: registro.transaction_id });
     }
 
     const boldData = result.data ?? {};
-    const boldStatus = (boldData.status as string | undefined) ?? registro.estado;
+    // Bold devuelve "payment_status" en la API del botón de pagos
+    const boldStatus =
+      (boldData.payment_status as string | undefined) ??
+      (boldData.status as string | undefined) ??
+      registro.estado;
 
-    // Si Bold dice APPROVED y en BD no está aún aprobado → actualizar plan
     if (boldStatus === "APPROVED" && registro.estado !== "APPROVED") {
-      await db.update(bold_payments).set({ estado: "APPROVED", bold_response: boldData, updated_at: new Date() })
+      await db.update(bold_payments)
+        .set({ estado: "APPROVED", bold_response: boldData, updated_at: new Date() })
         .where(eq(bold_payments.reference_id, reference_id));
       if (registro.plan_id) {
         await activarPlan(tenantId, registro.plan_id);
       }
     } else if (boldStatus !== registro.estado) {
-      await db.update(bold_payments).set({ estado: boldStatus, bold_response: boldData, updated_at: new Date() })
+      await db.update(bold_payments)
+        .set({ estado: boldStatus, bold_response: boldData, updated_at: new Date() })
         .where(eq(bold_payments.reference_id, reference_id));
     }
 
     return res.json({
       reference_id,
       estado: boldStatus,
+      plan_id: registro.plan_id,
       transaction_id: registro.transaction_id ?? (boldData.transaction_id as string | undefined),
-      data: boldData,
     });
   } catch (err) {
     console.error("[Bold] Error en GET /status/:reference_id:", err);
@@ -307,16 +187,14 @@ router.get("/status/:reference_id", async (req, res) => {
   }
 });
 
-// ── POST /api/pagos/bold/public/intent ────────────────────────────────────────
-// Para clientes nuevos que aún no tienen cuenta. Sin autenticación.
+// ── POST /api/pagos/bold/public/intent (clientes nuevos, sin cuenta) ──────────
+// Genera referencia + firma para el botón Bold. No llama a Bold API.
 router.post("/public/intent", async (req, res) => {
   try {
-    const { plan_id, monto, descripcion, nombre, email } = req.body as {
+    const { plan_id, monto, descripcion } = req.body as {
       plan_id?: string;
       monto?: number;
       descripcion?: string;
-      nombre?: string;
-      email?: string;
     };
 
     if (!plan_id || !monto) {
@@ -324,23 +202,9 @@ router.post("/public/intent", async (req, res) => {
     }
 
     const reference_id = `DORAVIA-NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    const callback_url = `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${monto}`;
     const desc = descripcion ?? `Suscripción Doravia — ${plan_id}`;
 
-    const intentBody = {
-      reference_id,
-      amount: { currency: "COP" as const, total_amount: monto },
-      description: desc,
-      callback_url,
-      customer: { name: nombre ?? "Cliente Doravia", email: email ?? "" },
-    };
-
-    const result = await bold.crearIntencion(intentBody);
-    if (!result.ok) {
-      return res.status(502).json({ error: result.error ?? "No se pudo crear la intención de pago." });
-    }
-
-    // Guardar sin tenant_id — se asigna cuando el cliente crea su cuenta
+    // tenant_id queda NULL hasta que el cliente crea su cuenta
     await db.insert(bold_payments).values({
       reference_id,
       plan_id,
@@ -348,96 +212,19 @@ router.post("/public/intent", async (req, res) => {
       moneda: "COP",
       estado: "PENDING",
       descripcion: desc,
-      callback_url,
-      bold_response: result.data,
+      callback_url: `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${monto}`,
     });
 
-    return res.json({ reference_id, ...result.data });
+    const firma = generarFirma(reference_id, monto);
+
+    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY });
   } catch (err) {
     console.error("[Bold] Error en POST /public/intent:", err);
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// ── POST /api/pagos/bold/public/pay ───────────────────────────────────────────
-// Para clientes nuevos que aún no tienen cuenta. Sin autenticación.
-router.post("/public/pay", async (req, res) => {
-  try {
-    const { reference_id, payment_method, payer, device_fingerprint } = req.body as {
-      reference_id?: string;
-      payment_method?: Record<string, unknown>;
-      payer?: Record<string, unknown>;
-      device_fingerprint?: Record<string, unknown>;
-    };
-
-    if (!reference_id || !payment_method || !payer) {
-      return res.status(400).json({ error: "reference_id, payment_method y payer son requeridos." });
-    }
-
-    const [registro] = await db
-      .select()
-      .from(bold_payments)
-      .where(eq(bold_payments.reference_id, reference_id))
-      .limit(1);
-
-    if (!registro || registro.tenant_id !== null) {
-      return res.status(404).json({ error: "Referencia de pago no encontrada o ya asociada a una cuenta." });
-    }
-
-    const payBody = {
-      reference_id,
-      payer: payer as BoldPaymentAttemptType["payer"],
-      payment_method,
-      device_fingerprint: device_fingerprint ?? {},
-    };
-
-    const result = await bold.ejecutarPago(payBody as BoldPaymentAttemptType);
-
-    const boldData = result.data ?? {};
-    const transaction_id = boldData.transaction_id as string | undefined;
-    const boldStatus = (boldData.status as string | undefined) ?? "";
-    const next_actions = boldData.next_actions as Array<{ type: string; redirect_url?: string }> | undefined;
-    const metodoPago = (payment_method.name as string | undefined) ?? "";
-
-    await db.update(bold_payments).set({
-      transaction_id: transaction_id ?? registro.transaction_id,
-      metodo_pago: metodoPago,
-      estado: boldStatus || "RUNNING",
-      bold_response: boldData,
-      updated_at: new Date(),
-    }).where(eq(bold_payments.reference_id, reference_id));
-
-    if (!result.ok) {
-      await db.update(bold_payments).set({ estado: "REJECTED", updated_at: new Date() })
-        .where(eq(bold_payments.reference_id, reference_id));
-      return res.status(402).json({ error: result.error ?? "Pago rechazado.", data: boldData });
-    }
-
-    if (next_actions && next_actions.length > 0) {
-      const redirect = next_actions.find((a) => a.redirect_url);
-      return res.json({
-        requires_action: true,
-        redirect_url: redirect?.redirect_url,
-        next_actions,
-        transaction_id,
-        status: boldStatus,
-      });
-    }
-
-    if (boldStatus === "APPROVED") {
-      await db.update(bold_payments).set({ estado: "APPROVED", updated_at: new Date() })
-        .where(eq(bold_payments.reference_id, reference_id));
-    }
-
-    return res.json({ requires_action: false, status: boldStatus, transaction_id, data: boldData });
-  } catch (err) {
-    console.error("[Bold] Error en POST /public/pay:", err);
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
-
-// ── GET /api/pagos/bold/public/status/:reference_id ───────────────────────────
-// Consulta el estado de un pago sin autenticación (para flujo post-registro).
+// ── GET /api/pagos/bold/public/status/:reference_id (sin autenticación) ───────
 router.get("/public/status/:reference_id", async (req, res) => {
   try {
     const { reference_id } = req.params;
@@ -454,34 +241,39 @@ router.get("/public/status/:reference_id", async (req, res) => {
       return res.json({ reference_id, estado: registro.estado });
     }
 
-    const boldStatus = ((result.data as Record<string, unknown>)?.status as string | undefined) ?? registro.estado;
+    const boldData = result.data ?? {};
+    const boldStatus =
+      (boldData.payment_status as string | undefined) ??
+      (boldData.status as string | undefined) ??
+      registro.estado;
+
     if (boldStatus !== registro.estado) {
-      await db.update(bold_payments).set({ estado: boldStatus, updated_at: new Date() })
+      await db.update(bold_payments)
+        .set({ estado: boldStatus, updated_at: new Date() })
         .where(eq(bold_payments.reference_id, reference_id));
     }
 
-    return res.json({ reference_id, estado: boldStatus });
+    return res.json({ reference_id, estado: boldStatus, plan_id: registro.plan_id });
   } catch (err) {
     console.error("[Bold] Error en GET /public/status:", err);
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// ── POST /api/pagos/bold/webhook (sin autenticación — viene de Bold) ──────────
+// ── POST /api/pagos/bold/webhook (viene de Bold, sin autenticación) ───────────
 router.post("/webhook", async (req, res) => {
   try {
-    const event = req.body as {
-      event?: string;
-      data?: {
-        reference_id?: string;
-        transaction_id?: string;
-        status?: string;
-      };
-    };
+    const body = req.body as Record<string, unknown>;
 
-    const reference_id = event?.data?.reference_id;
-    const transaction_id = event?.data?.transaction_id;
-    const status = event?.data?.status;
+    // Bold puede enviar el body en formato plano o anidado en { data: {...} }
+    const data = (body.data as Record<string, unknown> | undefined) ?? body;
+
+    const reference_id = (data.reference_id ?? body.reference_id) as string | undefined;
+    const status =
+      ((data.payment_status ?? data.status ?? body.payment_status) as string | undefined);
+    const transaction_id = (data.transaction_id ?? body.transaction_id) as string | undefined;
+
+    console.log(`[Bold Webhook] reference_id=${reference_id} status=${status}`);
 
     if (!reference_id || !status) return res.sendStatus(200);
 
@@ -493,16 +285,14 @@ router.post("/webhook", async (req, res) => {
 
     if (!registro) return res.sendStatus(200);
 
-    // Actualizar estado
     await db.update(bold_payments).set({
       estado: status,
       transaction_id: transaction_id ?? registro.transaction_id,
-      bold_response: event as unknown as Record<string, unknown>,
+      bold_response: body,
       updated_at: new Date(),
     }).where(eq(bold_payments.reference_id, reference_id));
 
-    // Activar plan si fue aprobado, no estaba aprobado antes y ya tiene tenant asociado
-    // (pagos sin tenant_id son pre-registro — se activan cuando el cliente crea su cuenta)
+    // Activar plan solo si está aprobado y tiene tenant asociado (pagos pre-registro no tienen tenant)
     if (status === "APPROVED" && registro.estado !== "APPROVED" && registro.plan_id && registro.tenant_id) {
       await activarPlan(registro.tenant_id, registro.plan_id);
     }

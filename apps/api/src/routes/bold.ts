@@ -157,10 +157,12 @@ router.get("/status/:reference_id", async (req, res) => {
 
     const boldData = result.data ?? {};
     // Bold devuelve "payment_status" en la API del botón de pagos
-    const boldStatus =
+    // NO_TRANSACTION_FOUND significa que aún no hay intento — se trata como PENDING
+    const boldRaw =
       (boldData.payment_status as string | undefined) ??
       (boldData.status as string | undefined) ??
       registro.estado;
+    const boldStatus = boldRaw === "NO_TRANSACTION_FOUND" ? registro.estado : boldRaw;
 
     if (boldStatus === "APPROVED" && registro.estado !== "APPROVED") {
       await db.update(bold_payments)
@@ -169,7 +171,7 @@ router.get("/status/:reference_id", async (req, res) => {
       if (registro.plan_id) {
         await activarPlan(tenantId, registro.plan_id);
       }
-    } else if (boldStatus !== registro.estado) {
+    } else if (boldStatus !== registro.estado && boldStatus !== "NO_TRANSACTION_FOUND") {
       await db.update(bold_payments)
         .set({ estado: boldStatus, bold_response: boldData, updated_at: new Date() })
         .where(eq(bold_payments.reference_id, reference_id));
@@ -242,10 +244,12 @@ router.get("/public/status/:reference_id", async (req, res) => {
     }
 
     const boldData = result.data ?? {};
-    const boldStatus =
+    const boldRaw =
       (boldData.payment_status as string | undefined) ??
       (boldData.status as string | undefined) ??
       registro.estado;
+    // NO_TRANSACTION_FOUND = Bold aún no procesó la transacción, mantener PENDING
+    const boldStatus = boldRaw === "NO_TRANSACTION_FOUND" ? registro.estado : boldRaw;
 
     if (boldStatus !== registro.estado) {
       await db.update(bold_payments)

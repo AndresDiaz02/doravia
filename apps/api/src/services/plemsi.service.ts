@@ -4,7 +4,7 @@
  * Auth: Authorization: Bearer {api_key} en todos los requests
  */
 
-const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://pruebas.plemsi.com";
+const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://staging.plemsi.com";
 
 function headersParaTenant(apiKey: string) {
   return {

@@ -30,6 +30,7 @@ const emptyForm = {
   consecutivo_hasta: "",
   fecha_desde: "",
   fecha_hasta: "",
+  clave_tecnica: "",
 };
 
 export function ResolucionesDian() {
@@ -276,6 +277,17 @@ export function ResolucionesDian() {
                     value={form.fecha_hasta}
                     onChange={(e) => set("fecha_hasta", e.target.value)}
                   />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="clave_tec">Clave técnica (DIAN)</Label>
+                  <Input
+                    id="clave_tec"
+                    value={form.clave_tecnica}
+                    onChange={(e) => set("clave_tecnica", e.target.value)}
+                    placeholder="fc8eac422eba16e22ffd8c6f94b3f40a6e38162c"
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-gray-400">Requerida para el cálculo del CUFE. La encuentras en el portal de habilitación DIAN.</p>
                 </div>
               </div>
 

@@ -49,6 +49,7 @@ router.post("/", requireAdmin, async (req, res) => {
       consecutivo_hasta,
       fecha_desde,
       fecha_hasta,
+      clave_tecnica,
     } = req.body;
 
     if (
@@ -88,6 +89,7 @@ router.post("/", requireAdmin, async (req, res) => {
           consecutivo_actual: Number(consecutivo_desde),
           fecha_desde,
           fecha_hasta,
+          clave_tecnica: clave_tecnica ?? null,
           activa: true,
         })
         .returning();

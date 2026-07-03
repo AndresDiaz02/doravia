@@ -4,7 +4,7 @@ const BOLD_API_KEY = process.env.BOLD_API_KEY ?? "GIRThfc6OjPURJowcK2o3YGAk-rS-V
 function headers() {
   return {
     "Content-Type": "application/json",
-    Authorization: `x-api-key ${BOLD_API_KEY}`,
+    "x-api-key": BOLD_API_KEY,
   };
 }
 

@@ -58,6 +58,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,h
   .map((o) => o.trim());
 
 app.use(helmet({
+  contentSecurityPolicy: false, // la CSP por defecto bloquea el inline script del index.html
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
@@ -144,8 +145,8 @@ app.use("/api/cotizaciones",  authenticate, requirePlanFeature("cotizaciones"), 
 app.use("/api/gastos",        authenticate, requirePlanFeature("gastos"),                  gastosRouter);
 app.use("/api/ia",            authenticate, requirePlanFeature("ia_asistente"),            iaRouter);
 app.use("/api/tutoriales",   authenticate, tutorialesRouter);
-app.use("/api/pagos",         pagosRouter); // checkout usa authenticate internamente; webhook es público
-app.use("/api/pagos/bold",    boldRouter);  // Bold: intent, pay, status, webhook
+app.use("/api/pagos/bold",    boldRouter);  // primero: más específico
+app.use("/api/pagos",         pagosRouter); // después: más general (Wompi/otros)
 
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────
 app.use("/api/retenciones",    authenticate, retencionesRouter);

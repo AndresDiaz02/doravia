@@ -4,7 +4,7 @@ const BOLD_API_KEY = process.env.BOLD_API_KEY ?? "GIRThfc6OjPURJowcK2o3YGAk-rS-V
 function headers() {
   return {
     "Content-Type": "application/json",
-    "x-api-key": BOLD_API_KEY,
+    Authorization: `x-api-key ${BOLD_API_KEY}`,
   };
 }
 
@@ -60,11 +60,13 @@ async function boldFetch(method: string, path: string, body?: unknown): Promise<
     if (res.status === 204) return { ok: true };
     const json = await res.json() as Record<string, unknown>;
     if (!res.ok) {
+      console.error(`[Bold] ${method} ${path} → ${res.status}:`, JSON.stringify(json));
       const msg =
         (json.errors as Array<{ description?: string }> | undefined)?.[0]?.description ??
         (json.message as string) ??
+        (json.error as string) ??
         `Error Bold ${res.status}`;
-      return { ok: false, error: msg, status: res.status };
+      return { ok: false, error: msg, status: res.status, data: json };
     }
     return { ok: true, data: (json.payload ?? json) as Record<string, unknown> };
   } catch (err) {

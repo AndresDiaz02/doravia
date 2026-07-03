@@ -28,6 +28,11 @@ interface PagoBoldProps {
   monto: number;
   descripcion: string;
   onCancelar?: () => void;
+  /** Ruta base del API. Por defecto "/api/pagos/bold" (requiere auth).
+   *  Usar "/api/pagos/bold/public" para clientes nuevos sin cuenta. */
+  apiBase?: string;
+  /** Callback cuando el pago es aprobado. Si se omite, navega a /resultado-pago. */
+  onPagoExitoso?: (referenceId: string) => void;
 }
 
 const METODOS = [
@@ -55,7 +60,7 @@ function formatearTarjeta(valor: string): string {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function PagoBold({ planSlug, monto, descripcion, onCancelar }: PagoBoldProps) {
+export default function PagoBold({ planSlug, monto, descripcion, onCancelar, apiBase = "/api/pagos/bold", onPagoExitoso }: PagoBoldProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -178,13 +183,13 @@ export default function PagoBold({ planSlug, monto, descripcion, onCancelar }: P
 
     try {
       // 1. Crear intención de pago
-      const intent = await apiFetch<IntentResponse>("/api/pagos/bold/intent", {
+      const intent = await apiFetch<IntentResponse>(`${apiBase}/intent`, {
         method: "POST",
         body: JSON.stringify({ plan_id: planSlug, monto, descripcion }),
       });
 
       // 2. Ejecutar pago
-      const resultado = await apiFetch<PayResponse>("/api/pagos/bold/pay", {
+      const resultado = await apiFetch<PayResponse>(`${apiBase}/pay`, {
         method: "POST",
         body: JSON.stringify({
           reference_id: intent.reference_id,
@@ -202,12 +207,20 @@ export default function PagoBold({ planSlug, monto, descripcion, onCancelar }: P
       }
 
       if (resultado.status === "APPROVED") {
-        navigate(`/resultado-pago?ref=${intent.reference_id}&status=approved`);
+        if (onPagoExitoso) {
+          onPagoExitoso(intent.reference_id);
+        } else {
+          navigate(`/resultado-pago?ref=${intent.reference_id}&status=approved`);
+        }
         return;
       }
 
       // Estado desconocido o RUNNING
-      navigate(`/resultado-pago?ref=${intent.reference_id}`);
+      if (onPagoExitoso) {
+        onPagoExitoso(intent.reference_id);
+      } else {
+        navigate(`/resultado-pago?ref=${intent.reference_id}`);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

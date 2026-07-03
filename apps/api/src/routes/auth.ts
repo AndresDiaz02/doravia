@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, users, tenants, plans, pending_registrations, password_reset_tokens } from "@workspace/db";
+import { db, users, tenants, plans, pending_registrations, password_reset_tokens, bold_payments } from "@workspace/db";
 import { eq, and, ilike } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
@@ -53,6 +53,98 @@ router.post("/register", async (req, res) => {
     }).catch((e) => console.error("Error enviando email de bienvenida:", e));
 
     return res.status(201).json(resultado);
+  } catch (err) {
+    if (err instanceof Error) return res.status(422).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/register-from-payment
+// Crea cuenta después de un pago Bold exitoso (flujo: pagar → registrarse).
+router.post("/register-from-payment", async (req, res) => {
+  const { bold_reference, tenant_nombre, nit, usuario_nombre, email, password } = req.body as {
+    bold_reference?: string;
+    tenant_nombre?: string;
+    nit?: string;
+    usuario_nombre?: string;
+    email?: string;
+    password?: string;
+  };
+
+  if (!bold_reference || !tenant_nombre || !nit || !usuario_nombre || !email || !password) {
+    return res.status(400).json({ error: "Todos los campos son requeridos." });
+  }
+  if ((password as string).length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  }
+
+  try {
+    // Verificar que el pago existe, está APPROVED y no tiene cuenta asociada aún
+    const [pago] = await db
+      .select()
+      .from(bold_payments)
+      .where(eq(bold_payments.reference_id, bold_reference))
+      .limit(1);
+
+    if (!pago) return res.status(404).json({ error: "Referencia de pago no encontrada." });
+    if (pago.tenant_id) return res.status(409).json({ error: "Este pago ya tiene una cuenta asociada." });
+    if (pago.estado !== "APPROVED") {
+      return res.status(402).json({ error: `El pago no está aprobado. Estado actual: ${pago.estado}.` });
+    }
+
+    // Validaciones de unicidad
+    const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, nit)).limit(1);
+    if (nitExistente) return res.status(422).json({ error: "Ya existe una empresa registrada con ese NIT." });
+
+    const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (emailExistente) return res.status(422).json({ error: "Ya existe un usuario con ese correo electrónico." });
+
+    const planSlug = pago.plan_id ?? "semilla";
+    const [plan] = await db.select().from(plans).where(eq(plans.slug, planSlug)).limit(1);
+    if (!plan) return res.status(422).json({ error: `Plan "${planSlug}" no encontrado.` });
+
+    const hoy = new Date();
+    const planFin = new Date(hoy);
+    planFin.setFullYear(planFin.getFullYear() + 1);
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const { tenant, user } = await db.transaction(async (tx) => {
+      const [tenant] = await tx.insert(tenants).values({
+        nombre: tenant_nombre,
+        nit,
+        plan_id: plan.id,
+        plan_starts_at: hoy,
+        plan_ends_at: planFin,
+        activo: true,
+        ultimo_pago_confirmado_at: hoy,
+      }).returning();
+
+      const [user] = await tx.insert(users).values({
+        tenant_id: tenant.id,
+        email,
+        nombre: usuario_nombre,
+        role: "admin",
+        password_hash,
+      }).returning();
+
+      // Asociar el pago al nuevo tenant
+      await tx.update(bold_payments).set({ tenant_id: tenant.id, updated_at: new Date() })
+        .where(eq(bold_payments.reference_id, bold_reference));
+
+      return { tenant, user };
+    });
+
+    // Email de bienvenida (fire and forget)
+    void enviarEmailBienvenida({
+      destinatario: email,
+      nombre: usuario_nombre,
+      empresa: tenant_nombre,
+    }).catch((e) => console.error("Error enviando email de bienvenida:", e));
+
+    const accessToken = signAccessToken(user, tenant.id);
+    const refreshToken = await createRefreshToken(user.id, tenant.id);
+    const { password_hash: _ph, ...userSinHash } = user;
+    return res.status(201).json({ tenant, user: userSinHash, accessToken, refreshToken });
   } catch (err) {
     if (err instanceof Error) return res.status(422).json({ error: err.message });
     throw err;

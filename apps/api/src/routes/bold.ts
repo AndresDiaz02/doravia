@@ -307,6 +307,166 @@ router.get("/status/:reference_id", async (req, res) => {
   }
 });
 
+// ── POST /api/pagos/bold/public/intent ────────────────────────────────────────
+// Para clientes nuevos que aún no tienen cuenta. Sin autenticación.
+router.post("/public/intent", async (req, res) => {
+  try {
+    const { plan_id, monto, descripcion, nombre, email } = req.body as {
+      plan_id?: string;
+      monto?: number;
+      descripcion?: string;
+      nombre?: string;
+      email?: string;
+    };
+
+    if (!plan_id || !monto) {
+      return res.status(400).json({ error: "plan_id y monto son requeridos." });
+    }
+
+    const reference_id = `DORAVIA-NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const callback_url = `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${monto}`;
+    const desc = descripcion ?? `Suscripción Doravia — ${plan_id}`;
+
+    const intentBody = {
+      reference_id,
+      amount: { currency: "COP" as const, total_amount: monto },
+      description: desc,
+      callback_url,
+      customer: { name: nombre ?? "Cliente Doravia", email: email ?? "" },
+    };
+
+    const result = await bold.crearIntencion(intentBody);
+    if (!result.ok) {
+      return res.status(502).json({ error: result.error ?? "No se pudo crear la intención de pago." });
+    }
+
+    // Guardar sin tenant_id — se asigna cuando el cliente crea su cuenta
+    await db.insert(bold_payments).values({
+      reference_id,
+      plan_id,
+      monto: String(monto),
+      moneda: "COP",
+      estado: "PENDING",
+      descripcion: desc,
+      callback_url,
+      bold_response: result.data,
+    });
+
+    return res.json({ reference_id, ...result.data });
+  } catch (err) {
+    console.error("[Bold] Error en POST /public/intent:", err);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /api/pagos/bold/public/pay ───────────────────────────────────────────
+// Para clientes nuevos que aún no tienen cuenta. Sin autenticación.
+router.post("/public/pay", async (req, res) => {
+  try {
+    const { reference_id, payment_method, payer, device_fingerprint } = req.body as {
+      reference_id?: string;
+      payment_method?: Record<string, unknown>;
+      payer?: Record<string, unknown>;
+      device_fingerprint?: Record<string, unknown>;
+    };
+
+    if (!reference_id || !payment_method || !payer) {
+      return res.status(400).json({ error: "reference_id, payment_method y payer son requeridos." });
+    }
+
+    const [registro] = await db
+      .select()
+      .from(bold_payments)
+      .where(eq(bold_payments.reference_id, reference_id))
+      .limit(1);
+
+    if (!registro || registro.tenant_id !== null) {
+      return res.status(404).json({ error: "Referencia de pago no encontrada o ya asociada a una cuenta." });
+    }
+
+    const payBody = {
+      reference_id,
+      payer: payer as BoldPaymentAttemptType["payer"],
+      payment_method,
+      device_fingerprint: device_fingerprint ?? {},
+    };
+
+    const result = await bold.ejecutarPago(payBody as BoldPaymentAttemptType);
+
+    const boldData = result.data ?? {};
+    const transaction_id = boldData.transaction_id as string | undefined;
+    const boldStatus = (boldData.status as string | undefined) ?? "";
+    const next_actions = boldData.next_actions as Array<{ type: string; redirect_url?: string }> | undefined;
+    const metodoPago = (payment_method.name as string | undefined) ?? "";
+
+    await db.update(bold_payments).set({
+      transaction_id: transaction_id ?? registro.transaction_id,
+      metodo_pago: metodoPago,
+      estado: boldStatus || "RUNNING",
+      bold_response: boldData,
+      updated_at: new Date(),
+    }).where(eq(bold_payments.reference_id, reference_id));
+
+    if (!result.ok) {
+      await db.update(bold_payments).set({ estado: "REJECTED", updated_at: new Date() })
+        .where(eq(bold_payments.reference_id, reference_id));
+      return res.status(402).json({ error: result.error ?? "Pago rechazado.", data: boldData });
+    }
+
+    if (next_actions && next_actions.length > 0) {
+      const redirect = next_actions.find((a) => a.redirect_url);
+      return res.json({
+        requires_action: true,
+        redirect_url: redirect?.redirect_url,
+        next_actions,
+        transaction_id,
+        status: boldStatus,
+      });
+    }
+
+    if (boldStatus === "APPROVED") {
+      await db.update(bold_payments).set({ estado: "APPROVED", updated_at: new Date() })
+        .where(eq(bold_payments.reference_id, reference_id));
+    }
+
+    return res.json({ requires_action: false, status: boldStatus, transaction_id, data: boldData });
+  } catch (err) {
+    console.error("[Bold] Error en POST /public/pay:", err);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /api/pagos/bold/public/status/:reference_id ───────────────────────────
+// Consulta el estado de un pago sin autenticación (para flujo post-registro).
+router.get("/public/status/:reference_id", async (req, res) => {
+  try {
+    const { reference_id } = req.params;
+    const [registro] = await db
+      .select()
+      .from(bold_payments)
+      .where(eq(bold_payments.reference_id, reference_id))
+      .limit(1);
+
+    if (!registro) return res.status(404).json({ error: "Referencia no encontrada." });
+
+    const result = await bold.estadoPago(reference_id);
+    if (!result.ok) {
+      return res.json({ reference_id, estado: registro.estado });
+    }
+
+    const boldStatus = ((result.data as Record<string, unknown>)?.status as string | undefined) ?? registro.estado;
+    if (boldStatus !== registro.estado) {
+      await db.update(bold_payments).set({ estado: boldStatus, updated_at: new Date() })
+        .where(eq(bold_payments.reference_id, reference_id));
+    }
+
+    return res.json({ reference_id, estado: boldStatus });
+  } catch (err) {
+    console.error("[Bold] Error en GET /public/status:", err);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── POST /api/pagos/bold/webhook (sin autenticación — viene de Bold) ──────────
 router.post("/webhook", async (req, res) => {
   try {
@@ -341,8 +501,9 @@ router.post("/webhook", async (req, res) => {
       updated_at: new Date(),
     }).where(eq(bold_payments.reference_id, reference_id));
 
-    // Activar plan si fue aprobado y no estaba aprobado antes
-    if (status === "APPROVED" && registro.estado !== "APPROVED" && registro.plan_id) {
+    // Activar plan si fue aprobado, no estaba aprobado antes y ya tiene tenant asociado
+    // (pagos sin tenant_id son pre-registro — se activan cuando el cliente crea su cuenta)
+    if (status === "APPROVED" && registro.estado !== "APPROVED" && registro.plan_id && registro.tenant_id) {
       await activarPlan(registro.tenant_id, registro.plan_id);
     }
 

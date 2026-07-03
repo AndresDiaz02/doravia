@@ -3,7 +3,7 @@ import { tenants } from "./tenants.ts";
 
 export const bold_payments = pgTable("bold_payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
+  tenant_id: uuid("tenant_id").references(() => tenants.id),
   reference_id: varchar("reference_id", { length: 100 }).notNull().unique(),
   transaction_id: varchar("transaction_id", { length: 100 }),
   plan_id: varchar("plan_id", { length: 50 }),

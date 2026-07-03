@@ -1,5 +1,4 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../lib/auth";
 import PagoBold from "../components/PagoBold";
 
 const PLANES: Record<string, { nombre: string; descripcion: string; color: string; textoColor: string }> = {
@@ -9,108 +8,40 @@ const PLANES: Record<string, { nombre: string; descripcion: string; color: strin
   cosecha:    { nombre: "Cosecha",    descripcion: "Todo Brote + multiempresa y Business Intelligence",       color: "#1A2347", textoColor: "#fff" },
   punto:      { nombre: "Punto",      descripcion: "POS con tiquete electrónico DIAN para 1 caja",           color: "#1A1F3A", textoColor: "#FFC94A" },
   punto_plus: { nombre: "Punto Plus", descripcion: "POS multi-caja, usuarios ilimitados y 3 bodegas",        color: "#1A1F3A", textoColor: "#FFC94A" },
+  origen_24:  { nombre: "Origen 24",  descripcion: "Facturación electrónica — 24 documentos al año",         color: "#1A4740", textoColor: "#fff" },
+  origen_60:  { nombre: "Origen 60",  descripcion: "Facturación electrónica — 60 documentos al año",         color: "#1A4740", textoColor: "#fff" },
+  origen_120: { nombre: "Origen 120", descripcion: "Facturación electrónica — 120 documentos al año",        color: "#1A4740", textoColor: "#fff" },
+  origen_300: { nombre: "Origen 300", descripcion: "Facturación electrónica — 300 documentos al año",        color: "#1A4740", textoColor: "#fff" },
 };
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
-  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const plan = searchParams.get("plan") ?? "semilla";
   const monto = Number(searchParams.get("monto") ?? "730000");
   const planInfo = PLANES[plan] ?? PLANES.semilla;
-
   const montoFormateado = monto.toLocaleString("es-CO");
-  // URL actual para redirect después de login/registro
-  const redirectUrl = encodeURIComponent(`/checkout?plan=${plan}&monto=${monto}`);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Cargando...</div>
-      </div>
-    );
+  function alPagarExitoso(referenceId: string) {
+    navigate(`/registro-post-pago?ref=${referenceId}&plan=${plan}&monto=${monto}`);
   }
 
-  // Usuario NO logueado: mostrar resumen del plan + opciones para autenticarse
-  if (!isLoading && !user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Resumen del plan */}
-          <div
-            className="mb-6 rounded-2xl p-5"
-            style={{ background: planInfo.color, color: planInfo.textoColor }}
-          >
-            <p className="text-xs uppercase tracking-wide opacity-75 mb-1">Estás comprando</p>
-            <h2 className="text-2xl font-bold">Plan {planInfo.nombre}</h2>
-            <p className="text-sm opacity-80 mt-1">{planInfo.descripcion}</p>
-            <p className="text-3xl font-black mt-3">
-              ${montoFormateado}
-              <span className="text-sm font-normal opacity-75">/año</span>
-            </p>
-          </div>
-
-          {/* Opciones de acceso */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center">
-                  <span className="text-white text-xs font-black">D</span>
-                </div>
-                <span className="font-bold text-gray-800 text-sm">Doravia</span>
-              </div>
-              <h3 className="text-base font-semibold text-gray-900">Inicia sesión para continuar</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Necesitas una cuenta para completar el pago
-              </p>
-            </div>
-
-            <a
-              href={`/login?redirect=${redirectUrl}`}
-              className="block w-full rounded-xl py-3 px-4 text-center text-sm font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
-            >
-              Iniciar sesión
-            </a>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-white px-3 text-xs text-gray-400">o</span>
-              </div>
-            </div>
-
-            <a
-              href={`/register?plan=${plan}&redirect=${redirectUrl}`}
-              className="block w-full rounded-xl py-3 px-4 text-center text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Crear cuenta nueva
-            </a>
-
-            <p className="text-xs text-gray-400 text-center">
-              Al crear tu cuenta y pagar activas el plan inmediatamente
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Usuario logueado → mostrar formulario de pago Bold
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
+          <a href="https://doraviasoft.com" className="inline-flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center">
               <span className="text-white text-sm font-black">D</span>
             </div>
             <span className="font-bold text-gray-800">Doravia</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Activa tu plan</h1>
+          </a>
+          <h1 className="text-2xl font-bold text-gray-900">Completa tu compra</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Paga con tarjeta, PSE, Nequi o Bancolombia — crea tu cuenta después del pago
+          </p>
         </div>
 
         {/* Resumen del plan */}
@@ -131,12 +62,14 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* Formulario Bold */}
+        {/* Formulario de pago Bold — sin autenticación */}
         <PagoBold
           planSlug={plan}
           monto={monto}
           descripcion={`Plan ${planInfo.nombre} Doravia — Anual`}
-          onCancelar={() => navigate(-1)}
+          apiBase="/api/pagos/bold/public"
+          onPagoExitoso={alPagarExitoso}
+          onCancelar={() => { window.location.href = "https://doraviasoft.com"; }}
         />
 
         <p className="text-xs text-gray-400 text-center mt-4">

@@ -52,6 +52,7 @@ import Remisiones from "./pages/Remisiones";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
 import Checkout from "./pages/Checkout";
+import RegistroPostPago from "./pages/RegistroPostPago";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/registro-contador" element={<RegistroContador />} />
           <Route path="/registro-contador/confirmar" element={<RegistroContador />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/registro-post-pago" element={<RegistroPostPago />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />

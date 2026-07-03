@@ -196,6 +196,13 @@ export function Login() {
             </Button>
           </form>
         </div>
+
+        <p className="text-xs text-gray-400 text-center mt-4">
+          Al usar Doravia aceptas nuestros{" "}
+          <a href="/terminos" className="underline hover:text-gray-600">Términos de uso</a>
+          {" "}y{" "}
+          <a href="/privacidad" className="underline hover:text-gray-600">Política de privacidad</a>
+        </p>
       </div>
     </div>
   );

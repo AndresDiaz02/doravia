@@ -7,6 +7,8 @@ import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
 import { audit } from "../services/audit.service.js";
 import { PlanLimitError } from "@workspace/shared";
+import { generarPdfFactura } from "../services/pdf.service.js";
+import { enviarFacturaAceptada } from "../services/email.service.js";
 
 const router = Router();
 
@@ -178,6 +180,48 @@ router.post("/:id/reenviar-dian", async (req, res) => {
     return res.json({ ok: act.estado_dian === "emitida", cufe: act.cufe, error: act.error_dian });
   } catch (err) {
     return res.status(500).json({ error: err instanceof Error ? err.message : "Error inesperado." });
+  }
+});
+
+// POST /api/facturas/:id/enviar-email — reenvía la factura por correo al cliente
+router.post("/:id/enviar-email", async (req, res) => {
+  const [row] = await db
+    .select({ factura: facturas, cliente: clientes })
+    .from(facturas)
+    .innerJoin(clientes, eq(facturas.cliente_id, clientes.id))
+    .where(and(eq(facturas.id, req.params.id), eq(facturas.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!row) return res.status(404).json({ error: "Factura no encontrada." });
+
+  const { factura, cliente } = row;
+
+  if (!cliente.correo) {
+    return res.status(422).json({ error: "El cliente no tiene correo electrónico registrado." });
+  }
+
+  const items = await db
+    .select()
+    .from(items_factura)
+    .where(eq(items_factura.factura_id, factura.id));
+
+  try {
+    const pdfStream = generarPdfFactura(factura, cliente, items, req.tenant);
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      pdfStream.on("data", (c: Buffer) => chunks.push(c));
+      pdfStream.on("end", resolve);
+      pdfStream.on("error", reject);
+    });
+    const pdfBuffer = Buffer.concat(chunks);
+
+    await enviarFacturaAceptada(factura, cliente, req.tenant, pdfBuffer);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error enviando factura por email:", err);
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : "Error al enviar el correo.",
+    });
   }
 });
 

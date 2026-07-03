@@ -4,7 +4,7 @@ import { eq, and, ilike } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
-import { enviarResetPassword } from "../services/email.service.js";
+import { enviarResetPassword, enviarEmailBienvenida } from "../services/email.service.js";
 import {
   registrarTenant,
   completarRegistroPendiente,
@@ -45,7 +45,13 @@ router.post("/register", async (req, res) => {
       return res.status(202).json(resultado);
     }
 
-    // Plan gratuito: cuenta lista
+    // Plan gratuito: cuenta lista — enviar email de bienvenida (fire and forget)
+    void enviarEmailBienvenida({
+      destinatario: email as string,
+      nombre: usuario_nombre as string,
+      empresa: tenant_nombre as string,
+    }).catch((e) => console.error("Error enviando email de bienvenida:", e));
+
     return res.status(201).json(resultado);
   } catch (err) {
     if (err instanceof Error) return res.status(422).json({ error: err.message });

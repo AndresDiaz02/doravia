@@ -192,6 +192,41 @@ export async function enviarConfirmacionContador(
   await send({ to: email, subject: "Confirma tu cuenta de contador en Doravia", html: baseLayout("Confirmar cuenta contador", cuerpo) });
 }
 
+export async function enviarEmailBienvenida(params: {
+  destinatario: string;
+  nombre: string;
+  empresa: string;
+}): Promise<void> {
+  if (!getResend()) {
+    console.warn(`[EMAIL] Resend no configurado — bienvenida no enviada a ${params.destinatario}`);
+    return;
+  }
+
+  const cuerpo = `
+    <h2 style="color:#111827;font-size:18px;margin:0 0 8px;">¡Bienvenido a Doravia, ${params.nombre}!</h2>
+    <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+      Tu empresa <strong>${params.empresa}</strong> ya está activa en Doravia.
+      Ahora puedes facturar electrónicamente, gestionar tu inventario y controlar tu punto de venta
+      desde un solo lugar.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${APP_URL}"
+         style="display:inline-block;background:#16a34a;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Entrar a mi cuenta →
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0;">
+      ¿Tienes preguntas? Escríbenos a <a href="mailto:epsa2211@gmail.com" style="color:#16a34a;">epsa2211@gmail.com</a>
+    </p>
+  `;
+
+  await send({
+    to: params.destinatario,
+    subject: `Bienvenido a Doravia, ${params.nombre}`,
+    html: baseLayout("Bienvenido a Doravia", cuerpo),
+  });
+}
+
 export async function enviarResetPassword(
   email: string,
   nombre: string,

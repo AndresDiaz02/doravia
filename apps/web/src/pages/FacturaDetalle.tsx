@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX } from "lucide-react";
+import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX, Mail } from "lucide-react";
 import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -100,6 +100,8 @@ export function FacturaDetalle() {
   const [ncForm, setNcForm] = useState({ tipo: "anulacion", motivo: "" });
   const [creandoNC, setCreandoNC] = useState(false);
   const [reenviandoDian, setReenviandoDian] = useState(false);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [emailOk, setEmailOk] = useState(false);
 
   useEffect(() => {
     void apiFetch<Factura>(`/api/facturas/${id!}`)
@@ -107,6 +109,22 @@ export function FacturaDetalle() {
       .catch(() => navigate("/facturas", { replace: true }))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  async function handleEnviarEmail() {
+    if (!factura) return;
+    setEnviandoEmail(true);
+    setErrorReenvio(null);
+    setEmailOk(false);
+    try {
+      await apiFetch(`/api/facturas/${factura.id}/enviar-email`, { method: "POST" });
+      setEmailOk(true);
+      setTimeout(() => setEmailOk(false), 4000);
+    } catch (err) {
+      setErrorReenvio(err instanceof ApiError ? err.message : "Error al enviar el correo.");
+    } finally {
+      setEnviandoEmail(false);
+    }
+  }
 
   async function handleMarcarPagada() {
     if (!factura) return;
@@ -281,6 +299,16 @@ export function FacturaDetalle() {
             <Download className="h-4 w-4" />
             {descargando ? "Generando…" : "Descargar PDF"}
           </Button>
+          {factura.cliente.correo && (
+            <Button
+              variant="secondary"
+              onClick={() => void handleEnviarEmail()}
+              disabled={enviandoEmail}
+            >
+              <Mail className="h-4 w-4" />
+              {enviandoEmail ? "Enviando…" : emailOk ? "¡Enviado!" : "Enviar por correo"}
+            </Button>
+          )}
           {factura.pagada_at && (
             <Button variant="secondary" onClick={handleDescargarRecibo} disabled={descargando}>
               <Download className="h-4 w-4" />

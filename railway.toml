@@ -2,7 +2,7 @@
   builder = "NIXPACKS"
 
 [deploy]
-  startCommand = "pnpm --filter @workspace/web build && pnpm db:migrate && pnpm db:seed && pnpm --filter @workspace/api run start"
+  startCommand = "pnpm db:migrate && pnpm db:seed && pnpm --filter @workspace/api run start"
   healthcheckPath = "/health"
   healthcheckTimeout = 300
   restartPolicyType = "ON_FAILURE"

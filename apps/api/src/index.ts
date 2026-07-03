@@ -2,9 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
-import { fileURLToPath } from "url";
-import path from "path";
-import fs from "fs";
 import { authenticate } from "./middleware/auth.js";
 import { requirePlanFeature, requireAccountingLevel } from "./middleware/require-plan-feature.js";
 import { PlanLimitError, PlanFeatureError } from "@workspace/shared";
@@ -58,7 +55,6 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,h
   .map((o) => o.trim());
 
 app.use(helmet({
-  contentSecurityPolicy: false, // la CSP por defecto bloquea el inline script del index.html
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
@@ -165,26 +161,6 @@ app.use("/api/remisiones",     authenticate, remisionesRouter);
 app.use("/api/contadores",     contadoresRouter); // registro público + rutas autenticadas internas
 app.use("/api/fundador",       requireFundador, fundadorRouter);
 app.use("/api/notificaciones", authenticate, notificacionesRouter);
-
-// ── Servir frontend React (producción) ───────────────────────────────────────
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Intentar varias rutas posibles según desde dónde Railway inicia el proceso
-const WEB_DIST_OPCIONES = [
-  path.join(__dirname, "../../web/dist"),        // tsx corre desde apps/api/src/
-  path.resolve(process.cwd(), "apps/web/dist"),  // cwd = raíz del monorepo
-  path.resolve(process.cwd(), "../web/dist"),    // cwd = apps/api/
-];
-const WEB_DIST = WEB_DIST_OPCIONES.find((p) => fs.existsSync(path.join(p, "index.html"))) ?? null;
-console.log("[Static] WEB_DIST opciones:", WEB_DIST_OPCIONES);
-console.log("[Static] WEB_DIST elegido:", WEB_DIST ?? "NINGUNO — el frontend no se servirá");
-
-if (WEB_DIST) {
-  app.use(express.static(WEB_DIST));
-  // Catch-all: todas las rutas no-API devuelven index.html (React Router)
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(WEB_DIST, "index.html"));
-  });
-}
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

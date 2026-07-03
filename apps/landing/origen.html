@@ -71,9 +71,8 @@
         <div class="origen-feat"><svg viewBox="0 0 24 24" fill="none" stroke="#FFC94A" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Retenciones (IVA, fuente)</div>
       </div>
       <div style="text-align:center;font-size:14px;color:#9FA8C0;margin-bottom:28px;">Solo pagas por los documentos que realmente necesitas. Nada más.</div>
-      <div class="origen-cta" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div class="origen-cta">
         <a href="#" class="btn-primary" id="origenBtn">Empezar gratis →</a>
-        <a href="#" id="origenBtnSecundario" style="font-size:13px;opacity:0.65;text-decoration:underline;color:#B8C0D6;display:none;">Crear cuenta gratis primero</a>
       </div>
     </div>
 
@@ -179,7 +178,6 @@
   const priceEl=document.getElementById('origenPrice');
   const freeTagEl=document.getElementById('origenFreeTag');
   const btnEl=document.getElementById('origenBtn');
-  const btnSecEl=document.getElementById('origenBtnSecundario');
   function updateOrigen(){
     const d=origenData[slider.value];
     docsLabel.textContent=d.docs;
@@ -188,12 +186,9 @@
     if(d.isFree){
       btnEl.textContent='Empezar gratis →';
       btnEl.href=ERP_URL+'/register?plan='+d.slug;
-      btnSecEl.style.display='none';
     } else {
       btnEl.textContent='Comprar ahora →';
       btnEl.href=ERP_URL+'/checkout?plan='+d.slug+'&monto='+d.monto;
-      btnSecEl.style.display='inline-block';
-      btnSecEl.href=ERP_URL+'/register?plan='+d.slug;
     }
   }
   slider.addEventListener('input',updateOrigen);

@@ -1,10 +1,10 @@
-const BOLD_URL = process.env.BOLD_URL ?? "https://api.online.payments.bold.co";
+const BOLD_URL = process.env.BOLD_URL ?? "https://api.sandbox.payments.bold.co";
 const BOLD_API_KEY = process.env.BOLD_API_KEY ?? "GIRThfc6OjPURJowcK2o3YGAk-rS-VnW1wzmWizzbFc";
 
 function headers() {
   return {
     "Content-Type": "application/json",
-    Authorization: `x-api-key ${BOLD_API_KEY}`,
+    Authorization: `Bearer ${BOLD_API_KEY}`,
   };
 }
 

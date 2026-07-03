@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import { fileURLToPath } from "url";
+import path from "path";
+import fs from "fs";
 import { authenticate } from "./middleware/auth.js";
 import { requirePlanFeature, requireAccountingLevel } from "./middleware/require-plan-feature.js";
 import { PlanLimitError, PlanFeatureError } from "@workspace/shared";
@@ -161,6 +164,17 @@ app.use("/api/remisiones",     authenticate, remisionesRouter);
 app.use("/api/contadores",     contadoresRouter); // registro público + rutas autenticadas internas
 app.use("/api/fundador",       requireFundador, fundadorRouter);
 app.use("/api/notificaciones", authenticate, notificacionesRouter);
+
+// ── Servir frontend React (producción) ───────────────────────────────────────
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const WEB_DIST = path.join(__dirname, "../../web/dist");
+if (fs.existsSync(WEB_DIST)) {
+  app.use(express.static(WEB_DIST));
+  // Catch-all: todas las rutas no-API devuelven index.html (React Router)
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(WEB_DIST, "index.html"));
+  });
+}
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -24,14 +24,19 @@ export const facturas = pgTable("facturas", {
   // Numeracion DIAN: prefijo + consecutivo forman el numero visible (ej. FV-0001)
   prefijo: varchar("prefijo", { length: 10 }).notNull(),
   consecutivo: integer("consecutivo").notNull(),
-  numero: varchar("numero", { length: 30 }).notNull(), // prefijo + consecutivo formateado
+  numero: varchar("numero", { length: 30 }).notNull(),
 
   estado: varchar("estado", { length: 20 }).$type<EstadoFactura>().notNull().default("borrador"),
 
-  // Campos DIAN â€” se llenan una vez la factura es aceptada por el PT
-  cufe: varchar("cufe", { length: 200 }).unique(),
+  // Campos DIAN
+  cufe: varchar("cufe", { length: 256 }).unique(),
   qr_code: text("qr_code"),
   xml_firmado: text("xml_firmado"),
+
+  // Integracion Plemsi
+  plemsi_id: varchar("plemsi_id", { length: 100 }),
+  estado_dian: varchar("estado_dian", { length: 30 }).$type<"pendiente" | "emitida" | "error" | "no_aplica">().default("no_aplica"),
+  error_dian: text("error_dian"),
 
   fecha_emision: timestamp("fecha_emision", { withTimezone: true }).notNull(),
   fecha_vencimiento: timestamp("fecha_vencimiento", { withTimezone: true }),
@@ -48,7 +53,7 @@ export const facturas = pgTable("facturas", {
   // FK al asiento contable generado automaticamente
   asiento_id: uuid("asiento_id"),
 
-  // Campos requeridos por UBL 2.1 / DIAN Resolución 000042 de 2020
+  // Campos requeridos por UBL 2.1 / DIAN
   condicion_pago: varchar("condicion_pago", { length: 10 }).$type<CondicionPago>().notNull().default("contado"),
   forma_pago: varchar("forma_pago", { length: 30 }).$type<FormaPago>().notNull().default("efectivo"),
 
@@ -63,7 +68,7 @@ export const facturas = pgTable("facturas", {
 export const items_factura = pgTable("items_factura", {
   id: uuid("id").primaryKey().defaultRandom(),
   factura_id: uuid("factura_id").notNull().references(() => facturas.id),
-  producto_id: uuid("producto_id"), // nullable â€” permite linea de texto libre
+  producto_id: uuid("producto_id"),
   descripcion: varchar("descripcion", { length: 500 }).notNull(),
   cantidad: numeric("cantidad", { precision: 10, scale: 4 }).notNull(),
   precio_unitario: numeric("precio_unitario", { precision: 14, scale: 4 }).notNull(),
@@ -81,4 +86,3 @@ export type Factura = typeof facturas.$inferSelect;
 export type NewFactura = typeof facturas.$inferInsert;
 export type ItemFactura = typeof items_factura.$inferSelect;
 export type NewItemFactura = typeof items_factura.$inferInsert;
-

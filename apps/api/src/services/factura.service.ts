@@ -8,6 +8,13 @@ import { registrarSalidaFactura } from "./inventario.service.js";
 import { generarPdfFactura } from "./pdf.service.js";
 import { enviarFacturaAceptada } from "./email.service.js";
 import type { TenantWithPlan } from "../lib/tenant.js";
+import {
+  buildPersona,
+  buildItems,
+  calcularTotalesPlemsi,
+  emitirFactura as plemsiEmitirFactura,
+  metodoPagoId,
+} from "./plemsi.service.js";
 
 export interface ItemInput {
   producto_id?: string;
@@ -251,6 +258,11 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         .where(eq(facturas.id, factura.id))
         .returning();
 
+      // Enviar a Plemsi si está configurado (best-effort — no bloquea ni falla la creación)
+      void enviarAPlemsiSiAplica(tenant, facturaFinal, cliente, itemsParaDian, resolucion!).catch(
+        (e) => console.error(`[PLEMSI] Error inesperado factura ${factura.numero}:`, e),
+      );
+
       // Enviar PDF por email al cliente (best-effort, no bloquea la respuesta)
       if (cliente.correo) {
         const pdfStream = generarPdfFactura(facturaFinal, cliente, itemsParaDian, tenant);
@@ -273,5 +285,81 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
     // Si falló el envío DIAN, la factura queda en borrador para reintento
     if (err instanceof Error && err.message.includes("La DIAN rechazó")) throw err;
     throw new Error(`Error al enviar a la DIAN. La factura ${factura.numero} quedó en borrador para reintento.`);
+  }
+}
+
+import type { Factura, Cliente, ItemFactura } from "@workspace/db";
+
+/**
+ * Envía la factura a Plemsi si el tenant tiene configurada una API key.
+ * Nunca lanza — actualiza estado_dian en BD con el resultado.
+ */
+export async function enviarAPlemsiSiAplica(
+  tenant: TenantWithPlan,
+  factura: Factura,
+  cliente: Cliente,
+  itemsDB: ItemFactura[],
+  resolucion: ResolucionDian,
+): Promise<void> {
+  const posConfig = tenant.pos_config as Record<string, unknown> | null;
+  const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
+    process.env.PLEMSI_API_KEY_DEFAULT ??
+    "";
+
+  if (!apiKey) return; // sin API key, no hacemos nada
+
+  const buyerData = buildPersona({
+    nit: cliente.numero_documento,
+    dv: cliente.digito_verificacion,
+    nombre: cliente.nombre,
+    email: cliente.correo,
+    telefono: cliente.telefono,
+    direccion: cliente.direccion,
+    ciudad: cliente.municipio,
+    tipo_persona: cliente.tipo_persona,
+  });
+
+  const itemsPlemsi = buildItems(itemsDB.map((i) => ({
+    descripcion: i.descripcion,
+    cantidad: i.cantidad,
+    precio_unitario: i.precio_unitario,
+    descuento: i.descuento_pct,
+    iva_porcentaje: i.iva_pct,
+  })));
+
+  const totales = calcularTotalesPlemsi(itemsPlemsi);
+  const fechaStr = new Date(factura.fecha_emision).toISOString().slice(0, 10);
+
+  const resultado = await plemsiEmitirFactura({
+    apiKey,
+    prefix: resolucion.prefijo,
+    number: factura.consecutivo,
+    resolution: resolucion.numero_resolucion,
+    date: fechaStr,
+    buyer: buyerData,
+    items: itemsPlemsi,
+    payment_form_id: factura.condicion_pago === "credito" ? 2 : 1,
+    payment_method_id: metodoPagoId(factura.forma_pago),
+    payment_due_date: factura.fecha_vencimiento
+      ? new Date(factura.fecha_vencimiento).toISOString().slice(0, 10)
+      : fechaStr,
+    ...totales,
+    foot_note: tenant.pie_factura ?? "",
+  });
+
+  await db
+    .update(facturas)
+    .set({
+      ...(resultado.cufe ? { cufe: resultado.cufe } : {}),
+      plemsi_id: resultado.plemsi_id ?? null,
+      estado_dian: resultado.ok ? "emitida" : "error",
+      error_dian: resultado.ok ? null : (resultado.error ?? null),
+    })
+    .where(eq(facturas.id, factura.id));
+
+  if (resultado.ok) {
+    console.log(`[PLEMSI] Factura ${factura.numero} emitida. CUFE: ${resultado.cufe}`);
+  } else {
+    console.error(`[PLEMSI] Error factura ${factura.numero}: ${resultado.error}`);
   }
 }

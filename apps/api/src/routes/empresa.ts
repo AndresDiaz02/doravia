@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import multer from "multer";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
 import { isDianEnProduccion } from "../services/dian.service.js";
+import { obtenerFoliosRestantes } from "../services/plemsi.service.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -59,8 +60,15 @@ router.patch("/", requireNotContador, async (req, res) => {
     const {
       nombre, direccion, ciudad, telefono, correo,
       sitio_web, regimen, representante_legal, actividad_economica, pie_factura,
-      facturacion_electronica,
+      facturacion_electronica, plemsi_api_key,
     } = req.body;
+
+    // Si se recibe plemsi_api_key, guardarlo en pos_config (JSONB)
+    let posConfigUpdate: Record<string, unknown> | undefined;
+    if (plemsi_api_key !== undefined) {
+      const actual = (req.tenant.pos_config ?? {}) as Record<string, unknown>;
+      posConfigUpdate = { ...actual, plemsi_api_key: plemsi_api_key || null };
+    }
 
     const [actualizado] = await db
       .update(tenants)
@@ -76,6 +84,7 @@ router.patch("/", requireNotContador, async (req, res) => {
         ...(actividad_economica !== undefined && { actividad_economica }),
         ...(pie_factura !== undefined && { pie_factura }),
         ...(facturacion_electronica !== undefined && { facturacion_electronica }),
+        ...(posConfigUpdate !== undefined && { pos_config: posConfigUpdate }),
       })
       .where(eq(tenants.id, req.tenantId))
       .returning();
@@ -83,6 +92,25 @@ router.patch("/", requireNotContador, async (req, res) => {
     res.json(actualizado);
   } catch (err) {
     console.error("Error en PATCH /empresa:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/empresa/plemsi-test — prueba la conexión con Plemsi
+router.post("/plemsi-test", requireNotContador, async (req, res) => {
+  try {
+    const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
+    const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
+      process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+
+    if (!apiKey) {
+      return res.status(400).json({ error: "No hay API key de Plemsi configurada." });
+    }
+
+    const folios = await obtenerFoliosRestantes(apiKey);
+    return res.json({ ok: folios !== null, folios_restantes: folios });
+  } catch (err) {
+    console.error("Error en POST /empresa/plemsi-test:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

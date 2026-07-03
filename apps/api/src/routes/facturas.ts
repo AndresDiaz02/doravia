@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { crearFactura } from "../services/factura.service.js";
+import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
@@ -143,6 +143,42 @@ router.patch("/:id/marcar-pagada", async (req, res) => {
 
   void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.marcada_pagada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total }, ip: req.ip });
   res.json(actualizada);
+});
+
+// POST /api/facturas/:id/reenviar-dian — reintenta el envío a Plemsi para facturas con error o pendientes
+router.post("/:id/reenviar-dian", async (req, res) => {
+  const [factura] = await db
+    .select()
+    .from(facturas)
+    .where(and(eq(facturas.id, req.params.id), eq(facturas.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!factura) return res.status(404).json({ error: "Factura no encontrada." });
+
+  const estadoDian = (factura as Record<string, unknown>).estado_dian as string | null;
+  if (estadoDian !== "error" && estadoDian !== "pendiente") {
+    return res.status(422).json({
+      error: "Solo se pueden reenviar facturas con estado_dian 'error' o 'pendiente'.",
+    });
+  }
+
+  const [[cliente], itemsDB, [resolucion]] = await Promise.all([
+    db.select().from(clientes).where(eq(clientes.id, factura.cliente_id)).limit(1),
+    db.select().from(items_factura).where(eq(items_factura.factura_id, factura.id)),
+    db.select().from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1),
+  ]);
+
+  if (!cliente) return res.status(422).json({ error: "Cliente de la factura no encontrado." });
+  if (!resolucion) return res.status(422).json({ error: "Resolución DIAN de la factura no encontrada." });
+
+  try {
+    await enviarAPlemsiSiAplica(req.tenant, factura, cliente, itemsDB, resolucion);
+    const [actualizada] = await db.select().from(facturas).where(eq(facturas.id, factura.id)).limit(1);
+    const act = actualizada as Record<string, unknown>;
+    return res.json({ ok: act.estado_dian === "emitida", cufe: act.cufe, error: act.error_dian });
+  } catch (err) {
+    return res.status(500).json({ error: err instanceof Error ? err.message : "Error inesperado." });
+  }
 });
 
 router.post("/", async (req, res) => {

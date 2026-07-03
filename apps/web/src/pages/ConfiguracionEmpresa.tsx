@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; }
+interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; plemsi_api_key?: string; }
 
 interface EmpresaConfig {
   id: string;
@@ -39,15 +39,55 @@ export default function ConfiguracionEmpresa() {
   const [guardandoFe, setGuardandoFe] = useState(false);
   const [feError, setFeError] = useState<string | null>(null);
   const [aceptaResponsabilidad, setAceptaResponsabilidad] = useState(false);
+  // Plemsi API Key
+  const [plemsiKey, setPlemsiKey] = useState("");
+  const [guardandoPlemsi, setGuardandoPlemsi] = useState(false);
+  const [probandoPlemsi, setProbandoPlemsi] = useState(false);
+  const [plemsiTestResult, setPlemsiTestResult] = useState<{ ok: boolean; folios_restantes?: number | null; error?: string } | null>(null);
 
   useEffect(() => {
     void apiFetch<EmpresaConfig>("/api/empresa")
       .then(setConfig)
       .finally(() => setLoading(false));
     void apiFetch<{ pos_config: PosConfig }>("/api/empresa/pos-config-get")
-      .then((r) => setPosConfig(r.pos_config ?? {}))
+      .then((r) => {
+        const pc = r.pos_config ?? {};
+        setPosConfig(pc);
+        // Si ya hay API key guardada, precargar (solo mostramos indicador, no el valor real por seguridad)
+        if (pc.plemsi_api_key) setPlemsiKey("••••••••••••••••••••••••");
+      })
       .catch(() => null);
   }, []);
+
+  async function handleGuardarPlemsiKey() {
+    if (!plemsiKey.trim() || plemsiKey.startsWith("•")) return;
+    setGuardandoPlemsi(true);
+    setPlemsiTestResult(null);
+    try {
+      await apiFetch("/api/empresa", {
+        method: "PATCH",
+        body: JSON.stringify({ plemsi_api_key: plemsiKey.trim() }),
+      });
+      setPlemsiTestResult({ ok: true });
+    } catch (err) {
+      setPlemsiTestResult({ ok: false, error: err instanceof ApiError ? err.message : "Error al guardar." });
+    } finally {
+      setGuardandoPlemsi(false);
+    }
+  }
+
+  async function handleProbarPlemsi() {
+    setProbandoPlemsi(true);
+    setPlemsiTestResult(null);
+    try {
+      const r = await apiFetch<{ ok: boolean; folios_restantes: number | null }>("/api/empresa/plemsi-test", { method: "POST" });
+      setPlemsiTestResult(r);
+    } catch (err) {
+      setPlemsiTestResult({ ok: false, error: err instanceof ApiError ? err.message : "Error de conexión." });
+    } finally {
+      setProbandoPlemsi(false);
+    }
+  }
 
   async function togglePosModulo(key: keyof PosConfig, valor: boolean) {
     setGuardandoPos(true);
@@ -397,6 +437,47 @@ export default function ConfiguracionEmpresa() {
             {feError && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{feError}</p>
             )}
+
+            {/* ── API Key Plemsi ── */}
+            <div className="border-t border-gray-200 pt-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">API Key Plemsi</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Tu API Key de Plemsi es única por empresa. La recibirás de Plemsi al contratar el servicio.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="Pega aquí tu API Key de Plemsi"
+                  value={plemsiKey}
+                  onChange={(e) => { setPlemsiKey(e.target.value); setPlemsiTestResult(null); }}
+                  className="flex-1 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void handleProbarPlemsi()}
+                  disabled={probandoPlemsi}
+                >
+                  {probandoPlemsi ? "Probando..." : "Probar conexión"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void handleGuardarPlemsiKey()}
+                  disabled={guardandoPlemsi || !plemsiKey.trim() || plemsiKey.startsWith("•")}
+                >
+                  {guardandoPlemsi ? "Guardando..." : "Guardar API Key"}
+                </Button>
+              </div>
+              {plemsiTestResult !== null && (
+                <p className={`text-sm rounded-md px-3 py-2 ${plemsiTestResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                  {plemsiTestResult.ok
+                    ? `Conexion exitosa.${plemsiTestResult.folios_restantes != null ? ` ${plemsiTestResult.folios_restantes} folios disponibles.` : ""}`
+                    : `Error: ${plemsiTestResult.error ?? "No se pudo conectar con Plemsi."}`}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

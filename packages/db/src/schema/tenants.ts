@@ -34,6 +34,7 @@ export const tenants = pgTable("tenants", {
     cartera_visible?: boolean;
     citas_visible?: boolean;
     fe_deshabilitada_en?: string;
+    plemsi_api_key?: string;
   }>().default({}),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

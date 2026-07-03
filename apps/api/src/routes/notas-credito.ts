@@ -5,6 +5,9 @@ import {
 } from "@workspace/db";
 import { audit } from "../services/audit.service.js";
 import { eq, and, desc } from "drizzle-orm";
+import {
+  buildPersona, buildItems, calcularTotalesPlemsi, emitirNotaCredito as plemsiEmitirNotaCredito,
+} from "../services/plemsi.service.js";
 
 const router = Router();
 
@@ -216,6 +219,88 @@ router.post("/factura/:facturaId", async (req, res) => {
     });
 
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "nota_credito.creada", entidadTipo: "nota_credito", entidadId: nota.id, detalle: { numero: nota.numero, tipo: nota.tipo, total: nota.total, factura_id: factura.id }, ip: req.ip });
+
+    // Enviar nota crédito a Plemsi si: FE habilitada, factura tiene cufe y tenant tiene API key
+    if (req.tenant.facturacion_electronica && factura.cufe) {
+      const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
+      const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
+        process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+
+      if (apiKey) {
+        // Obtener cliente para buildPersona
+        const [clienteNC] = await db.select().from(clientes).where(eq(clientes.id, factura.cliente_id)).limit(1);
+
+        if (clienteNC) {
+          void (async () => {
+            try {
+              const buyerData = buildPersona({
+                nit: clienteNC.numero_documento,
+                dv: clienteNC.digito_verificacion,
+                nombre: clienteNC.nombre,
+                email: clienteNC.correo,
+                telefono: clienteNC.telefono,
+                direccion: clienteNC.direccion,
+                ciudad: clienteNC.municipio,
+                tipo_persona: clienteNC.tipo_persona,
+              });
+
+              const itemsPlemsi = buildItems(itemsCalculados.map((i) => ({
+                descripcion: i.descripcion,
+                cantidad: i.cantidad,
+                precio_unitario: i.precio_unitario,
+                iva_porcentaje: i.iva_pct,
+              })));
+
+              const totales = calcularTotalesPlemsi(itemsPlemsi);
+
+              // discrepancy_code: 2=Anulación, 1=Devolución, 3=Descuento, 4=Ajuste
+              const discrepancyCodes: Record<string, number> = {
+                anulacion: 2,
+                devolucion: 1,
+                descuento: 3,
+                ajuste: 4,
+              };
+              const discrepancy_code = discrepancyCodes[tipo] ?? 5;
+
+              const resultado = await plemsiEmitirNotaCredito({
+                apiKey,
+                prefix: "NC",
+                number: consecutivo,
+                resolution: numero,
+                discrepancy_code,
+                discrepancy_description: motivo,
+                buyer: buyerData,
+                items: itemsPlemsi,
+                invoice_reference: {
+                  cufe: factura.cufe!,
+                  number: factura.numero,
+                  date: new Date(factura.fecha_emision).toISOString().slice(0, 10),
+                },
+                ...totales,
+              });
+
+              await db
+                .update(notas_credito)
+                .set({
+                  cude: resultado.cufe ?? null,
+                  plemsi_id: resultado.plemsi_id ?? null,
+                  estado_dian: resultado.ok ? "emitida" : "error",
+                })
+                .where(eq(notas_credito.id, nota.id));
+
+              if (resultado.ok) {
+                console.log(`[PLEMSI] Nota crédito ${nota.numero} emitida. CUDE: ${resultado.cufe}`);
+              } else {
+                console.error(`[PLEMSI] Error NC ${nota.numero}: ${resultado.error}`);
+              }
+            } catch (e) {
+              console.error(`[PLEMSI] Error inesperado NC ${nota.numero}:`, e);
+            }
+          })();
+        }
+      }
+    }
+
     res.status(201).json(nota);
   } catch (err) {
     console.error("Error en POST /notas-credito/factura/:facturaId:", err);

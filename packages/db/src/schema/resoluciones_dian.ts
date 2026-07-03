@@ -16,6 +16,7 @@ export const resoluciones_dian = pgTable("resoluciones_dian", {
   fecha_hasta: date("fecha_hasta").notNull(),
   activa: boolean("activa").notNull().default(true),
   clave_tecnica: text("clave_tecnica"),
+  plemsi_id: varchar("plemsi_id", { length: 100 }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

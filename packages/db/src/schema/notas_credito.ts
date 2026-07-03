@@ -27,7 +27,13 @@ export const notas_credito = pgTable("notas_credito", {
   iva_total: numeric("iva_total", { precision: 14, scale: 2 }).notNull(),
   total: numeric("total", { precision: 14, scale: 2 }).notNull(),
 
-  cufe_nota: varchar("cufe_nota", { length: 200 }),
+  cufe_nota: varchar("cufe_nota", { length: 256 }),
+
+  // Integración Plemsi
+  cude: varchar("cude", { length: 256 }),
+  plemsi_id: varchar("plemsi_id", { length: 100 }),
+  estado_dian: varchar("estado_dian", { length: 30 }).$type<"pendiente" | "emitida" | "error" | "no_aplica">().default("no_aplica"),
+
   asiento_id: uuid("asiento_id"),
 
   fecha_emision: timestamp("fecha_emision", { withTimezone: true }).notNull(),

@@ -61,6 +61,10 @@ interface Factura {
   neto_a_pagar: string;
   observaciones: string | null;
   asiento_id: string | null;
+  // Plemsi / DIAN
+  plemsi_id: string | null;
+  estado_dian: "pendiente" | "emitida" | "error" | "no_aplica" | null;
+  error_dian: string | null;
   cliente: ClienteInfo;
   items: ItemFactura[];
   retenciones: RetencionFactura[];
@@ -95,6 +99,7 @@ export function FacturaDetalle() {
   const [openNC, setOpenNC] = useState(false);
   const [ncForm, setNcForm] = useState({ tipo: "anulacion", motivo: "" });
   const [creandoNC, setCreandoNC] = useState(false);
+  const [reenviandoDian, setReenviandoDian] = useState(false);
 
   useEffect(() => {
     void apiFetch<Factura>(`/api/facturas/${id!}`)
@@ -200,6 +205,28 @@ export function FacturaDetalle() {
     }
   }
 
+  async function handleReenviarDian() {
+    if (!factura) return;
+    setReenviandoDian(true);
+    setErrorReenvio(null);
+    try {
+      const r = await apiFetch<{ ok: boolean; cufe?: string; error?: string }>(
+        `/api/facturas/${factura.id}/reenviar-dian`,
+        { method: "POST" },
+      );
+      if (r.ok) {
+        setFactura((prev) => prev ? { ...prev, estado_dian: "emitida", cufe: r.cufe ?? prev.cufe, error_dian: null } : prev);
+      } else {
+        setErrorReenvio(r.error ?? "Error al reenviar a la DIAN.");
+        setFactura((prev) => prev ? { ...prev, estado_dian: "error", error_dian: r.error ?? null } : prev);
+      }
+    } catch (err) {
+      setErrorReenvio(err instanceof ApiError ? err.message : "Error inesperado.");
+    } finally {
+      setReenviandoDian(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -231,6 +258,15 @@ export function FacturaDetalle() {
               </Badge>
               {factura.pagada_at && (
                 <Badge variant="green">Pagada</Badge>
+              )}
+              {factura.estado_dian === "emitida" && (
+                <Badge variant="green">Enviada a la DIAN</Badge>
+              )}
+              {factura.estado_dian === "error" && (
+                <Badge variant="red">Error DIAN</Badge>
+              )}
+              {factura.estado_dian === "pendiente" && (
+                <Badge variant="yellow">Pendiente DIAN</Badge>
               )}
             </div>
             <p className="text-sm text-gray-500">
@@ -269,6 +305,12 @@ export function FacturaDetalle() {
               {reenviando ? "Enviando..." : "Reenviar a DIAN"}
             </Button>
           )}
+          {!isContador && (factura.estado_dian === "error" || factura.estado_dian === "pendiente") && (
+            <Button variant="secondary" onClick={() => void handleReenviarDian()} disabled={reenviandoDian}>
+              <RefreshCw className={`h-4 w-4 ${reenviandoDian ? "animate-spin" : ""}`} />
+              {reenviandoDian ? "Enviando..." : "Reenviar a DIAN (Plemsi)"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -297,6 +339,32 @@ export function FacturaDetalle() {
               <ExternalLink className="h-4 w-4" />
             </a>
           )}
+        </div>
+      )}
+
+      {/* Estado Plemsi / DIAN */}
+      {factura.estado_dian === "emitida" && factura.cufe && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm">
+          <p className="font-medium text-green-800">Enviada a la DIAN via Plemsi</p>
+          <p
+            className="mt-0.5 font-mono text-xs text-green-700 break-all cursor-pointer hover:text-green-900"
+            title="Clic para copiar"
+            onClick={() => void navigator.clipboard.writeText(factura.cufe ?? "")}
+          >
+            CUFE: {factura.cufe}
+          </p>
+        </div>
+      )}
+      {factura.estado_dian === "error" && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="font-medium">Error al enviar a la DIAN (Plemsi)</p>
+          {factura.error_dian && <p className="mt-0.5 text-xs">{factura.error_dian}</p>}
+        </div>
+      )}
+      {factura.estado_dian === "pendiente" && (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          <p className="font-medium">Pendiente de envio a la DIAN</p>
+          <p className="text-xs mt-0.5">La factura aun no ha sido enviada a Plemsi. Usa el boton "Reenviar a DIAN" para intentarlo.</p>
         </div>
       )}
 

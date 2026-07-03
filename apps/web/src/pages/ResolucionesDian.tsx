@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, CheckCircle2 } from "lucide-react";
+import { Plus, CheckCircle2, RefreshCw } from "lucide-react";
 import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, fecha } from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -39,6 +39,10 @@ export function ResolucionesDian() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Folios Plemsi
+  const [foliosPlemsi, setFoliosPlemsi] = useState<number | null>(null);
+  const [cargandoFolios, setCargandoFolios] = useState(false);
+  const [foliosError, setFoliosError] = useState<string | null>(null);
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -82,6 +86,19 @@ export function ResolucionesDian() {
     setResoluciones((prev) =>
       prev.map((r) => (r.id === id ? actualizada : { ...r, activa: false })),
     );
+  }
+
+  async function cargarFoliosPlemsi() {
+    setCargandoFolios(true);
+    setFoliosError(null);
+    try {
+      const r = await apiFetch<{ folios_restantes: number }>("/api/resoluciones-dian/folios-restantes");
+      setFoliosPlemsi(r.folios_restantes);
+    } catch (err) {
+      setFoliosError(err instanceof ApiError ? err.message : "Error al consultar Plemsi.");
+    } finally {
+      setCargandoFolios(false);
+    }
   }
 
   const activa = resoluciones.find((r) => r.activa);
@@ -142,6 +159,38 @@ export function ResolucionesDian() {
           No hay una resolución DIAN activa. Registra una para poder emitir facturas electrónicas.
         </div>
       )}
+
+      {/* Folios Plemsi */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Folios disponibles en Plemsi</span>
+            <button
+              type="button"
+              onClick={() => void cargarFoliosPlemsi()}
+              disabled={cargandoFolios}
+              className="flex items-center gap-1.5 text-sm font-normal text-green-600 hover:text-green-800 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${cargandoFolios ? "animate-spin" : ""}`} />
+              {cargandoFolios ? "Consultando..." : "Actualizar"}
+            </button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {foliosPlemsi !== null ? (
+            <p className={`text-2xl font-bold ${foliosPlemsi < 50 ? "text-orange-600" : "text-green-700"}`}>
+              {foliosPlemsi.toLocaleString("es-CO")}
+              <span className="ml-2 text-sm font-normal text-gray-500">folios restantes en Plemsi</span>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {foliosError
+                ? <span className="text-red-600">{foliosError}</span>
+                : "Haz clic en \"Actualizar\" para consultar los folios disponibles en Plemsi."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Formulario nueva resolución */}
       {showForm && (

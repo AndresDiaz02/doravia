@@ -136,6 +136,14 @@ const migrations = [
   `ALTER TABLE remisiones ALTER COLUMN fecha_entrega TYPE date USING fecha_entrega::date`,
   // TAREA 10 — bodega_id en turnos_pos para soporte multi-bodega en POS
   `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS bodega_id uuid REFERENCES bodegas(id)`,
+  // PLEMSI — integración facturación electrónica DIAN vía Plemsi
+  `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
+  `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,
+  `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS error_dian text`,
+  `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS cude varchar(256)`,
+  `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
+  `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,
+  `ALTER TABLE resoluciones_dian ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
 ];
 
 for (const migration of migrations) {

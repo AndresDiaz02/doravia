@@ -168,8 +168,17 @@ app.use("/api/notificaciones", authenticate, notificacionesRouter);
 
 // ── Servir frontend React (producción) ───────────────────────────────────────
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WEB_DIST = path.join(__dirname, "../../web/dist");
-if (fs.existsSync(WEB_DIST)) {
+// Intentar varias rutas posibles según desde dónde Railway inicia el proceso
+const WEB_DIST_OPCIONES = [
+  path.join(__dirname, "../../web/dist"),        // tsx corre desde apps/api/src/
+  path.resolve(process.cwd(), "apps/web/dist"),  // cwd = raíz del monorepo
+  path.resolve(process.cwd(), "../web/dist"),    // cwd = apps/api/
+];
+const WEB_DIST = WEB_DIST_OPCIONES.find((p) => fs.existsSync(path.join(p, "index.html"))) ?? null;
+console.log("[Static] WEB_DIST opciones:", WEB_DIST_OPCIONES);
+console.log("[Static] WEB_DIST elegido:", WEB_DIST ?? "NINGUNO — el frontend no se servirá");
+
+if (WEB_DIST) {
   app.use(express.static(WEB_DIST));
   // Catch-all: todas las rutas no-API devuelven index.html (React Router)
   app.get("*", (_req, res) => {

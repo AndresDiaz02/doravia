@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, boolean, timestamp, uniqueIndex, sql } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 // Nota: usuario_pos es el nombre corto para cajeros POS (sin email)
 import { tenants } from "./tenants.ts";
 

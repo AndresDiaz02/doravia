@@ -157,6 +157,11 @@ const migrations = [
   `CREATE UNIQUE INDEX IF NOT EXISTS ventas_pos_tenant_consecutivo_unique ON ventas_pos(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS remisiones_tenant_consecutivo_unique ON remisiones(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS cotizaciones_tenant_consecutivo_unique ON cotizaciones(tenant_id, consecutivo)`,
+  // condicion_pago y forma_pago en facturas (agregadas al schema pero no aplicadas)
+  `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS condicion_pago varchar(30)`,
+  `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS forma_pago varchar(30)`,
+  // bold_payments.tenant_id nullable para pagos pre-registro (clientes nuevos sin cuenta)
+  `ALTER TABLE bold_payments ALTER COLUMN tenant_id DROP NOT NULL`,
   // PLEMSI — integración facturación electrónica DIAN vía Plemsi
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,

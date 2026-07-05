@@ -253,7 +253,15 @@ export async function emitirFactura(params: {
       signal: AbortSignal.timeout(30_000),
     });
 
-    const json = await res.json() as Record<string, unknown>;
+    const rawText = await res.text();
+    console.log(`[PLEMSI] POST /api/billing/invoice → status=${res.status} body=${rawText.slice(0, 300)}`);
+
+    let json: Record<string, unknown>;
+    try {
+      json = JSON.parse(rawText) as Record<string, unknown>;
+    } catch {
+      return { ok: false, error: `Plemsi devolvió respuesta no-JSON (status ${res.status}): ${rawText.slice(0, 200)}` };
+    }
 
     if (!res.ok) {
       return { ok: false, error: (json.message as string) ?? `Error Plemsi ${res.status}` };

@@ -1,10 +1,16 @@
 /**
  * Servicio Plemsi — integración con facturación electrónica DIAN Colombia
- * URL base: https://api.plemsi.com
+ * URL staging:    https://stagingapi.plemsi.com/company/{id}/...
+ * URL producción: https://api.plemsi.com/company/{id}/...
  * Auth: Authorization: Token {api_key}
  */
 
-const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://api.plemsi.com";
+const PLEMSI_BASE    = process.env.PLEMSI_URL        ?? "https://stagingapi.plemsi.com";
+const PLEMSI_COMPANY = process.env.PLEMSI_COMPANY_ID ?? "";
+
+function companyPath(path: string): string {
+  return `${PLEMSI_BASE}/company/${PLEMSI_COMPANY}${path}`;
+}
 
 function headersParaTenant(apiKey: string) {
   return {
@@ -246,7 +252,7 @@ export async function emitirFactura(params: {
       allTaxTotals: params.allTaxTotals,
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/invoice`, {
+    const res = await fetch(companyPath("/billing/invoice"), {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -316,7 +322,7 @@ export async function emitirNotaCredito(params: {
       allTaxTotals: params.allTaxTotals,
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/credit`, {
+    const res = await fetch(companyPath("/billing/credit"), {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -379,7 +385,7 @@ export async function emitirDocumentoPOS(params: {
       allTaxTotals: params.allTaxTotals,
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/equivalent/pos`, {
+    const res = await fetch(companyPath("/equivalent/pos"), {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -422,7 +428,7 @@ export async function registrarResolucion(params: {
       type_resolution: 1,
       type_document_id: params.type_document_id ?? 1,
     };
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/resolution`, {
+    const res = await fetch(companyPath("/billing/resolution"), {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -440,8 +446,8 @@ export async function registrarResolucion(params: {
 export async function obtenerFoliosRestantes(apiKey: string, resolution?: string): Promise<number | null> {
   try {
     const url = resolution
-      ? `${PLEMSI_BASE}/api/billing/resolution/remaining-numbers/${resolution}`
-      : `${PLEMSI_BASE}/api/billing/resolution/remaining-numbers`;
+      ? companyPath(`/billing/resolution/remaining-numbers/${resolution}`)
+      : companyPath("/billing/resolution/remaining-numbers");
     const res = await fetch(url, { headers: headersParaTenant(apiKey), signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
     const json = await res.json() as Record<string, unknown>;

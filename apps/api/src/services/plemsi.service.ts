@@ -1,7 +1,7 @@
 /**
  * Servicio Plemsi — integración con facturación electrónica DIAN Colombia
- * URL staging: https://pruebas.plemsi.com
- * Auth: Authorization: Bearer {api_key} en todos los requests
+ * URL base: https://api.plemsi.com
+ * Auth: Authorization: Token {api_key}
  */
 
 const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://api.plemsi.com";
@@ -9,7 +9,7 @@ const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://api.plemsi.com";
 function headersParaTenant(apiKey: string) {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Token ${apiKey}`,
   };
 }
 

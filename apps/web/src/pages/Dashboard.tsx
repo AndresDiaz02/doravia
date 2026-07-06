@@ -182,6 +182,25 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* Aviso vencimiento plan */}
+      {tenant?.plan_ends_at && (() => {
+        const dias = Math.ceil((new Date(tenant.plan_ends_at).getTime() - Date.now()) / 86_400_000);
+        if (dias > 30) return null;
+        const vencido = dias <= 0;
+        return (
+          <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${vencido ? "border-red-300 bg-red-50" : "border-yellow-200 bg-yellow-50"}`}>
+            <AlertCircle className={`mt-0.5 h-4 w-4 flex-shrink-0 ${vencido ? "text-red-600" : "text-yellow-600"}`} />
+            <p className={`text-sm ${vencido ? "text-red-800" : "text-yellow-800"}`}>
+              {vencido
+                ? <>Tu plan <strong>venció</strong>. Renueva ahora para seguir facturando.</>
+                : <>Tu plan vence en <strong>{dias} día{dias !== 1 ? "s" : ""}</strong>. </>}
+              {" "}
+              <Link to="/mi-plan" className="font-semibold underline">Ver plan →</Link>
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Widget primeros pasos — solo admin, solo si falta algún paso */}
       {primerosPasos && (
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">

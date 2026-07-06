@@ -1,12 +1,12 @@
 ﻿import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, descargarExcel } from "../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen, Search, FileDown } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { RecibirMercanciaIA } from "./RecibirMercanciaIA";
 import { TutorialOverlay } from "../components/TutorialOverlay";
@@ -154,6 +154,9 @@ export default function Inventario() {
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={relanzarTutorial} title="Ver tutorial">
             <BookOpen className="h-4 w-4" />
+          </Button>
+          <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/inventario", "inventario_movimientos.xlsx")} title="Exportar movimientos a Excel">
+            <FileDown className="h-4 w-4" />
           </Button>
           {puedeIA && !isContador && (
             <RecibirMercanciaIA bodegas={bodegas} productos={productos} onSuccess={cargarDatos} />

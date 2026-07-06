@@ -64,11 +64,6 @@ export default function ContadorDashboard() {
   async function handleEntrar(tenantId: string) {
     setCambiando(tenantId);
     try {
-      const { cambiarEmpresa } = await import("../lib/auth").then((m) => {
-        const ctx = m;
-        return ctx;
-      });
-      // Llamamos directo al endpoint y luego reload para que auth refresque
       await apiFetch<{ accessToken: string; refreshToken: string }>(
         "/api/auth/cambiar-empresa",
         { method: "POST", body: JSON.stringify({ tenantId }) },

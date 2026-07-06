@@ -261,7 +261,7 @@ router.get("/gastos-mes", async (req, res) => {
       .select({
         cantidad: count(gastos.id),
         total: sum(gastos.total),
-        pendiente: sql<string>`COALESCE(SUM(CASE WHEN ${gastos.estado} = 'pendiente' THEN ${gastos.total} ELSE 0 END), 0)`,
+        pendiente: sql<string>`COALESCE(SUM(CASE WHEN ${gastos.estado} IN ('borrador', 'aprobado') THEN ${gastos.total} ELSE 0 END), 0)`,
       })
       .from(gastos)
       .where(
@@ -269,7 +269,7 @@ router.get("/gastos-mes", async (req, res) => {
           eq(gastos.tenant_id, req.tenantId),
           gte(gastos.fecha, inicio.toISOString().split("T")[0]!),
           lt(gastos.fecha, fin.toISOString().split("T")[0]!),
-          inArray(gastos.estado, ["aprobado", "pagado", "pendiente"]),
+          inArray(gastos.estado, ["borrador", "aprobado", "pagado"]),
         ),
       );
 

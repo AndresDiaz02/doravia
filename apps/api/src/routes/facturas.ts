@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
-import { eq, and, desc, gte, lte, ilike, or, SQL } from "drizzle-orm";
+import { eq, and, desc, gte, lte, ilike, or, SQL, sql } from "drizzle-orm";
 import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
     hasta.setHours(23, 59, 59, 999);
     conditions.push(lte(facturas.fecha_emision, hasta));
   }
-  if (req.query.estado) conditions.push(eq(facturas.estado, req.query.estado as string));
+  if (req.query.estado) conditions.push(sql`${facturas.estado} = ${req.query.estado}`);
   if (req.query.q) {
     const q = `%${req.query.q}%`;
     conditions.push(or(ilike(facturas.numero, q), ilike(clientes.nombre, q), ilike(clientes.numero_documento, q))!);

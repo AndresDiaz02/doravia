@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search, Truck } from "lucide-react";
-import { apiFetch, ApiError, cop } from "../lib/api";
+import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";

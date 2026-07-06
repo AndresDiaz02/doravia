@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Truck } from "lucide-react";
-import { apiFetch, ApiError } from "../lib/api";
+import { Plus, Search, Truck, FileDown } from "lucide-react";
+import { apiFetch, ApiError, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -145,12 +145,18 @@ export default function Proveedores() {
             {proveedores.filter((p) => p.activo).length} activos
           </p>
         </div>
-        {!isContador && (
-          <Button onClick={abrirNuevo}>
-            <Plus className="h-4 w-4" />
-            Nuevo proveedor
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/proveedores", "proveedores.xlsx")}>
+            <FileDown className="h-4 w-4" />
+            Excel
           </Button>
-        )}
+          {!isContador && (
+            <Button onClick={abrirNuevo}>
+              <Plus className="h-4 w-4" />
+              Nuevo proveedor
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="relative max-w-xs">

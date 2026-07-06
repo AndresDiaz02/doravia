@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, ChevronRight } from "lucide-react";
-import { apiFetch, ApiError, cop, fecha } from "../lib/api";
+import { Plus, Trash2, ChevronRight, FileDown } from "lucide-react";
+import { apiFetch, ApiError, cop, fecha, descargarExcel } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -254,10 +254,16 @@ export default function Remisiones() {
             Documentos de entrega sin valor fiscal. No reemplazan a la factura electrónica.
           </p>
         </div>
-        <Button onClick={abrirModalNuevo}>
-          <Plus className="h-4 w-4" />
-          Nueva remisión
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/remisiones", "remisiones.xlsx")}>
+            <FileDown className="h-4 w-4" />
+            Excel
+          </Button>
+          <Button onClick={abrirModalNuevo}>
+            <Plus className="h-4 w-4" />
+            Nueva remisión
+          </Button>
+        </div>
       </div>
 
       {/* Pestañas de filtro */}

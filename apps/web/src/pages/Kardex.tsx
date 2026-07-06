@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
-import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
+import { apiFetch, descargarExcel } from "../lib/api";
+import { ArrowDown, ArrowUp, ArrowLeftRight, FileDown } from "lucide-react";
+import { Button } from "../components/ui/button";
 import { HelpTooltip } from "../components/HelpTooltip";
 
 interface Producto { id: string; nombre: string; codigo: string | null }
@@ -83,6 +84,12 @@ export default function Kardex() {
             ))}
           </select>
         </div>
+        {data && productoId && (
+          <Button variant="secondary" onClick={() => void descargarExcel(`/api/exportar/kardex/${productoId}`, `kardex_${productoId.slice(0, 8)}.xlsx`)}>
+            <FileDown className="h-4 w-4" />
+            Excel
+          </Button>
+        )}
       </div>
 
       {loading && <p className="text-sm text-gray-400">Cargando...</p>}

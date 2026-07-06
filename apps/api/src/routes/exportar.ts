@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores, cotizaciones, notas_credito, notas_debito } from "@workspace/db";
+import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores, cotizaciones, notas_credito, notas_debito, remisiones } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -507,6 +507,152 @@ router.get("/notas-debito", async (req, res) => {
   } catch (err) {
     console.error("Error en GET /exportar/notas-debito:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/proveedores
+router.get("/proveedores", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        nombre: proveedores.nombre,
+        tipo_documento: proveedores.tipo_documento,
+        nit: proveedores.nit,
+        correo: proveedores.correo,
+        telefono: proveedores.telefono,
+        ciudad: proveedores.ciudad,
+        persona_contacto: proveedores.persona_contacto,
+        terminos_pago: proveedores.terminos_pago,
+        activo: proveedores.activo,
+      })
+      .from(proveedores)
+      .where(eq(proveedores.tenant_id, req.tenantId))
+      .orderBy(proveedores.nombre);
+
+    const data = rows.map((p) => ({
+      "Nombre / Razón social": p.nombre,
+      "Tipo documento": p.tipo_documento ?? "",
+      "Número documento": p.nit ?? "",
+      "Correo": p.correo ?? "",
+      "Teléfono": p.telefono ?? "",
+      "Ciudad": p.ciudad ?? "",
+      "Contacto": p.persona_contacto ?? "",
+      "Términos pago (días)": Number(p.terminos_pago ?? 0),
+      "Estado": p.activo ? "Activo" : "Inactivo",
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [30, 14, 16, 28, 14, 16, 20, 20, 10].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Proveedores");
+    enviarExcel(res, wb, "proveedores.xlsx");
+  } catch (err) {
+    console.error("Error en GET /exportar/proveedores:", err);
+    res.status(500).json({ error: "Error al exportar proveedores." });
+  }
+});
+
+// GET /api/exportar/remisiones
+router.get("/remisiones", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        numero: remisiones.numero,
+        fecha: remisiones.fecha,
+        fecha_entrega: remisiones.fecha_entrega,
+        estado: remisiones.estado,
+        nombre_cliente: remisiones.nombre_cliente,
+        total: remisiones.total,
+        observaciones: remisiones.observaciones,
+      })
+      .from(remisiones)
+      .where(eq(remisiones.tenant_id, req.tenantId))
+      .orderBy(desc(remisiones.consecutivo));
+
+    const ESTADO_LABEL: Record<string, string> = {
+      borrador: "Borrador",
+      enviada: "Enviada",
+      entregada: "Entregada",
+      anulada: "Anulada",
+    };
+
+    const data = rows.map((r) => ({
+      "Número": r.numero,
+      "Fecha": r.fecha ? new Date(r.fecha).toLocaleDateString("es-CO") : "",
+      "Fecha entrega": r.fecha_entrega ? new Date(r.fecha_entrega).toLocaleDateString("es-CO") : "",
+      "Estado": ESTADO_LABEL[r.estado ?? ""] ?? (r.estado ?? ""),
+      "Cliente": r.nombre_cliente ?? "",
+      "Total": Number(r.total ?? 0),
+      "Observaciones": r.observaciones ?? "",
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [14, 12, 14, 12, 28, 14, 30].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Remisiones");
+    enviarExcel(res, wb, "remisiones.xlsx");
+  } catch (err) {
+    console.error("Error en GET /exportar/remisiones:", err);
+    res.status(500).json({ error: "Error al exportar remisiones." });
+  }
+});
+
+// GET /api/exportar/kardex/:productoId
+router.get("/kardex/:productoId", async (req, res) => {
+  try {
+    const { productoId } = req.params;
+
+    const [prod] = await db
+      .select({ nombre: productos.nombre, codigo: productos.codigo })
+      .from(productos)
+      .where(and(eq(productos.id, productoId), eq(productos.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!prod) return res.status(404).json({ error: "Producto no encontrado." });
+
+    const rows = await db
+      .select({
+        tipo: movimientos_inventario.tipo,
+        cantidad: movimientos_inventario.cantidad,
+        costo_unitario: movimientos_inventario.costo_unitario,
+        referencia_tipo: movimientos_inventario.referencia_tipo,
+        observaciones: movimientos_inventario.observaciones,
+        created_at: movimientos_inventario.created_at,
+        bodega: bodegas.nombre,
+      })
+      .from(movimientos_inventario)
+      .innerJoin(bodegas, eq(movimientos_inventario.bodega_id, bodegas.id))
+      .where(and(eq(movimientos_inventario.producto_id, productoId), eq(movimientos_inventario.tenant_id, req.tenantId)))
+      .orderBy(movimientos_inventario.created_at);
+
+    const TIPO_LABEL: Record<string, string> = { entrada: "Entrada", salida: "Salida", ajuste: "Ajuste" };
+
+    let saldo = 0;
+    const data = rows.map((m) => {
+      const qty = Number(m.cantidad ?? 0);
+      const delta = m.tipo === "salida" ? -qty : qty;
+      saldo += delta;
+      return {
+        "Fecha": new Date(m.created_at).toLocaleDateString("es-CO"),
+        "Tipo": TIPO_LABEL[m.tipo ?? ""] ?? (m.tipo ?? ""),
+        "Bodega": m.bodega,
+        "Referencia": m.referencia_tipo ?? "",
+        "Cantidad": delta,
+        "Costo unit.": m.costo_unitario ? Number(m.costo_unitario) : "",
+        "Saldo": saldo,
+        "Observaciones": m.observaciones ?? "",
+      };
+    });
+
+    const nombreArchivo = prod.codigo ? `kardex_${prod.codigo}.xlsx` : `kardex_${productoId.slice(0, 8)}.xlsx`;
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [12, 10, 16, 14, 10, 12, 10, 30].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, prod.nombre.slice(0, 31));
+    enviarExcel(res, wb, nombreArchivo);
+  } catch (err) {
+    console.error("Error en GET /exportar/kardex:", err);
+    res.status(500).json({ error: "Error al exportar kardex." });
   }
 });
 

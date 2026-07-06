@@ -346,9 +346,12 @@ export async function enviarAPlemsiSiAplica(
     items: itemsPlemsi,
     payment_form_id: factura.condicion_pago === "credito" ? 2 : 1,
     payment_method_id: metodoPagoId(factura.forma_pago),
-    payment_due_date: factura.fecha_vencimiento
-      ? new Date(factura.fecha_vencimiento).toISOString().slice(0, 10)
-      : fechaStr,
+    payment_due_date: (() => {
+      // Si la fecha de vencimiento ya pasó, usar la fecha actual (Plemsi rechaza fechas pasadas)
+      if (!factura.fecha_vencimiento) return fechaStr;
+      const venc = new Date(factura.fecha_vencimiento).toISOString().slice(0, 10);
+      return venc >= fechaStr ? venc : fechaStr;
+    })(),
     ...totales,
     foot_note: tenant.pie_factura ?? "",
   });

@@ -55,6 +55,7 @@ import notificacionesRouter from "./routes/notificaciones.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
+import { iniciarCronTrialExpiry } from "./jobs/trial-expiry.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { isDianEnProduccion } from "./services/dian.service.js";
@@ -229,4 +230,5 @@ app.listen(PORT, () => {
   console.log(`API Doravia corriendo en http://localhost:${PORT}`);
   iniciarCronRecurrentes();
   iniciarCronAlertasCobro();
+  iniciarCronTrialExpiry();
 });

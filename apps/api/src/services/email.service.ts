@@ -254,3 +254,84 @@ export async function enviarResetPassword(
 
   await send({ to: email, subject: "Restablece tu contraseña de Doravia", html: baseLayout("Recuperar contraseña", cuerpo) });
 }
+
+export async function enviarBienvenidaTrial(params: {
+  destinatario: string;
+  nombre: string;
+  empresa: string;
+  plan: string;
+}): Promise<void> {
+  const cuerpo = `
+    <h2 style="color:#111827;font-size:18px;margin:0 0 8px;">¡Tu prueba gratuita está activa!</h2>
+    <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+      Hola <strong>${params.nombre}</strong>, tu empresa <strong>${params.empresa}</strong> tiene acceso completo al plan
+      <strong>${params.plan}</strong> durante <strong>15 días</strong>.
+    </p>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
+      Explora todas las funciones sin límites. Al terminar el período de prueba puedes activar tu plan con un pago anual.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${APP_URL}" style="display:inline-block;background:#4F46E5;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Entrar a Doravia →
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0;">
+      ¿Tienes preguntas? Escríbenos a <a href="mailto:epsa2211@gmail.com" style="color:#4F46E5;">epsa2211@gmail.com</a>
+    </p>
+  `;
+  await send({ to: params.destinatario, subject: `Tu prueba gratuita de Doravia está lista, ${params.nombre}`, html: baseLayout("Prueba gratuita activa", cuerpo) });
+}
+
+export async function enviarAvisoTrialPorVencer(params: {
+  destinatario: string;
+  nombre: string;
+  empresa: string;
+  diasRestantes: number;
+}): Promise<void> {
+  const urgencia = params.diasRestantes === 1 ? "¡Solo queda 1 día!" : `Quedan ${params.diasRestantes} días`;
+  const cuerpo = `
+    <h2 style="color:#b45309;font-size:18px;margin:0 0 8px;">${urgencia} de prueba gratuita</h2>
+    <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+      Hola <strong>${params.nombre}</strong>, tu período de prueba para <strong>${params.empresa}</strong> vence en
+      <strong>${params.diasRestantes} ${params.diasRestantes === 1 ? "día" : "días"}</strong>.
+    </p>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
+      Activa tu plan para no perder el acceso a tus facturas, clientes y datos.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${APP_URL}/mi-plan" style="display:inline-block;background:#4F46E5;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Activar mi plan →
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0;">
+      ¿Necesitas ayuda? Escríbenos a <a href="mailto:epsa2211@gmail.com" style="color:#4F46E5;">epsa2211@gmail.com</a>
+    </p>
+  `;
+  await send({ to: params.destinatario, subject: `${urgencia} de tu prueba gratuita en Doravia`, html: baseLayout("Prueba por vencer", cuerpo) });
+}
+
+export async function enviarTrialSuspendido(params: {
+  destinatario: string;
+  nombre: string;
+  empresa: string;
+}): Promise<void> {
+  const cuerpo = `
+    <h2 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Tu prueba gratuita ha terminado</h2>
+    <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+      Hola <strong>${params.nombre}</strong>, el período de prueba de <strong>${params.empresa}</strong> ha vencido y
+      el acceso ha sido suspendido temporalmente.
+    </p>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">
+      Tus datos están seguros. Activa tu plan para recuperar el acceso de inmediato.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${APP_URL}/mi-plan" style="display:inline-block;background:#4F46E5;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">
+        Activar mi plan →
+      </a>
+    </p>
+    <p style="color:#9ca3af;font-size:12px;margin:0;">
+      ¿Tienes preguntas? Escríbenos a <a href="mailto:epsa2211@gmail.com" style="color:#4F46E5;">epsa2211@gmail.com</a>
+    </p>
+  `;
+  await send({ to: params.destinatario, subject: "Tu prueba de Doravia ha terminado — activa tu plan", html: baseLayout("Prueba terminada", cuerpo) });
+}

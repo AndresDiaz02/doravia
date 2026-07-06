@@ -4,7 +4,7 @@ import { eq, and, ilike } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
-import { enviarResetPassword, enviarEmailBienvenida } from "../services/email.service.js";
+import { enviarResetPassword, enviarEmailBienvenida, enviarBienvenidaTrial } from "../services/email.service.js";
 import {
   registrarTenant,
   completarRegistroPendiente,
@@ -53,6 +53,83 @@ router.post("/register", async (req, res) => {
     }).catch((e) => console.error("Error enviando email de bienvenida:", e));
 
     return res.status(201).json(resultado);
+  } catch (err) {
+    if (err instanceof Error) return res.status(422).json({ error: err.message });
+    throw err;
+  }
+});
+
+// POST /api/auth/register-trial
+// Crea cuenta de prueba de 15 días sin pago previo (planes de pago únicamente).
+router.post("/register-trial", async (req, res) => {
+  const { plan_slug, tenant_nombre, nit, usuario_nombre, email, password } = req.body as {
+    plan_slug?: string; tenant_nombre?: string; nit?: string;
+    usuario_nombre?: string; email?: string; password?: string;
+  };
+
+  if (!plan_slug || !tenant_nombre || !nit || !usuario_nombre || !email || !password) {
+    return res.status(400).json({ error: "Todos los campos son requeridos." });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  }
+
+  try {
+    const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_slug)).limit(1);
+    if (!plan) return res.status(422).json({ error: `Plan "${plan_slug}" no encontrado.` });
+    if (plan.precio_anual_cop === 0) {
+      return res.status(400).json({ error: "El plan gratuito no requiere período de prueba." });
+    }
+
+    const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, nit)).limit(1);
+    if (nitExistente) return res.status(422).json({ error: "Ya existe una empresa registrada con ese NIT." });
+
+    const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (emailExistente) return res.status(422).json({ error: "Ya existe un usuario con ese correo electrónico." });
+
+    const ahora = new Date();
+    const trialFin = new Date(ahora);
+    trialFin.setDate(trialFin.getDate() + 15);
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const { tenant, user } = await db.transaction(async (tx) => {
+      const [tenant] = await tx.insert(tenants).values({
+        nombre: tenant_nombre,
+        nit,
+        plan_id: plan.id,
+        plan_starts_at: ahora,
+        plan_ends_at: trialFin,
+        trial_ends_at: trialFin,
+        activo: true,
+      }).returning();
+
+      const [user] = await tx.insert(users).values({
+        tenant_id: tenant.id,
+        email,
+        nombre: usuario_nombre,
+        role: "admin",
+        password_hash,
+      }).returning();
+
+      return { tenant, user };
+    });
+
+    void enviarBienvenidaTrial({ destinatario: email, nombre: usuario_nombre, empresa: tenant_nombre, plan: plan.nombre })
+      .catch((e) => console.error("[register-trial] Error email bienvenida:", e));
+
+    const { accessToken, refreshToken } = await (async () => {
+      const at = signAccessToken(user, tenant.id);
+      const rt = await createRefreshToken(user.id, tenant.id);
+      return { accessToken: at, refreshToken: rt };
+    })();
+
+    return res.status(201).json({
+      tenant,
+      user: { id: user.id, email: user.email, nombre: user.nombre, role: user.role },
+      accessToken,
+      refreshToken,
+      trial_ends_at: trialFin.toISOString(),
+    });
   } catch (err) {
     if (err instanceof Error) return res.status(422).json({ error: err.message });
     throw err;

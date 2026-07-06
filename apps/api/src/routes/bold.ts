@@ -50,6 +50,7 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
     plan_ends_at: fin,
     activo: true,
     ultimo_pago_confirmado_at: hoy,
+    trial_ends_at: null, // convertido a cliente pago — ya no es trial
   }).where(eq(tenants.id, tenantId));
 
   console.log(`[Bold] Plan ${planSlug} activado para tenant ${tenantId} → ${fin.toISOString()}`);

@@ -36,6 +36,8 @@ export const tenants = pgTable("tenants", {
     fe_deshabilitada_en?: string;
     plemsi_api_key?: string;
   }>().default({}),
+  // ── Trial ────────────────────────────────────────────────────────────────────
+  trial_ends_at: timestamp("trial_ends_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

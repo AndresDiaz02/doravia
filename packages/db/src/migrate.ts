@@ -205,6 +205,30 @@ const migrations = [
     iva_valor numeric(14,2) NOT NULL,
     total numeric(14,2) NOT NULL
   )`,
+  // Proveedores — campos adicionales para módulo completo
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS tipo_documento varchar(20) NOT NULL DEFAULT 'NIT'`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS direccion varchar(300)`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS ciudad varchar(100)`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS persona_contacto varchar(200)`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS terminos_pago integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS observaciones text`,
+  // CREATE TABLE proveedores si no existe (tenants sin la tabla aún)
+  `CREATE TABLE IF NOT EXISTS proveedores (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    nombre varchar(200) NOT NULL,
+    tipo_documento varchar(20) NOT NULL DEFAULT 'NIT',
+    nit varchar(30),
+    correo varchar(200),
+    telefono varchar(30),
+    direccion varchar(300),
+    ciudad varchar(100),
+    persona_contacto varchar(200),
+    terminos_pago integer NOT NULL DEFAULT 0,
+    observaciones text,
+    activo boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   // Corrección de dígitos de verificación en clientes NIT del set de habilitación DIAN
   `UPDATE clientes SET digito_verificacion = '6' WHERE numero_documento = '900456781' AND digito_verificacion = '3'`,
   `UPDATE clientes SET digito_verificacion = '5' WHERE numero_documento = '800123456' AND digito_verificacion = '7'`,

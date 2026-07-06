@@ -18,14 +18,50 @@ router.get("/proveedores", async (req, res) => {
 });
 
 router.post("/proveedores", requireNotContador, async (req, res) => {
-  const { nombre, nit, correo, telefono } = req.body;
+  const { nombre, tipo_documento, nit, correo, telefono, direccion, ciudad, persona_contacto, terminos_pago, observaciones } = req.body;
   if (!nombre) return res.status(400).json({ error: "Campo requerido: nombre." });
 
   const [nuevo] = await db
     .insert(proveedores)
-    .values({ tenant_id: req.tenantId, nombre, nit: nit ?? null, correo: correo ?? null, telefono: telefono ?? null })
+    .values({
+      tenant_id: req.tenantId,
+      nombre,
+      tipo_documento: tipo_documento ?? "NIT",
+      nit: nit ?? null,
+      correo: correo ?? null,
+      telefono: telefono ?? null,
+      direccion: direccion ?? null,
+      ciudad: ciudad ?? null,
+      persona_contacto: persona_contacto ?? null,
+      terminos_pago: terminos_pago ? Number(terminos_pago) : 0,
+      observaciones: observaciones ?? null,
+    })
     .returning();
   res.status(201).json(nuevo);
+});
+
+router.get("/proveedores/:id", async (req, res) => {
+  const [prov] = await db
+    .select()
+    .from(proveedores)
+    .where(and(eq(proveedores.id, req.params.id), eq(proveedores.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!prov) return res.status(404).json({ error: "Proveedor no encontrado." });
+
+  const historial = await db
+    .select()
+    .from(gastos)
+    .where(and(eq(gastos.proveedor_id, prov.id), eq(gastos.tenant_id, req.tenantId)))
+    .orderBy(desc(gastos.fecha))
+    .limit(50);
+
+  const totalCompras = historial.reduce((s, g) => s + Number(g.total), 0);
+  const totalPendiente = historial
+    .filter((g) => g.estado !== "pagado")
+    .reduce((s, g) => s + Number(g.total), 0);
+
+  res.json({ ...prov, historial, totalCompras, totalPendiente });
 });
 
 router.patch("/proveedores/:id", async (req, res) => {
@@ -37,14 +73,20 @@ router.patch("/proveedores/:id", async (req, res) => {
 
   if (!prov) return res.status(404).json({ error: "Proveedor no encontrado." });
 
-  const { nombre, nit, correo, telefono, activo } = req.body;
+  const { nombre, tipo_documento, nit, correo, telefono, direccion, ciudad, persona_contacto, terminos_pago, observaciones, activo } = req.body;
   const [actualizado] = await db
     .update(proveedores)
     .set({
       ...(nombre !== undefined && { nombre }),
+      ...(tipo_documento !== undefined && { tipo_documento }),
       ...(nit !== undefined && { nit }),
       ...(correo !== undefined && { correo }),
       ...(telefono !== undefined && { telefono }),
+      ...(direccion !== undefined && { direccion }),
+      ...(ciudad !== undefined && { ciudad }),
+      ...(persona_contacto !== undefined && { persona_contacto }),
+      ...(terminos_pago !== undefined && { terminos_pago: Number(terminos_pago) }),
+      ...(observaciones !== undefined && { observaciones }),
       ...(activo !== undefined && { activo }),
     })
     .where(eq(proveedores.id, prov.id))

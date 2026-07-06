@@ -51,6 +51,8 @@ import RegistroContador from "./pages/RegistroContador";
 import ContadorDashboard from "./pages/ContadorDashboard";
 import CajerosPOS from "./pages/CajerosPOS";
 import Remisiones from "./pages/Remisiones";
+import Proveedores from "./pages/Proveedores";
+import ProveedorDetalle from "./pages/ProveedorDetalle";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
 import Checkout from "./pages/Checkout";
@@ -110,6 +112,8 @@ export default function App() {
               <Route path="/recurrentes" element={<><RequiereRol allow={["admin", "contador"]} /><Recurrentes /></>} />
               <Route path="/cotizaciones" element={<Cotizaciones />} />
               <Route path="/gastos" element={<><RequiereRol allow={["admin", "contador"]} /><Gastos /></>} />
+              <Route path="/proveedores" element={<Proveedores />} />
+              <Route path="/proveedores/:id" element={<ProveedorDetalle />} />
               <Route path="/centros-costos" element={<><RequiereRol allow={["admin", "contador"]} /><CentrosCostos /></>} />
               <Route path="/ensamble" element={<><RequiereRol allow={["admin", "contador"]} /><Ensamble /></>} />
               <Route path="/cartera" element={<><RequiereRol allow={["admin", "contador"]} /><Cartera /></>} />

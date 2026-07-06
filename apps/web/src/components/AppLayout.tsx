@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   Sun,
   TrendingUp,
+  Truck,
   UserCog,
   Users,
   Warehouse,
@@ -63,6 +64,7 @@ const NAV_VENTAS = [
 
 const NAV_GASTOS = [
   { to: "/gastos", label: "Gastos", icon: Receipt },
+  { to: "/proveedores", label: "Proveedores", icon: Truck },
 ];
 
 const NAV_INVENTARIO = [

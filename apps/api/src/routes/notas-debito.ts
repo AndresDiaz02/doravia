@@ -295,4 +295,90 @@ router.post("/factura/:facturaId", async (req, res) => {
   }
 });
 
+// POST /api/notas-debito/:id/reenviar-dian
+router.post("/:id/reenviar-dian", async (req, res) => {
+  try {
+    const [nota] = await db
+      .select()
+      .from(notas_debito)
+      .where(and(eq(notas_debito.id, req.params.id), eq(notas_debito.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!nota) return res.status(404).json({ error: "Nota débito no encontrada." });
+
+    if (!req.tenant.facturacion_electronica) {
+      return res.status(422).json({ error: "La empresa no tiene facturación electrónica habilitada." });
+    }
+
+    const [facturaOrig] = await db.select().from(facturas).where(eq(facturas.id, nota.factura_id)).limit(1);
+    if (!facturaOrig?.cufe) {
+      return res.status(422).json({ error: "La factura original no tiene CUFE. No se puede reenviar." });
+    }
+
+    const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
+    const apiKey = (posConfig?.plemsi_api_key as string | undefined) ?? process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+    if (!apiKey) return res.status(422).json({ error: "API key de Plemsi no configurada." });
+
+    const [clienteND] = await db.select().from(clientes).where(eq(clientes.id, nota.cliente_id)).limit(1);
+    if (!clienteND) return res.status(404).json({ error: "Cliente no encontrado." });
+
+    const itemsND = await db.select().from(items_nota_debito).where(eq(items_nota_debito.nota_debito_id, nota.id));
+
+    const customerData = buildPersona({
+      nit: clienteND.numero_documento,
+      dv: clienteND.digito_verificacion,
+      nombre: clienteND.nombre,
+      email: clienteND.correo,
+      telefono: clienteND.telefono,
+      direccion: clienteND.direccion,
+      ciudad: clienteND.municipio,
+      tipo_persona: clienteND.tipo_persona,
+    });
+
+    const itemsPlemsi = buildItems(itemsND.map((i) => ({
+      descripcion: i.descripcion,
+      cantidad: Number(i.cantidad),
+      precio_unitario: Number(i.precio_unitario),
+      iva_porcentaje: Number(i.iva_pct),
+    })));
+
+    const totales = calcularTotalesPlemsi(itemsPlemsi);
+
+    const discrepancyCodes: Record<string, number> = { interes: 1, gastos: 2, ajuste: 3 };
+    const discrepancy_code = discrepancyCodes[nota.tipo] ?? 3;
+
+    const resultado = await plemsiEmitirNotaDebito({
+      apiKey,
+      prefix: "ND",
+      number: nota.consecutivo,
+      resolution: nota.numero,
+      discrepancy_code,
+      discrepancy_description: nota.motivo,
+      customer: customerData,
+      items: itemsPlemsi,
+      invoice_reference: {
+        cufe: facturaOrig.cufe,
+        number: facturaOrig.numero,
+        date: new Date(facturaOrig.fecha_emision).toISOString().slice(0, 10),
+      },
+      ...totales,
+    });
+
+    await db
+      .update(notas_debito)
+      .set({
+        cude: resultado.cufe ?? null,
+        plemsi_id: resultado.plemsi_id ?? null,
+        estado_dian: resultado.ok ? "emitida" : "error",
+        error_dian: resultado.ok ? null : (resultado.error ?? null),
+      })
+      .where(eq(notas_debito.id, nota.id));
+
+    res.json({ ok: resultado.ok, cude: resultado.cufe, error: resultado.error });
+  } catch (err) {
+    console.error("Error en POST /notas-debito/:id/reenviar-dian:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 export default router;

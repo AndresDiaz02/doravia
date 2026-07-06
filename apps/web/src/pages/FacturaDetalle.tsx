@@ -100,7 +100,9 @@ export function FacturaDetalle() {
   const [ncForm, setNcForm] = useState({ tipo: "anulacion", motivo: "" });
   const [creandoNC, setCreandoNC] = useState(false);
   const [openND, setOpenND] = useState(false);
-  const [ndForm, setNdForm] = useState({ tipo: "gastos", motivo: "" });
+  type NdItem = { descripcion: string; cantidad: number; precio_unitario: number; iva_pct: number };
+  const ndItemVacio = (): NdItem => ({ descripcion: "", cantidad: 1, precio_unitario: 0, iva_pct: 19 });
+  const [ndForm, setNdForm] = useState({ tipo: "gastos", motivo: "", items: [ndItemVacio()] as NdItem[] });
   const [creandoND, setCreandoND] = useState(false);
   const [reenviandoDian, setReenviandoDian] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
@@ -215,26 +217,39 @@ export function FacturaDetalle() {
     setCreandoND(true);
     setErrorReenvio(null);
     try {
-      const items = factura.items.map((i) => ({
-        descripcion: i.descripcion,
-        cantidad: Number(i.cantidad),
-        precio_unitario: Number(i.precio_unitario),
-        iva_pct: Number(i.iva_pct),
-      }));
-
       await apiFetch(`/api/notas-debito/factura/${factura.id}`, {
         method: "POST",
-        body: JSON.stringify({ tipo: ndForm.tipo, motivo: ndForm.motivo, items }),
+        body: JSON.stringify({ tipo: ndForm.tipo, motivo: ndForm.motivo, items: ndForm.items }),
       });
 
       setOpenND(false);
-      setNdForm({ tipo: "gastos", motivo: "" });
+      setNdForm({ tipo: "gastos", motivo: "", items: [ndItemVacio()] });
     } catch (err) {
       setErrorReenvio(err instanceof ApiError ? err.message : "Error al crear nota débito.");
     } finally {
       setCreandoND(false);
     }
   }
+
+  function ndSetItem(idx: number, field: keyof NdItem, value: string | number) {
+    setNdForm((f) => ({
+      ...f,
+      items: f.items.map((it, i) => i === idx ? { ...it, [field]: value } : it),
+    }));
+  }
+
+  function ndAddItem() {
+    setNdForm((f) => ({ ...f, items: [...f.items, ndItemVacio()] }));
+  }
+
+  function ndRemoveItem(idx: number) {
+    setNdForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+  }
+
+  const ndTotal = ndForm.items.reduce((s, it) => {
+    const sub = Number(it.cantidad) * Number(it.precio_unitario);
+    return s + sub + sub * Number(it.iva_pct) / 100;
+  }, 0);
 
   async function handleReenviar() {
     if (!factura) return;
@@ -566,32 +581,118 @@ export function FacturaDetalle() {
 
       {/* Dialog nota débito */}
       <Dialog open={openND} onClose={() => setOpenND(false)} title="Crear nota débito">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <Label>Tipo</Label>
-              <HelpTooltip text="La nota débito aumenta el valor de la factura. Úsala para intereses de mora, gastos adicionales o ajustes de precio hacia arriba." />
+        <div className="space-y-4 w-full" style={{ minWidth: "min(640px, 90vw)" }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label>Tipo</Label>
+                <HelpTooltip text="La nota débito aumenta el valor de la factura. Úsala para intereses de mora, gastos adicionales o ajustes de precio hacia arriba." />
+              </div>
+              <select
+                value={ndForm.tipo}
+                onChange={(e) => setNdForm((f) => ({ ...f, tipo: e.target.value }))}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="interes">Intereses (mora, financieros)</option>
+                <option value="gastos">Gastos adicionales</option>
+                <option value="ajuste">Ajuste de valor</option>
+              </select>
             </div>
-            <select
-              value={ndForm.tipo}
-              onChange={(e) => setNdForm((f) => ({ ...f, tipo: e.target.value }))}
-              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-            >
-              <option value="interes">Intereses — intereses de mora u otros cargos financieros</option>
-              <option value="gastos">Gastos — gastos adicionales no incluidos en la factura</option>
-              <option value="ajuste">Ajuste de valor — corrección de precio hacia arriba</option>
-            </select>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nd_motivo">Motivo *</Label>
+              <Input
+                id="nd_motivo"
+                required
+                value={ndForm.motivo}
+                onChange={(e) => setNdForm((f) => ({ ...f, motivo: e.target.value }))}
+                placeholder="Ej: Intereses de mora enero"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="nd_motivo">Motivo *</Label>
-            <Input
-              id="nd_motivo"
-              required
-              value={ndForm.motivo}
-              onChange={(e) => setNdForm((f) => ({ ...f, motivo: e.target.value }))}
-              placeholder="Describe el motivo de la nota débito"
-            />
+          {/* Tabla de ítems */}
+          <div className="space-y-2">
+            <Label>Ítems de la nota débito</Label>
+            <div className="rounded-md border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500">Descripción</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-500 w-20">Cant.</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-500 w-28">Precio unit.</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-500 w-20">IVA %</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {ndForm.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-2 py-1.5">
+                        <input
+                          value={item.descripcion}
+                          onChange={(e) => ndSetItem(idx, "descripcion", e.target.value)}
+                          placeholder="Descripción del cargo"
+                          className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={item.cantidad}
+                          onChange={(e) => ndSetItem(idx, "cantidad", Number(e.target.value))}
+                          className="w-full rounded border border-gray-200 px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-green-500"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.precio_unitario}
+                          onChange={(e) => ndSetItem(idx, "precio_unitario", Number(e.target.value))}
+                          className="w-full rounded border border-gray-200 px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-green-500"
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <select
+                          value={item.iva_pct}
+                          onChange={(e) => ndSetItem(idx, "iva_pct", Number(e.target.value))}
+                          className="w-full rounded border border-gray-200 px-1 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                        >
+                          <option value={0}>0%</option>
+                          <option value={5}>5%</option>
+                          <option value={19}>19%</option>
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5 text-center">
+                        {ndForm.items.length > 1 && (
+                          <button
+                            onClick={() => ndRemoveItem(idx)}
+                            className="text-gray-300 hover:text-red-500"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button
+              onClick={ndAddItem}
+              className="text-xs text-green-600 hover:underline"
+            >
+              + Agregar ítem
+            </button>
+          </div>
+
+          {/* Total */}
+          <div className="flex justify-end text-sm font-semibold text-orange-600">
+            Total nota débito: +${ndTotal.toLocaleString("es-CO", { minimumFractionDigits: 0 })}
           </div>
 
           {errorReenvio && (
@@ -602,7 +703,7 @@ export function FacturaDetalle() {
             <Button variant="secondary" onClick={() => setOpenND(false)}>Cancelar</Button>
             <Button
               onClick={() => void handleCrearNotaDebito()}
-              disabled={creandoND || !ndForm.motivo.trim()}
+              disabled={creandoND || !ndForm.motivo.trim() || ndForm.items.some((i) => !i.descripcion.trim() || i.precio_unitario <= 0)}
             >
               {creandoND ? "Creando..." : "Crear nota débito"}
             </Button>

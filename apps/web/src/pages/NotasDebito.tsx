@@ -32,6 +32,20 @@ const TIPO_COLOR: Record<string, "red" | "yellow" | "blue" | "gray"> = {
   ajuste:  "gray",
 };
 
+const DIAN_LABEL: Record<string, string> = {
+  emitida: "DIAN ✓",
+  error: "Error DIAN",
+  pendiente: "Pendiente",
+  no_aplica: "",
+};
+
+const DIAN_COLOR: Record<string, "green" | "red" | "yellow" | "gray"> = {
+  emitida: "green",
+  error: "red",
+  pendiente: "yellow",
+  no_aplica: "gray",
+};
+
 export default function NotasDebito() {
   const [notas, setNotas] = useState<NotaDebito[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +86,7 @@ export default function NotasDebito() {
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Tipo</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Motivo</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Fecha</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">DIAN</th>
                 <th className="px-6 py-3 text-right font-medium text-gray-500">Total</th>
                 <th className="px-6 py-3" />
               </tr>
@@ -86,6 +101,13 @@ export default function NotasDebito() {
                   </td>
                   <td className="px-6 py-3 text-gray-500 max-w-xs truncate">{n.motivo}</td>
                   <td className="px-6 py-3 text-gray-500">{fecha(n.fecha_emision)}</td>
+                  <td className="px-6 py-3">
+                    {n.estado_dian && n.estado_dian !== "no_aplica" && DIAN_LABEL[n.estado_dian] && (
+                      <Badge variant={DIAN_COLOR[n.estado_dian] ?? "gray"}>
+                        {DIAN_LABEL[n.estado_dian]}
+                      </Badge>
+                    )}
+                  </td>
                   <td className="px-6 py-3 text-right font-medium text-orange-600">+ {cop(n.total)}</td>
                   <td className="px-6 py-3 text-right">
                     <Link to={`/notas-debito/${n.id}`} className="text-xs text-green-600 hover:underline">

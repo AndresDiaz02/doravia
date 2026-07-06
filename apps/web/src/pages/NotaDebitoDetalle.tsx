@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { apiFetch, cop, fecha } from "../lib/api";
+import { ArrowLeft, RefreshCw } from "lucide-react";
+import { apiFetch, ApiError, cop, fecha } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 interface ItemNota {
   id: string;
@@ -49,8 +51,11 @@ const TIPO_COLOR: Record<string, "red" | "yellow" | "blue" | "gray"> = {
 export default function NotaDebitoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isContador } = useAuth();
   const [nota, setNota] = useState<NotaDetalle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reenviando, setReenviando] = useState(false);
+  const [errorReenvio, setErrorReenvio] = useState<string | null>(null);
 
   useEffect(() => {
     void apiFetch<NotaDetalle>(`/api/notas-debito/${id!}`)
@@ -58,6 +63,28 @@ export default function NotaDebitoDetalle() {
       .catch(() => navigate("/notas-debito", { replace: true }))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  async function handleReenviarDian() {
+    if (!nota) return;
+    setReenviando(true);
+    setErrorReenvio(null);
+    try {
+      const r = await apiFetch<{ ok: boolean; cude?: string; error?: string }>(
+        `/api/notas-debito/${nota.id}/reenviar-dian`,
+        { method: "POST" },
+      );
+      if (r.ok) {
+        setNota((prev) => prev ? { ...prev, estado_dian: "emitida", cude: r.cude ?? prev.cude } : prev);
+      } else {
+        setErrorReenvio(r.error ?? "Error al reenviar a la DIAN.");
+        setNota((prev) => prev ? { ...prev, estado_dian: "error" } : prev);
+      }
+    } catch (err) {
+      setErrorReenvio(err instanceof ApiError ? err.message : "Error inesperado.");
+    } finally {
+      setReenviando(false);
+    }
+  }
 
   if (loading) return <div className="flex h-64 items-center justify-center text-sm text-gray-400">Cargando...</div>;
   if (!nota) return null;
@@ -70,14 +97,29 @@ export default function NotaDebitoDetalle() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-semibold text-gray-900">{nota.numero}</h1>
               <Badge variant={TIPO_COLOR[nota.tipo] ?? "gray"}>{TIPO_LABEL[nota.tipo] ?? nota.tipo}</Badge>
+              {nota.estado_dian === "emitida" && <Badge variant="green">DIAN ✓</Badge>}
+              {nota.estado_dian === "error" && <Badge variant="red">Error DIAN</Badge>}
+              {nota.estado_dian === "pendiente" && <Badge variant="yellow">Pendiente DIAN</Badge>}
             </div>
             <p className="text-sm text-gray-500">Emitida el {fecha(nota.fecha_emision)}</p>
           </div>
         </div>
+        {!isContador && (nota.estado_dian === "error" || nota.estado_dian === "pendiente") && (
+          <Button variant="secondary" onClick={() => void handleReenviarDian()} disabled={reenviando}>
+            <RefreshCw className={`h-4 w-4 ${reenviando ? "animate-spin" : ""}`} />
+            {reenviando ? "Enviando..." : "Reenviar a DIAN"}
+          </Button>
+        )}
       </div>
+
+      {errorReenvio && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorReenvio}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

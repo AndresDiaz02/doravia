@@ -113,29 +113,29 @@ export function buildItems(items: ItemInput[]) {
 
     return {
       unit_measure_id: 70,
-      line_extension_amount: baseItem,
+      line_extension_amount: baseItem.toFixed(2),
       free_of_charge_indicator: false,
       ...(descMonto > 0 ? {
         allowance_charges: [{
           charge_indicator: false,
           allowance_charge_reason: "Descuento",
           multiplier_factor_numeric: descPct / 100,
-          amount: descMonto,
-          base_amount: baseItem,
+          amount: descMonto.toFixed(2),
+          base_amount: baseItem.toFixed(2),
         }],
       } : {}),
       tax_totals: ivaPct > 0 ? [{
         tax_id: 1,
-        percent: ivaPct,
-        tax_amount: ivaMonto,
-        taxable_amount: baseGravable,
+        percent: ivaPct.toFixed(2),
+        tax_amount: ivaMonto.toFixed(2),
+        taxable_amount: baseGravable.toFixed(2),
       }] : [],
       description: item.descripcion,
       code: item.codigo ?? "GEN",
       type_item_identification_id: 4,
-      price_amount: precio,
-      base_quantity: qty,
-      invoiced_quantity: qty,
+      price_amount: precio.toFixed(2),
+      base_quantity: qty.toFixed(4),
+      invoiced_quantity: qty.toFixed(4),
     };
   });
 }
@@ -223,6 +223,7 @@ export async function emitirFactura(params: {
 }): Promise<ResultadoPlemsi> {
   try {
     const body = {
+      type_document_id: 1,
       date: params.date,
       time: params.time ?? new Date().toTimeString().slice(0, 8),
       prefix: params.prefix,
@@ -239,12 +240,17 @@ export async function emitirFactura(params: {
       generalAllowances: [],
       head_note: params.head_note ?? "",
       foot_note: params.foot_note ?? "",
-      allowanceTotal: 0,
-      invoiceBaseTotal: params.invoiceBaseTotal,
-      invoiceTaxExclusiveTotal: params.invoiceTaxExclusiveTotal,
-      invoiceTaxInclusiveTotal: params.invoiceTaxInclusiveTotal,
-      totalToPay: params.totalToPay,
-      allTaxTotals: params.allTaxTotals,
+      allowanceTotal: "0.00",
+      invoiceBaseTotal: params.invoiceBaseTotal.toFixed(2),
+      invoiceTaxExclusiveTotal: params.invoiceTaxExclusiveTotal.toFixed(2),
+      invoiceTaxInclusiveTotal: params.invoiceTaxInclusiveTotal.toFixed(2),
+      totalToPay: params.totalToPay.toFixed(2),
+      allTaxTotals: params.allTaxTotals.map((t) => ({
+        tax_id: t.tax_id,
+        tax_amount: t.tax_amount.toFixed(2),
+        percent: t.percent.toFixed(2),
+        taxable_amount: t.taxable_amount.toFixed(2),
+      })),
     };
 
     const res = await fetch(`${PLEMSI_BASE}/api/billing/invoice`, {
@@ -265,8 +271,7 @@ export async function emitirFactura(params: {
     }
 
     if (!res.ok) {
-      const detalle = (json.message ?? json.error ?? json.detail ?? JSON.stringify(json)) as string;
-      return { ok: false, error: `Plemsi ${res.status}: ${detalle}` };
+      return { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(json)}` };
     }
 
     return {

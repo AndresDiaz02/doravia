@@ -16,6 +16,7 @@ export * from "./centros_costos.ts";
 export * from "./ensamble.ts";
 export * from "./retenciones.ts";
 export * from "./notas_credito.ts";
+export * from "./notas_debito.ts";
 export * from "./pos.ts";
 export * from "./audit_log.ts";
 export * from "./gastos_internos.ts";

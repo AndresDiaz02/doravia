@@ -172,6 +172,39 @@ const migrations = [
   `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
   `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,
   `ALTER TABLE resoluciones_dian ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
+  // Notas débito (documentos que aumentan el valor de una factura para la DIAN)
+  `CREATE TABLE IF NOT EXISTS notas_debito (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    factura_id uuid NOT NULL REFERENCES facturas(id),
+    cliente_id uuid NOT NULL REFERENCES clientes(id),
+    numero varchar(30) NOT NULL,
+    consecutivo integer NOT NULL,
+    tipo varchar(20) NOT NULL,
+    motivo text NOT NULL,
+    estado varchar(20) NOT NULL DEFAULT 'aceptada',
+    subtotal numeric(14,2) NOT NULL,
+    iva_total numeric(14,2) NOT NULL,
+    total numeric(14,2) NOT NULL,
+    cude varchar(256),
+    plemsi_id varchar(100),
+    estado_dian varchar(30) DEFAULT 'no_aplica',
+    error_dian text,
+    asiento_id uuid,
+    fecha_emision timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS items_nota_debito (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nota_debito_id uuid NOT NULL REFERENCES notas_debito(id),
+    descripcion varchar(500) NOT NULL,
+    cantidad numeric(10,4) NOT NULL,
+    precio_unitario numeric(14,4) NOT NULL,
+    iva_pct numeric(5,2) NOT NULL DEFAULT 19,
+    subtotal numeric(14,2) NOT NULL,
+    iva_valor numeric(14,2) NOT NULL,
+    total numeric(14,2) NOT NULL
+  )`,
 ];
 
 for (const migration of migrations) {

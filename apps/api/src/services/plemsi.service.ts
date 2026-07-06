@@ -113,29 +113,29 @@ export function buildItems(items: ItemInput[]) {
 
     return {
       unit_measure_id: 70,
-      line_extension_amount: baseItem.toFixed(2),
+      line_extension_amount: baseItem,
       free_of_charge_indicator: false,
       ...(descMonto > 0 ? {
         allowance_charges: [{
           charge_indicator: false,
           allowance_charge_reason: "Descuento",
           multiplier_factor_numeric: descPct / 100,
-          amount: descMonto.toFixed(2),
-          base_amount: baseItem.toFixed(2),
+          amount: descMonto,
+          base_amount: baseItem,
         }],
       } : {}),
       tax_totals: ivaPct > 0 ? [{
         tax_id: 1,
-        percent: ivaPct.toFixed(2),
-        tax_amount: ivaMonto.toFixed(2),
-        taxable_amount: baseGravable.toFixed(2),
+        percent: ivaPct,
+        tax_amount: ivaMonto,
+        taxable_amount: baseGravable,
       }] : [],
       description: item.descripcion,
       code: item.codigo ?? "GEN",
       type_item_identification_id: 4,
-      price_amount: precio.toFixed(2),
-      base_quantity: qty.toFixed(4),
-      invoiced_quantity: qty.toFixed(4),
+      price_amount: precio,
+      base_quantity: qty,
+      invoiced_quantity: qty,
     };
   });
 }
@@ -236,7 +236,26 @@ export async function emitirFactura(params: {
         payment_due_date: params.payment_due_date ?? params.date,
         duration_measure: "0",
       },
-      items: params.items,
+      items: params.items.map((item) => ({
+        ...item,
+        line_extension_amount: Number(item.line_extension_amount).toFixed(2),
+        price_amount: Number(item.price_amount).toFixed(2),
+        base_quantity: Number(item.base_quantity).toFixed(4),
+        invoiced_quantity: Number(item.invoiced_quantity).toFixed(4),
+        tax_totals: item.tax_totals.map((t) => ({
+          ...t,
+          tax_amount: Number(t.tax_amount).toFixed(2),
+          percent: Number(t.percent).toFixed(2),
+          taxable_amount: Number(t.taxable_amount).toFixed(2),
+        })),
+        ...(item.allowance_charges ? {
+          allowance_charges: item.allowance_charges.map((a) => ({
+            ...a,
+            amount: Number(a.amount).toFixed(2),
+            base_amount: Number(a.base_amount).toFixed(2),
+          })),
+        } : {}),
+      })),
       generalAllowances: [],
       head_note: params.head_note ?? "",
       foot_note: params.foot_note ?? "",

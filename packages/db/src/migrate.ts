@@ -205,6 +205,11 @@ const migrations = [
     iva_valor numeric(14,2) NOT NULL,
     total numeric(14,2) NOT NULL
   )`,
+  // Corrección de dígitos de verificación en clientes NIT del set de habilitación DIAN
+  `UPDATE clientes SET digito_verificacion = '6' WHERE numero_documento = '900456781' AND digito_verificacion = '3'`,
+  `UPDATE clientes SET digito_verificacion = '5' WHERE numero_documento = '800123456' AND digito_verificacion = '7'`,
+  `UPDATE clientes SET digito_verificacion = '7' WHERE numero_documento = '901234567' AND digito_verificacion = '1'`,
+  `UPDATE clientes SET digito_verificacion = '8' WHERE numero_documento = '860012345' AND digito_verificacion = '9'`,
 ];
 
 for (const migration of migrations) {

@@ -124,12 +124,13 @@ export function buildItems(items: ItemInput[]) {
           base_amount: baseItem,
         }],
       } : {}),
-      tax_totals: ivaPct > 0 ? [{
+      // IVA 0% también debe declararse para que la base imponible total cuadre (FAU04)
+      tax_totals: [{
         tax_id: 1,
         percent: ivaPct,
         tax_amount: ivaMonto,
         taxable_amount: baseGravable,
-      }] : [],
+      }],
       description: item.descripcion,
       code: item.codigo ?? "GEN",
       type_item_identification_id: 4,

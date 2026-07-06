@@ -270,7 +270,8 @@ export async function emitirFactura(params: {
     }
 
     if (!res.ok) {
-      return { ok: false, error: (json.message as string) ?? `Error Plemsi ${res.status}` };
+      const detalle = (json.message ?? json.error ?? json.detail ?? JSON.stringify(json)) as string;
+      return { ok: false, error: `Plemsi ${res.status}: ${detalle}` };
     }
 
     return {

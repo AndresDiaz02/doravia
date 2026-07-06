@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
-import { Plus, Upload, Download, FileDown } from "lucide-react";
+import { Plus, Upload, Download, FileDown, Search } from "lucide-react";
 import { apiFetch, ApiError, cop, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -38,6 +38,7 @@ export function Productos() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
   const [importando, setImportando] = useState(false);
   const [importResult, setImportResult] = useState<{ creados: number; actualizados: number; errores: { fila: number; mensaje: string }[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,12 +157,22 @@ export function Productos() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Productos y servicios</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar…"
+              className="rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm w-44"
+            />
+          </div>
           <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/productos", "productos.xlsx")}>
             <FileDown className="h-4 w-4" />
-            Exportar Excel
+            Excel
           </Button>
           <Button variant="secondary" onClick={descargarPlantilla}>
             <Download className="h-4 w-4" />
@@ -219,7 +230,10 @@ export function Productos() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {productos.map((p) => (
+              {productos.filter((p) => {
+                const q = busqueda.toLowerCase();
+                return !q || p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
+              }).map((p) => (
                 <tr key={p.id} className={`hover:bg-gray-50 ${!p.activo ? "opacity-50" : ""}`}>
                   <td className="px-6 py-3 font-mono text-xs text-gray-600">{p.codigo}</td>
                   <td className="px-6 py-3">

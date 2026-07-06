@@ -9,6 +9,7 @@
   },
   "scripts": {
     "seed": "tsx src/seed/index.ts",
+    "seed:prod": "tsx src/seed/prod.ts",
     "seed:dian": "tsx src/seed/clientes-productos-dian.ts",
     "seed:contador": "tsx src/seed/contador.ts",
     "push": "drizzle-kit push --force",

@@ -34,24 +34,27 @@ console.log("✓ Autenticado");
 
 const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
-// ── Cargar facturas con cualquier estado de DIAN que no sea "emitida" ──────────
-const factRes = await fetch(`${API}/api/facturas?limit=100`, { headers });
+// ── Cargar facturas para habilitación DIAN ─────────────────────────────────────
+const factRes = await fetch(`${API}/api/facturas?limit=200`, { headers });
 const factData = await factRes.json();
 const todas = factData.data ?? factData;
 
-// Reenviar facturas con estado_dian de error o pendiente (excluyendo no_aplica y emitida)
-const pendientes = todas.filter(f =>
+// Incluir:
+//  1. Facturas con estado_dian de error o pendiente
+//  2. Facturas con CUFE stub (anteriores reenvíos donde Plemsi aceptó pero devolvió "cude" que no se leyó)
+const lista = todas.filter(f =>
   f.facturacion_electronica !== false &&
-  (f.estado_dian === "error" || f.estado_dian === "pendiente")
+  (
+    f.estado_dian === "error" ||
+    f.estado_dian === "pendiente" ||
+    (f.estado_dian === null) ||
+    (f.cufe && String(f.cufe).startsWith("STUB-"))
+  )
 );
-
-// Si no hay errores en nuestra BD, intentar con todas las que tienen cufe (las que llegaron a Plemsi)
-const conCufe = todas.filter(f => f.cufe && f.estado === "aceptada");
-const lista = pendientes.length > 0 ? pendientes : conCufe;
 
 console.log(`\nFacturas a reenviar: ${lista.length}`);
 if (!lista.length) {
-  console.log("No hay facturas con error_dian=error. Intenta con todas las aceptadas.");
+  console.log("No hay facturas pendientes. Verifica estado_dian en la base de datos.");
   process.exit(0);
 }
 
@@ -59,9 +62,12 @@ let ok = 0; let errores = 0;
 for (const f of lista) {
   const res = await fetch(`${API}/api/facturas/${f.id}/reenviar-dian`, { method: "POST", headers });
   const data = await res.json();
-  if (data.ok || data.cufe) {
+  if (data.ok && data.cufe && !String(data.cufe).startsWith("STUB-")) {
     ok++;
-    console.log(`  ✓ ${f.numero} → CUFE: ${(data.cufe ?? "").slice(0, 20)}...`);
+    console.log(`  ✓ ${f.numero} → CUDE: ${String(data.cufe).slice(0, 24)}...`);
+  } else if (data.ok) {
+    errores++;
+    console.error(`  ✗ ${f.numero}: emitida pero CUDE no recibido (cufe=${data.cufe ?? "vacío"})`);
   } else {
     errores++;
     console.error(`  ✗ ${f.numero}: ${data.error ?? JSON.stringify(data).slice(0, 100)}`);

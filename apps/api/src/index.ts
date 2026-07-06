@@ -1,3 +1,14 @@
+import * as Sentry from "@sentry/node";
+
+// Inicializar Sentry antes de todo lo demás (opcional: si SENTRY_DSN no está, no hace nada)
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.DIAN_AMBIENTE === "1" ? "production" : "staging",
+    tracesSampleRate: 0.1,
+  });
+}
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -191,6 +202,11 @@ app.use("/api/fundador",       requireFundador, fundadorRouter);
 app.use("/api/notificaciones", authenticate, notificacionesRouter);
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
+// El handler de Sentry debe ir ANTES del handler personalizado
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof PlanLimitError || err.name === "PlanLimitError") {
     return res.status(403).json({ error: err.message, code: "PLAN_LIMIT_EXCEEDED" });
@@ -205,6 +221,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Capturar promesas rechazadas no manejadas para evitar crash del proceso
 process.on("unhandledRejection", (reason) => {
   console.error("[unhandledRejection]", reason);
+  if (process.env.SENTRY_DSN) Sentry.captureException(reason);
 });
 
 const PORT = process.env.PORT ?? 3001;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   db, facturas, items_factura, clientes, notas_credito, items_nota_credito,
-  asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_CREDITO,
+  asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_CREDITO, resoluciones_dian,
 } from "@workspace/db";
 import { audit } from "../services/audit.service.js";
 import { eq, and, desc } from "drizzle-orm";
@@ -252,11 +252,17 @@ router.post("/factura/:facturaId", async (req, res) => {
               };
               const discrepancy_code = discrepancyCodes[tipo] ?? 5;
 
+              // Obtener resolución de la factura para pasarla a Plemsi
+              const [resolucionFact] = factura.resolucion_id
+                ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
+                : [null];
+              const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+
               const resultado = await plemsiEmitirNotaCredito({
                 apiKey,
                 prefix: "NC",
                 number: consecutivo,
-                resolution: numero,
+                resolution: resolucionNumero,
                 discrepancy_code,
                 discrepancy_description: motivo,
                 buyer: buyerData,
@@ -295,6 +301,74 @@ router.post("/factura/:facturaId", async (req, res) => {
   } catch (err) {
     console.error("Error en POST /notas-credito/factura/:facturaId:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/notas-credito/:id/reenviar-dian — reintenta el envío a Plemsi
+router.post("/:id/reenviar-dian", async (req, res) => {
+  const [row] = await db
+    .select({ nota: notas_credito, factura: facturas })
+    .from(notas_credito)
+    .innerJoin(facturas, eq(notas_credito.factura_id, facturas.id))
+    .where(and(eq(notas_credito.id, req.params.id), eq(notas_credito.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!row) return res.status(404).json({ error: "Nota crédito no encontrada." });
+
+  const { nota, factura } = row;
+  const nc = nota as Record<string, unknown>;
+  const fact = factura as Record<string, unknown>;
+
+  if (!fact.cufe) return res.status(422).json({ error: "La factura referenciada no tiene CUFE/CUDE." });
+
+  const apiKey = process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+  if (!apiKey) return res.status(422).json({ error: "PLEMSI_API_KEY_DEFAULT no configurada." });
+
+  const [resolucionFact] = fact.resolucion_id
+    ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, fact.resolucion_id as string)).limit(1)
+    : [null];
+  const resolucionNumero = resolucionFact?.numero ?? "18760000001";
+
+  const [cliente] = await db.select().from(clientes).where(eq(clientes.id, fact.cliente_id as string)).limit(1);
+  const itemsDB = await db.select().from(items_nota_credito).where(eq(items_nota_credito.nota_credito_id, nota.id));
+
+  if (!cliente) return res.status(422).json({ error: "Cliente no encontrado." });
+
+  try {
+    const buyerData = buildPersona({
+      nit: cliente.numero_documento, dv: cliente.digito_verificacion, nombre: cliente.nombre,
+      email: cliente.correo, telefono: cliente.telefono, direccion: cliente.direccion,
+      ciudad: cliente.municipio, tipo_persona: cliente.tipo_persona,
+    });
+    const itemsPlemsi = buildItems(itemsDB.map((i) => ({
+      descripcion: i.descripcion, cantidad: Number(i.cantidad),
+      precio_unitario: Number(i.precio_unitario), iva_porcentaje: Number(i.iva_pct),
+    })));
+    const totales = calcularTotalesPlemsi(itemsPlemsi);
+    const discrepancyCodes: Record<string, number> = { anulacion: 2, devolucion: 1, descuento: 3, ajuste: 4 };
+    const discrepancy_code = discrepancyCodes[nc.tipo as string] ?? 5;
+
+    const resultado = await plemsiEmitirNotaCredito({
+      apiKey, prefix: "NC", number: Number(nc.consecutivo),
+      resolution: resolucionNumero, discrepancy_code,
+      discrepancy_description: nc.motivo as string,
+      buyer: buyerData, items: itemsPlemsi,
+      invoice_reference: {
+        cufe: fact.cufe as string, number: fact.numero as string,
+        date: new Date(fact.fecha_emision as string).toISOString().slice(0, 10),
+      }, ...totales,
+    });
+
+    await db.update(notas_credito).set({
+      cude: resultado.cufe ?? null, plemsi_id: resultado.plemsi_id ?? null,
+      estado_dian: resultado.ok ? "emitida" : "error",
+    } as Record<string, unknown>).where(eq(notas_credito.id, nota.id));
+
+    const [actualizada] = await db.select().from(notas_credito).where(eq(notas_credito.id, nota.id)).limit(1);
+    const act = actualizada as Record<string, unknown>;
+    return res.json({ ok: act.estado_dian === "emitida", cude: act.cude, error: act.estado_dian === "error" ? resultado.error : null });
+  } catch (err) {
+    return res.status(500).json({ error: err instanceof Error ? err.message : "Error inesperado." });
   }
 });
 

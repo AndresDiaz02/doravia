@@ -30,3 +30,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Claude Code internos
+.claude/
+
+# Backups locales
+backups/

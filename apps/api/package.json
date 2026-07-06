@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.26.0",
+    "@sentry/node": "^8.0.0",
     "@workspace/db": "workspace:*",
     "@workspace/shared": "workspace:*",
     "bcryptjs": "^2.4.3",

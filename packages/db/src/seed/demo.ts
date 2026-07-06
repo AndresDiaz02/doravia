@@ -996,7 +996,9 @@ export async function seedDemo() {
     const [roseExiste] = await db.select({ id: users.id }).from(users)
       .where(eq(users.email, "rose@doravia.com")).limit(1);
     if (!roseExiste) {
-      const roseHash = await bcrypt.hash("Miku123", 10);
+      const rosePwd = process.env.ROSE_SEED_PASSWORD;
+      if (!rosePwd) throw new Error("ROSE_SEED_PASSWORD no definida. Agrega esta variable de entorno antes de correr el seed demo.");
+      const roseHash = await bcrypt.hash(rosePwd, 10);
       await db.insert(users).values({
         tenant_id: doraviaUser.tenant_id,
         email: "rose@doravia.com",
@@ -1090,8 +1092,8 @@ export async function seedDemo() {
   console.log("  CREDENCIALES AMBIENTE DE SIMULACIÓN — DORAVIA");
   console.log("════════════════════════════════════════════════════════════");
   console.log("\n  FUNDADORES:");
-  console.log("  andres@doravia.com   / (contraseña original)   — Admin fundador");
-  console.log("  rose@doravia.com     / Miku123                  — Admin fundadora");
+  console.log("  andres@doravia.com   / (contraseña Railway)     — Admin fundador");
+  console.log("  rose@doravia.com     / (ROSE_SEED_PASSWORD)     — Admin fundadora");
   console.log("\n  EMPRESAS (todas con contraseña Demo2026!):");
   for (let i = 0; i < EMPRESAS.length; i++) {
     const e = EMPRESAS[i];

@@ -173,7 +173,9 @@ router.post("/:id/reenviar-dian", async (req, res) => {
   if (!factura) return res.status(404).json({ error: "Factura no encontrada." });
 
   const estadoDian = (factura as Record<string, unknown>).estado_dian as string | null;
-  if (estadoDian !== "error" && estadoDian !== "pendiente") {
+  const cufeActual = (factura as Record<string, unknown>).cufe as string | null;
+  const tieneStubCufe = cufeActual?.startsWith("STUB-") ?? false;
+  if (estadoDian !== "error" && estadoDian !== "pendiente" && !tieneStubCufe) {
     return res.status(422).json({
       error: "Solo se pueden reenviar facturas con estado_dian 'error' o 'pendiente'.",
     });
@@ -261,6 +263,62 @@ router.post("/", async (req, res) => {
     }
     throw err;
   }
+});
+
+// POST /api/facturas/sync-cude-plemsi — consulta Plemsi y actualiza CUDEs reales en BD
+// Solo actualiza facturas con CUFE stub (emitidas en modo habilitación sin guardar CUDE)
+router.post("/sync-cude-plemsi", async (req, res) => {
+  const apiKey = process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+  const plemsiBase = process.env.PLEMSI_URL ?? "https://pruebas.plemsi.com";
+  if (!apiKey) return res.status(422).json({ error: "PLEMSI_API_KEY_DEFAULT no configurada." });
+
+  const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+  const cudeMap = new Map<string, string>(); // consecutive → cude
+
+  // Paginar todos los documentos emitidos en Plemsi
+  let searchAfter: string | null = null;
+  let pagina = 0;
+  do {
+    const url = new URL(`${plemsiBase}/api/billing/invoice`);
+    if (searchAfter) url.searchParams.set("searchAfter", searchAfter);
+    url.searchParams.set("limit", "50");
+    const resp = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15_000) });
+    if (!resp.ok) break;
+    const json = await resp.json() as Record<string, unknown>;
+    const data = json.data as Record<string, unknown>;
+    const docs = (data.docs ?? []) as Array<Record<string, unknown>>;
+    for (const doc of docs) {
+      if (doc.state === "Emitted" && doc.cude && doc.consecutive) {
+        cudeMap.set(String(doc.consecutive), String(doc.cude));
+      }
+    }
+    searchAfter = (data.searchAfter as string | null) ?? null;
+    pagina++;
+  } while (searchAfter && pagina < 20);
+
+  // Obtener facturas con CUFE stub del tenant
+  const todasFacturas = await db
+    .select({ id: facturas.id, numero: facturas.numero, cufe: sql<string>`${facturas}.cufe` })
+    .from(facturas)
+    .where(eq(facturas.tenant_id, req.tenantId));
+
+  let actualizadas = 0;
+  for (const f of todasFacturas) {
+    if (!f.cufe || !String(f.cufe).startsWith("STUB-")) continue;
+    // numero "SETT0001" → buscar "SETT1", "SETT01", etc.
+    const match = /^([A-Z]+)0*(\d+)$/.exec(f.numero ?? "");
+    if (!match) continue;
+    const [, prefix, num] = match;
+    const consecutive = `${prefix}${num}`;
+    const cude = cudeMap.get(consecutive);
+    if (!cude) continue;
+    await db.update(facturas)
+      .set({ cufe: cude, estado_dian: "emitida", error_dian: null } as Record<string, unknown>)
+      .where(eq(facturas.id, f.id));
+    actualizadas++;
+  }
+
+  return res.json({ ok: true, cudeMapSize: cudeMap.size, actualizadas });
 });
 
 export default router;

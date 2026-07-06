@@ -293,11 +293,12 @@ export async function emitirFactura(params: {
       return { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(json)}` };
     }
 
-    // Plemsi puede devolver el CUFE en el nivel raíz o dentro de json.data
+    // Plemsi puede devolver el CUFE/CUDE en el nivel raíz o dentro de json.data
+    // La API devuelve "cude" (Colombia usa CUDE para facturas electrónicas)
     const data = (typeof json.data === "object" && json.data !== null ? json.data : json) as Record<string, unknown>;
     return {
       ok: true,
-      cufe: (data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cufe ?? json.uuid) as string | undefined,
+      cufe: (data.cude ?? data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cude ?? json.cufe ?? json.uuid) as string | undefined,
       plemsi_id: (data.id ?? json.id ?? json.uuid) as string | undefined,
     };
   } catch (err) {
@@ -328,7 +329,7 @@ export async function emitirNotaCredito(params: {
       number: params.number,
       resolution: params.resolution,
       discrepancy: { code: params.discrepancy_code, description: params.discrepancy_description },
-      buyer: params.buyer,
+      customer: params.buyer,
       items: params.items,
       invoiceReference: {
         issue_date: params.invoice_reference.date,
@@ -351,12 +352,17 @@ export async function emitirNotaCredito(params: {
       signal: AbortSignal.timeout(30_000),
     });
 
-    const json = await res.json() as Record<string, unknown>;
-    if (!res.ok) return { ok: false, error: (json.message as string) ?? `Error Plemsi ${res.status}` };
+    const rawTextNC = await res.text();
+    console.log(`[PLEMSI] POST /api/billing/credit → status=${res.status} body=${rawTextNC.slice(0, 500)}`);
+    let json: Record<string, unknown>;
+    try { json = JSON.parse(rawTextNC) as Record<string, unknown>; }
+    catch { return { ok: false, error: `Plemsi respuesta no-JSON (${res.status}): ${rawTextNC.slice(0, 200)}` }; }
+    if (!res.ok) return { ok: false, error: (json.message as string) ?? (json.info as string) ?? `Error Plemsi ${res.status}: ${rawTextNC.slice(0, 200)}` };
+    const dataNC = (typeof json.data === "object" && json.data !== null ? json.data : json) as Record<string, unknown>;
     return {
       ok: true,
-      cufe: (json.cude ?? json.cufe ?? json.id) as string | undefined,
-      plemsi_id: (json.id) as string | undefined,
+      cufe: (dataNC.cude ?? dataNC.cufe ?? dataNC.uuid ?? json.cude ?? json.cufe ?? json.id) as string | undefined,
+      plemsi_id: (dataNC.id ?? json.id) as string | undefined,
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   db, facturas, clientes, notas_debito, items_nota_debito,
-  asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_DEBITO,
+  asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_DEBITO, resoluciones_dian,
 } from "@workspace/db";
 import { audit } from "../services/audit.service.js";
 import { eq, and, desc } from "drizzle-orm";
@@ -239,11 +239,16 @@ router.post("/factura/:facturaId", async (req, res) => {
               };
               const discrepancy_code = discrepancyCodes[tipo] ?? 3;
 
+              const [resolucionFact] = factura.resolucion_id
+                ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
+                : [null];
+              const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+
               const resultado = await plemsiEmitirNotaDebito({
                 apiKey,
                 prefix: "ND",
                 number: consecutivo,
-                resolution: numero,
+                resolution: resolucionNumero,
                 discrepancy_code,
                 discrepancy_description: motivo,
                 customer: customerData,
@@ -338,11 +343,16 @@ router.post("/:id/reenviar-dian", async (req, res) => {
     const discrepancyCodes: Record<string, number> = { interes: 1, gastos: 2, ajuste: 3 };
     const discrepancy_code = discrepancyCodes[nota.tipo] ?? 3;
 
+    const [resolucionFact] = facturaOrig.resolucion_id
+      ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, facturaOrig.resolucion_id)).limit(1)
+      : [null];
+    const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+
     const resultado = await plemsiEmitirNotaDebito({
       apiKey,
       prefix: "ND",
       number: nota.consecutivo,
-      resolution: nota.numero,
+      resolution: resolucionNumero,
       discrepancy_code,
       discrepancy_description: nota.motivo,
       customer: customerData,

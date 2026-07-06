@@ -33,8 +33,12 @@ async function seed() {
     .onConflictDoNothing(); // idempotente por código
   console.log(`✓ PUC: ${PUC_BASE.length} cuentas`);
 
-  console.log("Sembrando demo...");
-  await seedDemo();
+  if (process.env.SEED_DEMO === "true") {
+    console.log("Sembrando demo...");
+    await seedDemo();
+  } else {
+    console.log("ℹ️  SEED_DEMO != 'true' — datos de simulación omitidos (seguro en producción).");
+  }
 }
 
 seed()

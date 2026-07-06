@@ -645,6 +645,62 @@ router.get("/exportar/balance-prueba", requireAccountingLevel(2), async (req, re
   }
 });
 
+// GET /api/contabilidad/exportar/mayor/:codigo?desde=&hasta=
+router.get("/exportar/mayor/:codigo", requireAccountingLevel(1), async (req, res) => {
+  try {
+    const { codigo } = req.params;
+    const { desde, hasta } = req.query as { desde?: string; hasta?: string };
+
+    const [cuenta] = await db
+      .select()
+      .from(cuentas_contables)
+      .where(and(eq(cuentas_contables.codigo, codigo), or(eq(cuentas_contables.tenant_id, req.tenantId), isNull(cuentas_contables.tenant_id))))
+      .orderBy(cuentas_contables.tenant_id)
+      .limit(1);
+
+    if (!cuenta) return res.status(404).json({ error: `Cuenta ${codigo} no encontrada.` });
+
+    const condiciones = [
+      eq(asientos_contables.tenant_id, req.tenantId),
+      eq(lineas_asiento.cuenta_id, cuenta.id),
+    ];
+    if (desde) condiciones.push(gte(asientos_contables.fecha, desde));
+    if (hasta) condiciones.push(lte(asientos_contables.fecha, hasta));
+
+    const movimientos = await db
+      .select({ asiento: asientos_contables, linea: lineas_asiento })
+      .from(lineas_asiento)
+      .innerJoin(asientos_contables, eq(lineas_asiento.asiento_id, asientos_contables.id))
+      .where(and(...condiciones))
+      .orderBy(asientos_contables.fecha);
+
+    let saldo = 0;
+    const data = movimientos.map(({ asiento, linea }) => {
+      const mov = cuenta.naturaleza === "debito"
+        ? Number(linea.debito) - Number(linea.credito)
+        : Number(linea.credito) - Number(linea.debito);
+      saldo += mov;
+      return {
+        "Fecha": asiento.fecha,
+        "Asiento": asiento.numero,
+        "Descripción": asiento.descripcion ?? "",
+        "Débito": Number(linea.debito),
+        "Crédito": Number(linea.credito),
+        "Saldo": saldo,
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [12, 12, 40, 14, 14, 14].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, `${cuenta.codigo} ${cuenta.nombre}`.slice(0, 31));
+    enviarExcel(res, wb, `auxiliar_${codigo}_${desde ?? ""}_${hasta ?? ""}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/mayor:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── Plan de cuentas — gestión por tenant ──────────────────────────────────────
 
 // GET /api/contabilidad/plan-cuentas

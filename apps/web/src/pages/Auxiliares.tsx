@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, descargarExcel } from "../lib/api";
+import { FileDown } from "lucide-react";
+import { Button } from "../components/ui/button";
 
 interface Cuenta { id: string; codigo: string; nombre: string; tipo: string; naturaleza: string }
 interface Asiento { id: string; numero: string; fecha: string; descripcion: string | null }
@@ -99,6 +101,15 @@ export default function Auxiliares() {
         >
           Consultar
         </button>
+        {data && cuentaId && (
+          <Button variant="secondary" onClick={() => {
+            const cuenta = cuentas.find((c) => c.id === cuentaId);
+            if (cuenta) void descargarExcel(`/api/contabilidad/exportar/mayor/${cuenta.codigo}?desde=${desde}&hasta=${hasta}`, `auxiliar_${cuenta.codigo}_${desde}_${hasta}.xlsx`);
+          }}>
+            <FileDown className="h-4 w-4" />
+            Excel
+          </Button>
+        )}
       </div>
 
       {loading && <p className="text-sm text-gray-400">Cargando movimientos...</p>}

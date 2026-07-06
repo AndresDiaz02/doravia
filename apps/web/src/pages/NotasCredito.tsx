@@ -11,12 +11,25 @@ interface NotaCredito {
   numero: string;
   tipo: string;
   estado: string;
+  estado_dian: string | null;
   total: string;
   motivo: string;
   fecha_emision: string;
   factura_id: string;
   cliente: { id: string; nombre: string };
 }
+
+const DIAN_COLOR: Record<string, "green" | "yellow" | "red"> = {
+  emitida:  "green",
+  pendiente: "yellow",
+  error:    "red",
+};
+
+const DIAN_LABEL: Record<string, string> = {
+  emitida:  "DIAN ✓",
+  pendiente: "DIAN pend.",
+  error:    "Error DIAN",
+};
 
 const TIPO_LABEL: Record<string, string> = {
   anulacion: "Anulación",
@@ -70,6 +83,7 @@ export default function NotasCredito() {
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Número</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Cliente</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Tipo</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">DIAN</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Motivo</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-500">Fecha</th>
                 <th className="px-6 py-3 text-right font-medium text-gray-500">Total</th>
@@ -83,6 +97,15 @@ export default function NotasCredito() {
                   <td className="px-6 py-3 text-gray-700">{n.cliente.nombre}</td>
                   <td className="px-6 py-3">
                     <Badge variant={TIPO_COLOR[n.tipo] ?? "gray"}>{TIPO_LABEL[n.tipo] ?? n.tipo}</Badge>
+                  </td>
+                  <td className="px-6 py-3">
+                    {n.estado_dian && DIAN_LABEL[n.estado_dian] ? (
+                      <Badge variant={DIAN_COLOR[n.estado_dian] ?? "gray"}>
+                        {DIAN_LABEL[n.estado_dian]}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-3 text-gray-500 max-w-xs truncate">{n.motivo}</td>
                   <td className="px-6 py-3 text-gray-500">{fecha(n.fecha_emision)}</td>

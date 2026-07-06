@@ -21,6 +21,7 @@ router.get("/", async (req, res) => {
         numero: notas_credito.numero,
         tipo: notas_credito.tipo,
         estado: notas_credito.estado,
+        estado_dian: notas_credito.estado_dian,
         total: notas_credito.total,
         motivo: notas_credito.motivo,
         fecha_emision: notas_credito.fecha_emision,

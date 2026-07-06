@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte, ilike, or, SQL } from "drizzle-orm";
 import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
@@ -17,12 +17,27 @@ router.get("/", async (req, res) => {
   const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50)));
   const offset = (page - 1) * limit;
 
+  const conditions: SQL[] = [eq(facturas.tenant_id, req.tenantId)];
+  if (req.query.desde) conditions.push(gte(facturas.fecha_emision, new Date(req.query.desde as string)));
+  if (req.query.hasta) {
+    const hasta = new Date(req.query.hasta as string);
+    hasta.setHours(23, 59, 59, 999);
+    conditions.push(lte(facturas.fecha_emision, hasta));
+  }
+  if (req.query.estado) conditions.push(eq(facturas.estado, req.query.estado as string));
+  if (req.query.q) {
+    const q = `%${req.query.q}%`;
+    conditions.push(or(ilike(facturas.numero, q), ilike(clientes.nombre, q), ilike(clientes.numero_documento, q))!);
+  }
+
   const rows = await db
     .select({
       id: facturas.id,
       numero: facturas.numero,
       fecha_emision: facturas.fecha_emision,
       estado: facturas.estado,
+      estado_dian: facturas.estado_dian,
+      error_dian: facturas.error_dian,
       total: facturas.total,
       pagada_at: facturas.pagada_at,
       cufe: facturas.cufe,
@@ -30,7 +45,7 @@ router.get("/", async (req, res) => {
     })
     .from(facturas)
     .innerJoin(clientes, eq(facturas.cliente_id, clientes.id))
-    .where(eq(facturas.tenant_id, req.tenantId))
+    .where(and(...conditions))
     .orderBy(desc(facturas.fecha_emision))
     .limit(limit)
     .offset(offset);

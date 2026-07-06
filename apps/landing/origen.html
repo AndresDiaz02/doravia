@@ -133,6 +133,41 @@
   </div>
 </section>
 
+<!-- PREVIEW ORIGEN -->
+<section class="preview-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">ASÍ SE VE DORAVIA ORIGEN</div>
+      <h2>Factura electrónicamente en <em style="color:var(--yellow);font-style:normal;">menos de 2 minutos</em></h2>
+      <p>Sin instalaciones, sin configuraciones complicadas. Abre el navegador y empieza a facturar.</p>
+    </div>
+    <div class="preview-tabs">
+      <button class="preview-tab active" onclick="mostrarPanel(this,'origen-facturas')">🧾 Lista de facturas</button>
+      <button class="preview-tab" onclick="mostrarPanel(this,'origen-nueva')">✏️ Nueva factura</button>
+      <button class="preview-tab" onclick="mostrarPanel(this,'origen-cotizaciones')">📋 Cotizaciones</button>
+    </div>
+    <div class="preview-frame-wrap">
+      <div class="browser-frame">
+        <div class="browser-chrome">
+          <div class="browser-dots"><span class="browser-dot browser-dot-r"></span><span class="browser-dot browser-dot-y"></span><span class="browser-dot browser-dot-g"></span></div>
+          <div class="browser-url" id="origen-url">app.doraviasoft.com/facturas</div>
+        </div>
+        <div class="browser-body">
+          <div class="preview-panel active" id="panel-origen-facturas">
+            <img src="assets/screenshots/origen-facturas.png" alt="Lista de facturas Doravia" onerror="this.parentElement.innerHTML='<div class=preview-placeholder><div class=preview-placeholder-inner>Ejecuta scripts/take-screenshots.mjs para capturar pantallas reales</div></div>'">
+          </div>
+          <div class="preview-panel" id="panel-origen-nueva">
+            <img src="assets/screenshots/origen-nueva-factura.png" alt="Nueva factura Doravia" onerror="this.parentElement.innerHTML='<div class=preview-placeholder><div class=preview-placeholder-inner>Captura pendiente</div></div>'">
+          </div>
+          <div class="preview-panel" id="panel-origen-cotizaciones">
+            <img src="assets/screenshots/origen-cotizaciones.png" alt="Cotizaciones Doravia" onerror="this.parentElement.innerHTML='<div class=preview-placeholder><div class=preview-placeholder-inner>Captura pendiente</div></div>'">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CTA -->
 <section class="cta-final" id="contacto">
   <div class="container">
@@ -209,6 +244,8 @@
   const nav=document.querySelector('nav');
   if(toggle){toggle.addEventListener('click',()=>{const v=nav.style.display==='flex';nav.style.display=v?'none':'flex';nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;';});}
   document.querySelectorAll('.faq-question').forEach(q=>{q.addEventListener('click',()=>{const item=q.closest('.faq-item');const was=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!was)item.classList.add('open');});});
+  const URLS_O={'origen-facturas':'app.doraviasoft.com/facturas','origen-nueva':'app.doraviasoft.com/facturas/nueva','origen-cotizaciones':'app.doraviasoft.com/cotizaciones'};
+  function mostrarPanel(btn,id){const wrap=btn.closest('.preview-section');wrap.querySelectorAll('.preview-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');wrap.querySelectorAll('.preview-panel').forEach(p=>p.classList.remove('active'));const panel=document.getElementById('panel-'+id);if(panel)panel.classList.add('active');const urlEl=document.getElementById('origen-url');if(urlEl&&URLS_O[id])urlEl.textContent=URLS_O[id];}
 </script>
 </body>
 </html>

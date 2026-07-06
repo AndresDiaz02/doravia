@@ -253,6 +253,30 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
   .footer-cols{grid-template-columns:1fr;}
 }
 
+/* PREVIEW SECTION */
+.preview-section{background:var(--navy-deep);padding:100px 0;overflow:hidden;position:relative;}
+.preview-section::before{content:'';position:absolute;top:-30%;right:-15%;width:70%;height:140%;background:radial-gradient(circle,rgba(123,47,247,0.15) 0%,transparent 60%);pointer-events:none;}
+.preview-section .section-head h2{color:#fff;}
+.preview-section .section-head p{color:#B0A0D8;}
+.preview-section .section-eyebrow{color:var(--yellow);}
+.preview-tabs{display:flex;justify-content:center;gap:8px;margin-bottom:32px;flex-wrap:wrap;position:relative;}
+.preview-tab{font-size:13px;font-weight:600;color:#B0A0D8;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:30px;padding:9px 20px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.preview-tab:hover,.preview-tab.active{color:#fff;background:rgba(123,47,247,0.35);border-color:rgba(123,47,247,0.6);}
+.preview-frame-wrap{max-width:1080px;margin:0 auto;padding:0 32px;}
+.browser-frame{background:#1a1a2e;border-radius:14px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06);}
+.browser-chrome{background:#252535;padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.browser-dots{display:flex;gap:6px;flex-shrink:0;}
+.browser-dot{width:11px;height:11px;border-radius:50%;}
+.browser-dot-r{background:#FF5F57;}.browser-dot-y{background:#FEBC2E;}.browser-dot-g{background:#28C840;}
+.browser-url{flex:1;background:rgba(255,255,255,0.07);border-radius:20px;padding:5px 16px;font-size:12px;color:rgba(255,255,255,0.35);font-family:monospace;}
+.browser-body{background:#f3f1fc;min-height:500px;overflow:hidden;position:relative;}
+.browser-body img{width:100%;height:auto;display:block;}
+.preview-panel{display:none;}
+.preview-panel.active{display:block;}
+.preview-placeholder{background:linear-gradient(160deg,#2D1660 0%,#1a1a2e 100%);min-height:500px;display:flex;align-items:center;justify-content:center;}
+.preview-placeholder-inner{text-align:center;color:rgba(255,255,255,0.2);font-size:14px;}
+.preview-placeholder-inner svg{width:40px;height:40px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;}
+
 /* RESPONSIVE */
 @media(max-width:900px){
   nav{display:none;}

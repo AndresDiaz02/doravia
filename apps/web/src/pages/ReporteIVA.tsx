@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiFetch, cop } from "../lib/api";
+import { apiFetch, cop, descargarExcel } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
@@ -69,6 +69,11 @@ export default function ReporteIVA() {
             <Button onClick={consultar} disabled={loading}>
               {loading ? "Consultando..." : "Consultar"}
             </Button>
+            {data && (
+              <Button variant="secondary" onClick={() => void descargarExcel(`/api/reportes/iva/exportar?desde=${desde}&hasta=${hasta}`, `reporte_iva_${desde}_${hasta}.xlsx`)}>
+                Excel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

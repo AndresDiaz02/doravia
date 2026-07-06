@@ -3,6 +3,7 @@ import { db, facturas, clientes, tenants, resoluciones_dian, gastos, productos }
 import { eq, and, gte, lt, lte, sum, count, desc, isNull, inArray, asc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { requireAccountingLevel } from "../middleware/require-plan-feature.js";
+import * as XLSX from "xlsx";
 
 const router = Router();
 
@@ -398,6 +399,74 @@ router.get("/iva", requireAccountingLevel(2), async (req, res) => {
   } catch (err) {
     console.error("Error en /reportes/iva:", err);
     res.status(500).json({ error: "Error al generar reporte de IVA" });
+  }
+});
+
+// GET /api/reportes/iva/exportar?desde=&hasta=
+router.get("/iva/exportar", requireAccountingLevel(2), async (req, res) => {
+  try {
+    const hoy = new Date();
+    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split("T")[0]!;
+    const desdePar = String(req.query.desde ?? primerDia);
+    const hastaPar = String(req.query.hasta ?? hoy.toISOString().split("T")[0]!);
+
+    const rowsGenerado = await db.execute(sql`
+      SELECT EXTRACT(YEAR FROM fecha_emision)::int AS anio, EXTRACT(MONTH FROM fecha_emision)::int AS mes,
+             COALESCE(SUM(iva_total), 0) AS iva_generado, COUNT(*)::int AS facturas
+      FROM facturas
+      WHERE tenant_id = ${req.tenantId} AND estado NOT IN ('borrador', 'anulada', 'rechazada')
+        AND fecha_emision::date >= ${desdePar}::date AND fecha_emision::date <= ${hastaPar}::date
+      GROUP BY anio, mes ORDER BY anio, mes
+    `);
+
+    const rowsDescontable = await db.execute(sql`
+      SELECT EXTRACT(YEAR FROM fecha::timestamptz)::int AS anio, EXTRACT(MONTH FROM fecha::timestamptz)::int AS mes,
+             COALESCE(SUM(iva), 0) AS iva_descontable, COUNT(*)::int AS gastos_cnt
+      FROM gastos
+      WHERE tenant_id = ${req.tenantId} AND estado IN ('aprobado', 'pagado') AND iva > 0
+        AND fecha >= ${desdePar}::date AND fecha <= ${hastaPar}::date
+      GROUP BY anio, mes ORDER BY anio, mes
+    `);
+
+    type GenRow = { anio: number; mes: number; iva_generado: string; facturas: number };
+    type DesRow = { anio: number; mes: number; iva_descontable: string; gastos_cnt: number };
+
+    const generadoMap = new Map<string, GenRow>((rowsGenerado as unknown as GenRow[]).map((r) => [`${r.anio}-${r.mes}`, r]));
+    const descontableMap = new Map<string, DesRow>((rowsDescontable as unknown as DesRow[]).map((r) => [`${r.anio}-${r.mes}`, r]));
+
+    const MESES = ["", "Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const claves = new Set([...generadoMap.keys(), ...descontableMap.keys()]);
+    const data = Array.from(claves).sort().map((k) => {
+      const gen = generadoMap.get(k);
+      const des = descontableMap.get(k);
+      const [anioStr, mesStr] = k.split("-");
+      const iva_gen = Number(gen?.iva_generado ?? 0);
+      const iva_des = Number(des?.iva_descontable ?? 0);
+      return {
+        "Período": `${MESES[Number(mesStr)] ?? mesStr} ${anioStr}`,
+        "IVA generado (ventas)": iva_gen,
+        "IVA descontable (gastos)": iva_des,
+        "Saldo IVA a pagar": iva_gen - iva_des,
+        "Facturas": gen?.facturas ?? 0,
+        "Gastos": des?.gastos_cnt ?? 0,
+      };
+    });
+
+    const totG = data.reduce((s, r) => s + r["IVA generado (ventas)"], 0);
+    const totD = data.reduce((s, r) => s + r["IVA descontable (gastos)"], 0);
+    data.push({ "Período": "TOTAL", "IVA generado (ventas)": totG, "IVA descontable (gastos)": totD, "Saldo IVA a pagar": totG - totD, "Facturas": 0, "Gastos": 0 });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [20, 22, 24, 20, 10, 10].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte IVA");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="reporte_iva_${desdePar}_${hastaPar}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    console.error("Error en /reportes/iva/exportar:", err);
+    res.status(500).json({ error: "Error al exportar reporte de IVA" });
   }
 });
 

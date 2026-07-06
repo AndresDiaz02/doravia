@@ -46,6 +46,7 @@ import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
+import ReporteIVA from "./pages/ReporteIVA";
 import MiPlan from "./pages/MiPlan";
 import RegistroContador from "./pages/RegistroContador";
 import ContadorDashboard from "./pages/ContadorDashboard";
@@ -135,6 +136,7 @@ export default function App() {
               <Route path="/remisiones" element={<Remisiones />} />
               <Route path="/contabilidad/balance-prueba" element={<><RequiereRol allow={["admin", "contador"]} /><BalancePrueba /></>} />
               <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
+              <Route path="/contabilidad/iva" element={<><RequiereRol allow={["admin", "contador"]} /><ReporteIVA /></>} />
               <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
               <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
             </Route>

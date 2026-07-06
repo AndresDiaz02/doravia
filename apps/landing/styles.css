@@ -129,6 +129,24 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .erp-includes-row{max-width:900px;margin:56px auto 0;display:flex;justify-content:center;gap:36px;flex-wrap:wrap;}
 .erp-includes-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray);}
 
+/* TABLA COMPARATIVA PLANES */
+.tabla-comparativa{background:#fff;padding:80px 0 60px;}
+.tabla-comparativa .section-eyebrow{margin-bottom:10px;}
+.tabla-comparativa h2{font-size:clamp(24px,3vw,36px);color:var(--navy);margin-bottom:40px;text-align:center;}
+.comp-table-wrap{overflow-x:auto;}
+.comp-table{width:100%;border-collapse:collapse;font-size:13px;}
+.comp-table th,.comp-table td{padding:12px 16px;text-align:center;border-bottom:1px solid #F0EAF9;}
+.comp-table th:first-child,.comp-table td:first-child{text-align:left;font-weight:500;color:var(--carbon);padding-left:0;}
+.comp-table thead th{font-size:13px;font-weight:700;color:var(--navy);padding-bottom:16px;}
+.comp-table thead th.plan-destacado{color:var(--action);background:#F5EEFF;border-radius:12px 12px 0 0;}
+.comp-table .cat-row td{background:#F8F5FE;font-weight:700;font-size:11.5px;letter-spacing:1px;color:var(--action);text-transform:uppercase;padding:10px 16px;}
+.comp-table .cat-row td:first-child{padding-left:0;}
+.comp-table td.plan-destacado{background:#FAF5FF;}
+.comp-check{display:inline-block;width:18px;height:18px;border-radius:50%;background:#D4F0E2;color:#1A7A4C;font-size:11px;line-height:18px;}
+.comp-x{display:inline-block;width:18px;height:18px;border-radius:50%;background:#F3F4F6;color:#B0B3BC;font-size:11px;line-height:18px;}
+.comp-partial{display:inline-block;font-size:11px;color:var(--gray);background:#F3F4F6;border-radius:10px;padding:2px 8px;}
+@media(max-width:720px){.comp-table th,.comp-table td{padding:10px 10px;font-size:11.5px;}}
+
 /* POS */
 .pos-section{background:var(--navy);padding:100px 0;position:relative;overflow:hidden;}
 .pos-section::before{content:'';position:absolute;bottom:-20%;right:-10%;width:55%;height:120%;background:radial-gradient(circle,rgba(46,155,245,0.12) 0%,transparent 65%);pointer-events:none;}

@@ -314,6 +314,93 @@ router.get("/productos-sin-stock", async (req, res) => {
   }
 });
 
+// GET /api/reportes/iva?desde=2026-01-01&hasta=2026-06-30
+// Reporte IVA: generado (facturas) vs descontable (gastos) por período
+router.get("/iva", requireAccountingLevel(2), async (req, res) => {
+  try {
+    const hoy = new Date();
+    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split("T")[0]!;
+    const desdePar = String(req.query.desde ?? primerDia);
+    const hastaPar = String(req.query.hasta ?? hoy.toISOString().split("T")[0]!);
+
+    // IVA generado — de facturas aceptadas/enviadas en el período
+    const rowsGenerado = await db.execute(sql`
+      SELECT
+        EXTRACT(YEAR  FROM fecha_emision)::int    AS anio,
+        EXTRACT(MONTH FROM fecha_emision)::int    AS mes,
+        COALESCE(SUM(iva_total), 0)               AS iva_generado,
+        COUNT(*)::int                             AS facturas
+      FROM facturas
+      WHERE tenant_id    = ${req.tenantId}
+        AND estado NOT IN ('borrador', 'anulada', 'rechazada')
+        AND fecha_emision::date >= ${desdePar}::date
+        AND fecha_emision::date <= ${hastaPar}::date
+      GROUP BY anio, mes
+      ORDER BY anio, mes
+    `);
+
+    // IVA descontable — de gastos aprobados/pagados con IVA > 0 en el período
+    const rowsDescontable = await db.execute(sql`
+      SELECT
+        EXTRACT(YEAR  FROM fecha::timestamptz)::int  AS anio,
+        EXTRACT(MONTH FROM fecha::timestamptz)::int  AS mes,
+        COALESCE(SUM(iva), 0)                        AS iva_descontable,
+        COUNT(*)::int                                AS gastos_cnt
+      FROM gastos
+      WHERE tenant_id = ${req.tenantId}
+        AND estado    IN ('aprobado', 'pagado')
+        AND iva       > 0
+        AND fecha     >= ${desdePar}::date
+        AND fecha     <= ${hastaPar}::date
+      GROUP BY anio, mes
+      ORDER BY anio, mes
+    `);
+
+    type GenRow  = { anio: number; mes: number; iva_generado: string; facturas: number };
+    type DesRow  = { anio: number; mes: number; iva_descontable: string; gastos_cnt: number };
+
+    const generadoMap  = new Map<string, GenRow>(
+      (rowsGenerado   as unknown as GenRow[]).map((r) => [`${r.anio}-${r.mes}`, r]),
+    );
+    const descontableMap = new Map<string, DesRow>(
+      (rowsDescontable as unknown as DesRow[]).map((r) => [`${r.anio}-${r.mes}`, r]),
+    );
+
+    // Unificar períodos
+    const claves = new Set([...generadoMap.keys(), ...descontableMap.keys()]);
+    const periodos = Array.from(claves).sort().map((k) => {
+      const gen  = generadoMap.get(k);
+      const des  = descontableMap.get(k);
+      const [anioStr, mesStr] = k.split("-");
+      const iva_generado    = Number(gen?.iva_generado    ?? 0);
+      const iva_descontable = Number(des?.iva_descontable ?? 0);
+      return {
+        anio:             Number(anioStr),
+        mes:              Number(mesStr),
+        iva_generado,
+        iva_descontable,
+        saldo:            iva_generado - iva_descontable,
+        facturas:         gen?.facturas ?? 0,
+        gastos:           des?.gastos_cnt ?? 0,
+      };
+    });
+
+    const totales = periodos.reduce(
+      (acc, p) => ({
+        iva_generado:    acc.iva_generado    + p.iva_generado,
+        iva_descontable: acc.iva_descontable + p.iva_descontable,
+        saldo:           acc.saldo           + p.saldo,
+      }),
+      { iva_generado: 0, iva_descontable: 0, saldo: 0 },
+    );
+
+    res.json({ desde: desdePar, hasta: hastaPar, periodos, totales });
+  } catch (err) {
+    console.error("Error en /reportes/iva:", err);
+    res.status(500).json({ error: "Error al generar reporte de IVA" });
+  }
+});
+
 // GET /api/reportes/primeros-pasos
 router.get("/primeros-pasos", async (req, res) => {
   try {

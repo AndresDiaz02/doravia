@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileX } from "lucide-react";
+import { FileX, FileDown } from "lucide-react";
 import { HelpTooltip } from "../components/HelpTooltip";
-import { apiFetch, cop, fecha } from "../lib/api";
+import { apiFetch, cop, fecha, descargarExcel } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 interface NotaCredito {
   id: string;
@@ -65,6 +66,9 @@ export default function NotasCredito() {
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Creadas desde el detalle de cada factura aceptada</p>
         </div>
+        <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/notas-credito", "notas_credito.xlsx")}>
+          <FileDown className="h-4 w-4" /> Excel
+        </Button>
       </div>
 
       <Card>

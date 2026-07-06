@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores, cotizaciones } from "@workspace/db";
+import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores, cotizaciones, notas_credito, notas_debito } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -378,6 +378,134 @@ router.get("/cotizaciones", async (req, res) => {
     enviarExcel(res, wb, `cotizaciones_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
   } catch (err) {
     console.error("Error en GET /exportar/cotizaciones:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/notas-credito?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get("/notas-credito", async (req, res) => {
+  try {
+    const desde = req.query.desde as string | undefined;
+    const hasta = req.query.hasta as string | undefined;
+
+    const condiciones = [eq(notas_credito.tenant_id, req.tenantId)];
+    if (desde) condiciones.push(gte(notas_credito.fecha_emision, new Date(desde)));
+    if (hasta) {
+      const hastaFin = new Date(hasta);
+      hastaFin.setHours(23, 59, 59, 999);
+      condiciones.push(lte(notas_credito.fecha_emision, hastaFin));
+    }
+
+    const rows = await db
+      .select({
+        numero: notas_credito.numero,
+        tipo: notas_credito.tipo,
+        motivo: notas_credito.motivo,
+        estado: notas_credito.estado,
+        estado_dian: notas_credito.estado_dian,
+        fecha_emision: notas_credito.fecha_emision,
+        subtotal: notas_credito.subtotal,
+        iva_total: notas_credito.iva_total,
+        total: notas_credito.total,
+        cliente_nombre: clientes.nombre,
+        cliente_nit: clientes.numero_documento,
+        factura_numero: facturas.numero,
+      })
+      .from(notas_credito)
+      .innerJoin(clientes, eq(notas_credito.cliente_id, clientes.id))
+      .innerJoin(facturas, eq(notas_credito.factura_id, facturas.id))
+      .where(and(...condiciones))
+      .orderBy(desc(notas_credito.fecha_emision));
+
+    const TIPO_LABEL: Record<string, string> = {
+      anulacion: "Anulación", devolucion: "Devolución", descuento: "Descuento", ajuste: "Ajuste",
+    };
+
+    const data = rows.map((r) => ({
+      "Número":       r.numero,
+      "Tipo":         TIPO_LABEL[r.tipo] ?? r.tipo,
+      "Motivo":       r.motivo,
+      "Estado":       r.estado,
+      "DIAN":         r.estado_dian ?? "",
+      "Fecha":        r.fecha_emision ? new Date(r.fecha_emision).toLocaleDateString("es-CO") : "",
+      "Cliente":      r.cliente_nombre,
+      "NIT/CC":       r.cliente_nit,
+      "Factura ref.": r.factura_numero,
+      "Subtotal":     Number(r.subtotal),
+      "IVA":          Number(r.iva_total),
+      "Total":        Number(r.total),
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [10, 12, 40, 10, 10, 12, 35, 14, 10, 14, 12, 14].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Notas crédito");
+    enviarExcel(res, wb, `notas_credito_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/notas-credito:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/notas-debito?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get("/notas-debito", async (req, res) => {
+  try {
+    const desde = req.query.desde as string | undefined;
+    const hasta = req.query.hasta as string | undefined;
+
+    const condiciones = [eq(notas_debito.tenant_id, req.tenantId)];
+    if (desde) condiciones.push(gte(notas_debito.fecha_emision, new Date(desde)));
+    if (hasta) {
+      const hastaFin = new Date(hasta);
+      hastaFin.setHours(23, 59, 59, 999);
+      condiciones.push(lte(notas_debito.fecha_emision, hastaFin));
+    }
+
+    const rows = await db
+      .select({
+        numero: notas_debito.numero,
+        tipo: notas_debito.tipo,
+        motivo: notas_debito.motivo,
+        estado_dian: notas_debito.estado_dian,
+        fecha_emision: notas_debito.fecha_emision,
+        subtotal: notas_debito.subtotal,
+        iva_total: notas_debito.iva_total,
+        total: notas_debito.total,
+        cliente_nombre: clientes.nombre,
+        cliente_nit: clientes.numero_documento,
+        factura_numero: facturas.numero,
+      })
+      .from(notas_debito)
+      .innerJoin(clientes, eq(notas_debito.cliente_id, clientes.id))
+      .innerJoin(facturas, eq(notas_debito.factura_id, facturas.id))
+      .where(and(...condiciones))
+      .orderBy(desc(notas_debito.fecha_emision));
+
+    const TIPO_LABEL: Record<string, string> = {
+      interes: "Intereses", gastos: "Gastos", ajuste: "Ajuste",
+    };
+
+    const data = rows.map((r) => ({
+      "Número":       r.numero,
+      "Tipo":         TIPO_LABEL[r.tipo] ?? r.tipo,
+      "Motivo":       r.motivo,
+      "DIAN":         r.estado_dian ?? "",
+      "Fecha":        r.fecha_emision ? new Date(r.fecha_emision).toLocaleDateString("es-CO") : "",
+      "Cliente":      r.cliente_nombre,
+      "NIT/CC":       r.cliente_nit,
+      "Factura ref.": r.factura_numero,
+      "Subtotal":     Number(r.subtotal),
+      "IVA":          Number(r.iva_total),
+      "Total":        Number(r.total),
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [10, 12, 40, 10, 12, 35, 14, 10, 14, 12, 14].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Notas débito");
+    enviarExcel(res, wb, `notas_debito_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/notas-debito:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

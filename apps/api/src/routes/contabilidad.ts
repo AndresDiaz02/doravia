@@ -581,6 +581,70 @@ router.get("/exportar/estado-resultados", requireAccountingLevel(2), async (req,
   }
 });
 
+// GET /api/contabilidad/exportar/balance-prueba?desde=&hasta=
+router.get("/exportar/balance-prueba", requireAccountingLevel(2), async (req, res) => {
+  try {
+    const hoy = new Date().toISOString().split("T")[0];
+    const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
+    const hasta = (req.query.hasta as string | undefined) ?? hoy;
+
+    const filas = await db
+      .select({
+        codigo: cuentas_contables.codigo,
+        nombre: cuentas_contables.nombre,
+        tipo: cuentas_contables.tipo,
+        naturaleza: cuentas_contables.naturaleza,
+        debitos: sql<string>`COALESCE(SUM(${lineas_asiento.debito}), 0)`,
+        creditos: sql<string>`COALESCE(SUM(${lineas_asiento.credito}), 0)`,
+      })
+      .from(lineas_asiento)
+      .innerJoin(asientos_contables, eq(lineas_asiento.asiento_id, asientos_contables.id))
+      .innerJoin(cuentas_contables, eq(lineas_asiento.cuenta_id, cuentas_contables.id))
+      .where(
+        and(
+          eq(asientos_contables.tenant_id, req.tenantId),
+          gte(asientos_contables.fecha, desde),
+          lte(asientos_contables.fecha, hasta),
+          or(eq(cuentas_contables.tenant_id, req.tenantId), isNull(cuentas_contables.tenant_id)),
+        ),
+      )
+      .groupBy(cuentas_contables.codigo, cuentas_contables.nombre, cuentas_contables.tipo, cuentas_contables.naturaleza)
+      .orderBy(cuentas_contables.codigo);
+
+    const data = filas.map((f) => {
+      const d = Number(f.debitos);
+      const c = Number(f.creditos);
+      const saldoD = f.naturaleza === "debito" && d >= c ? d - c : 0;
+      const saldoC = f.naturaleza === "credito" && c >= d ? c - d : f.naturaleza === "debito" && c > d ? c - d : 0;
+      return {
+        "Código":         f.codigo,
+        "Cuenta":         f.nombre,
+        "Tipo":           f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1),
+        "Naturaleza":     f.naturaleza === "debito" ? "Débito" : "Crédito",
+        "Total débitos":  d,
+        "Total créditos": c,
+        "Saldo débito":   saldoD,
+        "Saldo crédito":  saldoC,
+      };
+    });
+
+    const totD  = data.reduce((s, r) => s + r["Total débitos"],  0);
+    const totC  = data.reduce((s, r) => s + r["Total créditos"], 0);
+    const totSD = data.reduce((s, r) => s + r["Saldo débito"],   0);
+    const totSC = data.reduce((s, r) => s + r["Saldo crédito"],  0);
+    data.push({ "Código": "TOTAL", "Cuenta": "", "Tipo": "", "Naturaleza": "", "Total débitos": totD, "Total créditos": totC, "Saldo débito": totSD, "Saldo crédito": totSC });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [8, 35, 12, 10, 14, 14, 14, 14].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Balance de Prueba");
+    enviarExcel(res, wb, `balance_prueba_${desde}_${hasta}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/balance-prueba:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── Plan de cuentas — gestión por tenant ──────────────────────────────────────
 
 // GET /api/contabilidad/plan-cuentas

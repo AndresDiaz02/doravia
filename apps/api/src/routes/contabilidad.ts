@@ -581,4 +581,121 @@ router.get("/exportar/estado-resultados", requireAccountingLevel(2), async (req,
   }
 });
 
+// ── Plan de cuentas — gestión por tenant ──────────────────────────────────────
+
+// GET /api/contabilidad/plan-cuentas
+// Devuelve todas las cuentas: sistema (tenant_id null) + propias del tenant
+router.get("/plan-cuentas", requireAccountingLevel(1), async (req, res) => {
+  try {
+    const cuentas = await db
+      .select()
+      .from(cuentas_contables)
+      .where(or(isNull(cuentas_contables.tenant_id), eq(cuentas_contables.tenant_id, req.tenantId)))
+      .orderBy(cuentas_contables.codigo);
+
+    res.json(cuentas);
+  } catch (err) {
+    console.error("Error en GET /plan-cuentas:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/contabilidad/plan-cuentas
+// Crea una cuenta propia del tenant (nivel 4+ recomendado)
+router.post("/plan-cuentas", requireAccountingLevel(1), requireNotContador, async (req, res) => {
+  try {
+    const { codigo, nombre, tipo, naturaleza, nivel, padre_id } = req.body as {
+      codigo?: string;
+      nombre?: string;
+      tipo?: string;
+      naturaleza?: string;
+      nivel?: number;
+      padre_id?: string;
+    };
+
+    if (!codigo || !nombre || !tipo || !naturaleza || !nivel) {
+      return res.status(400).json({ error: "Campos requeridos: codigo, nombre, tipo, naturaleza, nivel." });
+    }
+    if (!["activo", "pasivo", "patrimonio", "ingreso", "costo", "gasto"].includes(tipo)) {
+      return res.status(400).json({ error: "tipo inválido." });
+    }
+    if (!["debito", "credito"].includes(naturaleza)) {
+      return res.status(400).json({ error: "naturaleza inválida: debe ser 'debito' o 'credito'." });
+    }
+    if (!/^\d+$/.test(codigo)) {
+      return res.status(400).json({ error: "El código solo puede contener dígitos." });
+    }
+
+    // Verificar que el código no esté ya en uso para este tenant (o en sistema)
+    const [existente] = await db
+      .select({ id: cuentas_contables.id })
+      .from(cuentas_contables)
+      .where(
+        and(
+          eq(cuentas_contables.codigo, codigo),
+          or(isNull(cuentas_contables.tenant_id), eq(cuentas_contables.tenant_id, req.tenantId)),
+        ),
+      )
+      .limit(1);
+
+    if (existente) return res.status(422).json({ error: `Ya existe una cuenta con el código ${codigo}.` });
+
+    const [nueva] = await db
+      .insert(cuentas_contables)
+      .values({
+        tenant_id: req.tenantId,
+        codigo,
+        nombre,
+        tipo: tipo as "activo" | "pasivo" | "patrimonio" | "ingreso" | "costo" | "gasto",
+        naturaleza: naturaleza as "debito" | "credito",
+        nivel,
+        padre_id: padre_id ?? null,
+      })
+      .returning();
+
+    res.status(201).json(nueva);
+  } catch (err) {
+    console.error("Error en POST /plan-cuentas:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/contabilidad/plan-cuentas/:id
+// Edita nombre o activo — solo para cuentas propias del tenant
+router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireNotContador, async (req, res) => {
+  try {
+    const [cuenta] = await db
+      .select()
+      .from(cuentas_contables)
+      .where(
+        and(eq(cuentas_contables.id, req.params.id), eq(cuentas_contables.tenant_id, req.tenantId)),
+      )
+      .limit(1);
+
+    if (!cuenta) {
+      return res.status(404).json({ error: "Cuenta no encontrada o no editable (las cuentas del sistema son de solo lectura)." });
+    }
+
+    const { nombre, activo } = req.body as { nombre?: string; activo?: boolean };
+    const updates: Partial<typeof cuentas_contables.$inferInsert> = {};
+    if (nombre !== undefined) updates.nombre = nombre;
+    if (activo !== undefined) updates.activo = activo;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "Nada que actualizar." });
+    }
+
+    const [actualizada] = await db
+      .update(cuentas_contables)
+      .set(updates)
+      .where(eq(cuentas_contables.id, cuenta.id))
+      .returning();
+
+    res.json(actualizada);
+  } catch (err) {
+    console.error("Error en PATCH /plan-cuentas/:id:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 export default router;

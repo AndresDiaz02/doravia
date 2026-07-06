@@ -56,6 +56,7 @@ const NAV_BASE = [
   { to: "/contabilidad/balance-prueba", label: "Balance de Prueba", icon: TrendingUp },
   { to: "/contabilidad/auxiliares",     label: "Auxiliares",        icon: BookOpen },
   { to: "/contabilidad/iva",            label: "Reporte de IVA",    icon: Receipt },
+  { to: "/contabilidad/plan-cuentas",   label: "Plan de cuentas",   icon: BookOpen },
 ];
 
 const NAV_VENTAS = [

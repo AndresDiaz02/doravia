@@ -223,13 +223,12 @@ export async function emitirFactura(params: {
 }): Promise<ResultadoPlemsi> {
   try {
     const body = {
-      type_document_id: 1,
       date: params.date,
       time: params.time ?? new Date().toTimeString().slice(0, 8),
       prefix: params.prefix,
       number: params.number,
       resolution: params.resolution,
-      buyer: params.buyer,
+      customer: params.buyer,
       payment: {
         payment_form_id: params.payment_form_id ?? 1,
         payment_method_id: params.payment_method_id ?? 10,

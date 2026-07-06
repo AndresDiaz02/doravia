@@ -328,7 +328,12 @@ export async function enviarAPlemsiSiAplica(
   })));
 
   const totales = calcularTotalesPlemsi(itemsPlemsi);
-  const fechaStr = new Date(factura.fecha_emision).toISOString().slice(0, 10);
+
+  // DIAN FAD09e: la fecha y hora del documento deben coincidir con la fecha de firma.
+  // Plemsi firma en el momento del envío, por eso usamos la hora actual en Colombia (UTC-5).
+  const ahoraColombia = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const fechaStr = ahoraColombia.toISOString().slice(0, 10);
+  const timeStr  = ahoraColombia.toISOString().slice(11, 19);
 
   const resultado = await plemsiEmitirFactura({
     apiKey,
@@ -336,6 +341,7 @@ export async function enviarAPlemsiSiAplica(
     number: factura.consecutivo,
     resolution: resolucion.numero_resolucion,
     date: fechaStr,
+    time: timeStr,
     buyer: buyerData,
     items: itemsPlemsi,
     payment_form_id: factura.condicion_pago === "credito" ? 2 : 1,

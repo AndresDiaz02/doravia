@@ -279,7 +279,7 @@ export async function emitirFactura(params: {
     });
 
     const rawText = await res.text();
-    console.log(`[PLEMSI] POST /api/billing/invoice → status=${res.status} body=${rawText.slice(0, 300)}`);
+    console.log(`[PLEMSI] POST /api/billing/invoice → status=${res.status} body=${rawText.slice(0, 600)}`);
 
     let json: Record<string, unknown>;
     try {
@@ -292,10 +292,12 @@ export async function emitirFactura(params: {
       return { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(json)}` };
     }
 
+    // Plemsi puede devolver el CUFE en el nivel raíz o dentro de json.data
+    const data = (typeof json.data === "object" && json.data !== null ? json.data : json) as Record<string, unknown>;
     return {
       ok: true,
-      cufe: (json.cufe ?? json.uuid ?? json.id) as string | undefined,
-      plemsi_id: (json.id ?? json.uuid) as string | undefined,
+      cufe: (data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cufe ?? json.uuid) as string | undefined,
+      plemsi_id: (data.id ?? json.id ?? json.uuid) as string | undefined,
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };

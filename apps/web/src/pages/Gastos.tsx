@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { Plus, Receipt, AlertCircle, Sparkles, Upload, FileDown } from "lucide-react";
+import { Plus, Receipt, AlertCircle, Sparkles, Upload, FileDown, Search } from "lucide-react";
 
 interface Proveedor { id: string; nombre: string; nit: string | null }
 
@@ -66,6 +66,9 @@ export default function Gastos() {
   const puedeIA = (plan?.features as Record<string, boolean> | undefined)?.ia_asistente === true;
 
   const [tab, setTab] = useState<TabActiva>("gastos");
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("");
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [cuentasPorPagar, setCuentasPorPagar] = useState<Gasto[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -280,7 +283,50 @@ export default function Gastos() {
       </div>
 
       {tab === "gastos" && (
-        <GastosTabla gastos={gastos} onAprobar={aprobar} onPagar={pagar} isContador={isContador} />
+        <>
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar descripción…"
+                className="rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm w-48"
+              />
+            </div>
+            <select
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">Todas las categorías</option>
+              {CATEGORIAS.map((c) => <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>)}
+            </select>
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">Todos los estados</option>
+              <option value="borrador">Borrador</option>
+              <option value="aprobado">Aprobado</option>
+              <option value="pagado">Pagado</option>
+            </select>
+          </div>
+          <GastosTabla
+            gastos={gastos.filter((g) => {
+              const q = busqueda.toLowerCase();
+              if (q && !g.descripcion.toLowerCase().includes(q) && !(g.proveedor_nombre?.toLowerCase().includes(q))) return false;
+              if (filtroCategoria && g.categoria !== filtroCategoria) return false;
+              if (filtroEstado && g.estado !== filtroEstado) return false;
+              return true;
+            })}
+            onAprobar={aprobar}
+            onPagar={pagar}
+            isContador={isContador}
+          />
+        </>
       )}
 
       {tab === "cuentas_por_pagar" && (

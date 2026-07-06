@@ -115,10 +115,9 @@ router.get("/", async (req, res) => {
       fecha_vencimiento: gastos.fecha_vencimiento,
       estado: gastos.estado,
       pagado_at: gastos.pagado_at,
-      proveedor: {
-        id: proveedores.id,
-        nombre: proveedores.nombre,
-      },
+      observaciones: gastos.observaciones,
+      proveedor_id: gastos.proveedor_id,
+      proveedor_nombre: proveedores.nombre,
     })
     .from(gastos)
     .leftJoin(proveedores, eq(gastos.proveedor_id, proveedores.id))
@@ -140,17 +139,21 @@ router.get("/cuentas-por-pagar", async (req, res) => {
       descripcion: gastos.descripcion,
       categoria: gastos.categoria,
       total: gastos.total,
+      monto: gastos.monto,
+      iva: gastos.iva,
       fecha: gastos.fecha,
       fecha_vencimiento: gastos.fecha_vencimiento,
       estado: gastos.estado,
-      proveedor: { id: proveedores.id, nombre: proveedores.nombre },
+      pagado_at: gastos.pagado_at,
+      observaciones: gastos.observaciones,
+      proveedor_id: gastos.proveedor_id,
+      proveedor_nombre: proveedores.nombre,
     })
     .from(gastos)
     .leftJoin(proveedores, eq(gastos.proveedor_id, proveedores.id))
     .where(
       and(
         eq(gastos.tenant_id, req.tenantId),
-        // Gastos no pagados con proveedor (cuentas por pagar)
         eq(gastos.estado, "aprobado"),
         isNull(gastos.pagado_at),
       ),

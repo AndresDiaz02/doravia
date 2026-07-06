@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores } from "@workspace/db";
+import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores, cotizaciones } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -319,6 +319,65 @@ router.get("/gastos", async (req, res) => {
     enviarExcel(res, wb, `gastos_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
   } catch (err) {
     console.error("Error en GET /exportar/gastos:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/cotizaciones?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get("/cotizaciones", async (req, res) => {
+  try {
+    const desde = req.query.desde as string | undefined;
+    const hasta = req.query.hasta as string | undefined;
+
+    const condiciones = [eq(cotizaciones.tenant_id, req.tenantId)];
+    if (desde) condiciones.push(gte(cotizaciones.fecha_emision, new Date(desde)));
+    if (hasta) {
+      const hastaFin = new Date(hasta);
+      hastaFin.setHours(23, 59, 59, 999);
+      condiciones.push(lte(cotizaciones.fecha_emision, hastaFin));
+    }
+
+    const rows = await db
+      .select({
+        numero: cotizaciones.numero,
+        fecha_emision: cotizaciones.fecha_emision,
+        fecha_vencimiento: cotizaciones.fecha_vencimiento,
+        estado: cotizaciones.estado,
+        cliente_nombre: clientes.nombre,
+        cliente_nit: clientes.numero_documento,
+        subtotal: cotizaciones.subtotal,
+        iva_total: cotizaciones.iva_total,
+        total: cotizaciones.total,
+      })
+      .from(cotizaciones)
+      .innerJoin(clientes, eq(cotizaciones.cliente_id, clientes.id))
+      .where(and(...condiciones))
+      .orderBy(desc(cotizaciones.fecha_emision));
+
+    const ESTADO_LABEL: Record<string, string> = {
+      borrador: "Borrador", enviada: "Enviada", aceptada: "Aceptada",
+      rechazada: "Rechazada", vencida: "Vencida", convertida: "Convertida",
+    };
+
+    const data = rows.map((r) => ({
+      "Número":            r.numero,
+      "Fecha":             r.fecha_emision ? new Date(r.fecha_emision).toLocaleDateString("es-CO") : "",
+      "Vence":             r.fecha_vencimiento ? new Date(r.fecha_vencimiento).toLocaleDateString("es-CO") : "",
+      "Estado":            ESTADO_LABEL[r.estado] ?? r.estado,
+      "Cliente":           r.cliente_nombre,
+      "NIT/CC":            r.cliente_nit,
+      "Subtotal":          Number(r.subtotal),
+      "IVA":               Number(r.iva_total),
+      "Total":             Number(r.total),
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [10, 12, 12, 12, 35, 14, 14, 12, 14].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Cotizaciones");
+    enviarExcel(res, wb, `cotizaciones_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/cotizaciones:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

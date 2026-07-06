@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { apiFetch, apiFetchPaged, cop, fecha } from "../lib/api";
+import { apiFetch, apiFetchPaged, cop, fecha, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { Plus, Lock, ExternalLink, FileText, Download } from "lucide-react";
+import { Plus, Lock, ExternalLink, FileText, Download, Search, FileDown } from "lucide-react";
 
 interface Cliente { id: string; nombre: string }
 interface Producto { id: string; nombre: string; codigo: string; precio_venta: number }
@@ -64,6 +64,8 @@ export default function Cotizaciones() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [convertirId, setConvertirId] = useState<string | null>(null);
   const [convertirFechaVenc, setConvertirFechaVenc] = useState("");
@@ -175,11 +177,16 @@ export default function Cotizaciones() {
           <h1 className="text-2xl font-semibold text-gray-900">Cotizaciones</h1>
           <p className="text-sm text-gray-500 mt-1">Crea y gestiona propuestas comerciales para tus clientes</p>
         </div>
-        {!isContador && (
-          <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
-            <Plus className="w-4 h-4 mr-1" /> Nueva cotización
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/cotizaciones", "cotizaciones.xlsx")}>
+            <FileDown className="w-4 h-4" /> Excel
           </Button>
-        )}
+          {!isContador && (
+            <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
+              <Plus className="w-4 h-4 mr-1" /> Nueva cotización
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -199,6 +206,27 @@ export default function Cotizaciones() {
           </CardContent>
         </Card>
       ) : (
+        <>
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar cliente o número…"
+                className="rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm w-52"
+              />
+            </div>
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">Todos los estados</option>
+              {Object.entries(ESTADO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -213,7 +241,12 @@ export default function Cotizaciones() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {cotizaciones.map((c) => (
+              {cotizaciones.filter((c) => {
+                const q = busqueda.toLowerCase();
+                if (q && !c.cliente.nombre.toLowerCase().includes(q) && !c.numero.toLowerCase().includes(q)) return false;
+                if (filtroEstado && c.estado !== filtroEstado) return false;
+                return true;
+              }).map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{c.numero}</td>
                   <td className="px-4 py-3 text-gray-700">{c.cliente.nombre}</td>
@@ -296,6 +329,7 @@ export default function Cotizaciones() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Dialog nueva cotización */}

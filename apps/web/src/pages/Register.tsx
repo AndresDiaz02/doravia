@@ -223,7 +223,7 @@ export function Register() {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             <div className="border-t border-gray-100 dark:border-gray-700 pt-2" />
 

@@ -69,6 +69,8 @@ export default function Gastos() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroDesde, setFiltroDesde] = useState("");
+  const [filtroHasta, setFiltroHasta] = useState("");
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [cuentasPorPagar, setCuentasPorPagar] = useState<Gasto[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -237,7 +239,13 @@ export default function Gastos() {
           <p className="text-sm text-gray-500 mt-1">Control de egresos y cuentas por pagar</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void descargarExcel("/api/exportar/gastos", "gastos.xlsx")}>
+          <Button variant="secondary" size="sm" onClick={() => {
+            const qs = new URLSearchParams();
+            if (filtroDesde) qs.set("desde", filtroDesde);
+            if (filtroHasta) qs.set("hasta", filtroHasta);
+            const path = `/api/exportar/gastos${qs.toString() ? `?${qs}` : ""}`;
+            void descargarExcel(path, "gastos.xlsx");
+          }}>
             <FileDown className="w-4 h-4" /> Excel
           </Button>
           {!isContador && (
@@ -313,6 +321,20 @@ export default function Gastos() {
               <option value="aprobado">Aprobado</option>
               <option value="pagado">Pagado</option>
             </select>
+            <input
+              type="date"
+              value={filtroDesde}
+              onChange={(e) => setFiltroDesde(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              title="Desde"
+            />
+            <input
+              type="date"
+              value={filtroHasta}
+              onChange={(e) => setFiltroHasta(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              title="Hasta"
+            />
           </div>
           <GastosTabla
             gastos={gastos.filter((g) => {
@@ -320,6 +342,8 @@ export default function Gastos() {
               if (q && !g.descripcion.toLowerCase().includes(q) && !(g.proveedor_nombre?.toLowerCase().includes(q))) return false;
               if (filtroCategoria && g.categoria !== filtroCategoria) return false;
               if (filtroEstado && g.estado !== filtroEstado) return false;
+              if (filtroDesde && g.fecha < filtroDesde) return false;
+              if (filtroHasta && g.fecha > filtroHasta) return false;
               return true;
             })}
             onAprobar={aprobar}

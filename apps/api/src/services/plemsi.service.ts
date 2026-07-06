@@ -15,7 +15,7 @@ function companyPath(path: string): string {
 function headersParaTenant(apiKey: string) {
   return {
     "Content-Type": "application/json",
-    Authorization: `Token ${apiKey}`,
+    Authorization: `Bearer ${apiKey}`,
   };
 }
 

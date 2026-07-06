@@ -51,6 +51,32 @@ import { isDianEnProduccion } from "./services/dian.service.js";
 const app = express();
 app.set("trust proxy", 1);
 
+// Structured request logging (skip health checks)
+app.use((req, res, next) => {
+  if (req.path === "/health") return next();
+  const t0 = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - t0;
+    const tenantId = (req as { tenantId?: string }).tenantId;
+    const line: Record<string, unknown> = {
+      ts: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      ms,
+    };
+    if (tenantId) line.tenant = tenantId;
+    if (res.statusCode >= 500) {
+      console.error(JSON.stringify(line));
+    } else if (res.statusCode >= 400) {
+      console.warn(JSON.stringify(line));
+    } else {
+      console.log(JSON.stringify(line));
+    }
+  });
+  next();
+});
+
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((o) => o.trim());

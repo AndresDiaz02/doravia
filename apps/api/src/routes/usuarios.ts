@@ -163,8 +163,8 @@ router.post("/cajeros", async (req, res) => {
     if (!nombre || !usuario_pos) {
       return res.status(400).json({ error: "Campos requeridos: nombre, usuario_pos." });
     }
-    if (!password || (password as string).length < 4) {
-      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+    if (!password || (password as string).length < 6) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
     }
     if (/\s|@/.test(usuario_pos)) {
       return res.status(400).json({ error: "El usuario POS no puede contener espacios ni el carácter @." });
@@ -218,8 +218,8 @@ router.patch("/cajeros/:id/reset-password", async (req, res) => {
     if (!cajero) return res.status(404).json({ error: "Cajero no encontrado." });
 
     const { nueva_password } = req.body as { nueva_password?: string };
-    if (!nueva_password || (nueva_password as string).length < 4) {
-      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+    if (!nueva_password || (nueva_password as string).length < 6) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
     }
 
     const password_hash = await bcrypt.hash(nueva_password, 12);

@@ -229,6 +229,18 @@ const migrations = [
     activo boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
+  // Índices de rendimiento — segunda ronda (tablas con mayor carga de lectura)
+  `CREATE INDEX IF NOT EXISTS facturas_tenant_fecha_idx ON facturas(tenant_id, fecha_emision)`,
+  `CREATE INDEX IF NOT EXISTS facturas_tenant_estado_idx ON facturas(tenant_id, estado)`,
+  `CREATE INDEX IF NOT EXISTS facturas_tenant_pagada_idx ON facturas(tenant_id, pagada_at) WHERE pagada_at IS NULL`,
+  `CREATE INDEX IF NOT EXISTS items_factura_factura_idx ON items_factura(factura_id)`,
+  `CREATE INDEX IF NOT EXISTS refresh_tokens_user_idx ON refresh_tokens(user_id)`,
+  `CREATE INDEX IF NOT EXISTS notas_debito_tenant_idx ON notas_debito(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS notas_debito_factura_idx ON notas_debito(factura_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS notas_debito_tenant_consecutivo_unique ON notas_debito(tenant_id, consecutivo)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS notas_credito_tenant_consecutivo_unique ON notas_credito(tenant_id, consecutivo)`,
+  `CREATE INDEX IF NOT EXISTS movimientos_inventario_producto_idx ON movimientos_inventario(producto_id)`,
+  `CREATE INDEX IF NOT EXISTS movimientos_inventario_tenant_idx ON movimientos_inventario(tenant_id)`,
   // Corrección de dígitos de verificación en clientes NIT del set de habilitación DIAN
   `UPDATE clientes SET digito_verificacion = '6' WHERE numero_documento = '900456781' AND digito_verificacion = '3'`,
   `UPDATE clientes SET digito_verificacion = '5' WHERE numero_documento = '800123456' AND digito_verificacion = '7'`,

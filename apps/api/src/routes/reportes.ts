@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, facturas, clientes, tenants, resoluciones_dian } from "@workspace/db";
-import { eq, and, gte, lt, sum, count, desc, isNull, inArray, asc } from "drizzle-orm";
+import { db, facturas, clientes, tenants, resoluciones_dian, gastos, productos } from "@workspace/db";
+import { eq, and, gte, lt, lte, sum, count, desc, isNull, inArray, asc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { requireAccountingLevel } from "../middleware/require-plan-feature.js";
 
@@ -244,6 +244,73 @@ router.get("/cartera-vencida", async (req, res) => {
   } catch (err) {
     console.error("Error en /reportes/cartera-vencida:", err);
     res.status(500).json({ error: "Error al generar cartera vencida" });
+  }
+});
+
+// GET /api/reportes/gastos-mes?anio=2026&mes=6
+router.get("/gastos-mes", async (req, res) => {
+  try {
+    const ahora = new Date();
+    const anio = Number(req.query.anio ?? ahora.getFullYear());
+    const mes = Number(req.query.mes ?? ahora.getMonth() + 1);
+
+    const inicio = new Date(anio, mes - 1, 1);
+    const fin = new Date(anio, mes, 1);
+
+    const [totales] = await db
+      .select({
+        cantidad: count(gastos.id),
+        total: sum(gastos.total),
+        pendiente: sql<string>`COALESCE(SUM(CASE WHEN ${gastos.estado} = 'pendiente' THEN ${gastos.total} ELSE 0 END), 0)`,
+      })
+      .from(gastos)
+      .where(
+        and(
+          eq(gastos.tenant_id, req.tenantId),
+          gte(gastos.fecha, inicio.toISOString().split("T")[0]!),
+          lt(gastos.fecha, fin.toISOString().split("T")[0]!),
+          inArray(gastos.estado, ["aprobado", "pagado", "pendiente"]),
+        ),
+      );
+
+    res.json({
+      periodo: { anio, mes },
+      cantidad: Number(totales?.cantidad ?? 0),
+      total: Number(totales?.total ?? 0),
+      pendiente: Number(totales?.pendiente ?? 0),
+    });
+  } catch (err) {
+    console.error("Error en /reportes/gastos-mes:", err);
+    res.status(500).json({ error: "Error al generar reporte de gastos" });
+  }
+});
+
+// GET /api/reportes/productos-sin-stock
+router.get("/productos-sin-stock", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id: productos.id,
+        codigo: productos.codigo,
+        nombre: productos.nombre,
+        stock_actual: productos.stock_actual,
+      })
+      .from(productos)
+      .where(
+        and(
+          eq(productos.tenant_id, req.tenantId),
+          eq(productos.activo, true),
+          eq(productos.tipo, "producto"),
+          lte(productos.stock_actual, "0"),
+        ),
+      )
+      .orderBy(asc(productos.nombre))
+      .limit(20);
+
+    res.json({ total: rows.length, productos: rows });
+  } catch (err) {
+    console.error("Error en /reportes/productos-sin-stock:", err);
+    res.status(500).json({ error: "Error al obtener productos sin stock" });
   }
 });
 

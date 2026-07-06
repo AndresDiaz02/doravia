@@ -54,8 +54,8 @@ export default function CajerosPOS() {
       setErrorNuevo("Nombre y usuario POS son requeridos.");
       return;
     }
-    if (nuevo.password.length < 4) {
-      setErrorNuevo("La contraseña debe tener al menos 4 caracteres.");
+    if (nuevo.password.length < 6) {
+      setErrorNuevo("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
     if (/\s|@/.test(nuevo.usuario_pos)) {
@@ -85,8 +85,8 @@ export default function CajerosPOS() {
   async function handleResetPassword() {
     if (!modalReset) return;
     setErrorReset(null);
-    if (resetPass.nueva.length < 4) {
-      setErrorReset("La contraseña debe tener al menos 4 caracteres.");
+    if (resetPass.nueva.length < 6) {
+      setErrorReset("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
     if (resetPass.nueva !== resetPass.confirmar) {
@@ -244,7 +244,7 @@ export default function CajerosPOS() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="nuevo-password">Contraseña (mínimo 4 caracteres)</Label>
+            <Label htmlFor="nuevo-password">Contraseña (mínimo 6 caracteres)</Label>
             <div className="relative">
               <Input
                 id="nuevo-password"
@@ -295,7 +295,7 @@ export default function CajerosPOS() {
               <Input
                 id="reset-nueva"
                 type={mostrarPassReset ? "text" : "password"}
-                placeholder="Nueva contraseña (mínimo 4 caracteres)"
+                placeholder="Nueva contraseña (mínimo 6 caracteres)"
                 value={resetPass.nueva}
                 onChange={(e) => setResetPass((p) => ({ ...p, nueva: e.target.value }))}
               />

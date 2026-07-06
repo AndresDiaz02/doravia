@@ -8,20 +8,9 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   buildPersona, buildItems, calcularTotalesPlemsi, emitirNotaCredito as plemsiEmitirNotaCredito,
 } from "../services/plemsi.service.js";
+import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 
 const router = Router();
-
-// Contador de notas crédito por tenant (en memoria — en producción usar secuencia DB)
-const contadores: Record<string, number> = {};
-async function nextConsecutivo(tenantId: string): Promise<number> {
-  const [last] = await db
-    .select({ consecutivo: notas_credito.consecutivo })
-    .from(notas_credito)
-    .where(eq(notas_credito.tenant_id, tenantId))
-    .orderBy(desc(notas_credito.consecutivo))
-    .limit(1);
-  return (last?.consecutivo ?? 0) + 1;
-}
 
 // GET /api/notas-credito
 router.get("/", async (req, res) => {
@@ -128,7 +117,7 @@ router.post("/factura/:facturaId", async (req, res) => {
       });
     }
 
-    const consecutivo = await nextConsecutivo(req.tenantId);
+    const consecutivo = await siguienteConsecutivo("notas_credito", "consecutivo", req.tenantId);
     const numero = `NC-${String(consecutivo).padStart(4, "0")}`;
     const fechaEmision = new Date();
 

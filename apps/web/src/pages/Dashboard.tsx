@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, FileText, Users, AlertCircle, Minus, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
+import { TrendingUp, TrendingDown, FileText, Users, AlertCircle, Minus, AlertTriangle, CheckCircle2, Circle, ShoppingBag, Package } from "lucide-react";
 import { apiFetch, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -79,6 +79,18 @@ interface PrimerosPasos {
   facturas: boolean;
 }
 
+interface GastosMes {
+  periodo: { anio: number; mes: number };
+  cantidad: number;
+  total: number;
+  pendiente: number;
+}
+
+interface ProductosSinStock {
+  total: number;
+  productos: { id: string; codigo: string; nombre: string; stock_actual: string | null }[];
+}
+
 export function Dashboard() {
   const { plan, tenant, user } = useAuth();
   const ahora = new Date();
@@ -88,9 +100,13 @@ export function Dashboard() {
   const [comparativo, setComparativo] = useState<Comparativo | null>(null);
   const [tendencia, setTendencia] = useState<TendenciaMes[]>([]);
   const [cartera, setCartera] = useState<CarteraVencida | null>(null);
+  const [gastosMes, setGastosMes] = useState<GastosMes | null>(null);
+  const [sinStock, setSinStock] = useState<ProductosSinStock | null>(null);
   const [loading, setLoading] = useState(true);
   const [primerosPasos, setPrimerosPasos] = useState<PrimerosPasos | null>(null);
   const hasComparativo = (plan?.accounting_level ?? 1) >= 3;
+  const hasGastos = (plan?.features as Record<string, boolean> | undefined)?.gastos === true;
+  const hasInventario = (plan?.features as Record<string, boolean> | undefined)?.inventario === true;
 
   useEffect(() => {
     if (user?.role === "admin") {
@@ -112,6 +128,20 @@ export function Dashboard() {
         apiFetch<Comparativo>(`/api/reportes/comparativo?anio=${anio}&mes=${mes}`)
           .then(setComparativo)
           .catch(() => setComparativo(null)),
+      );
+    }
+    if (hasGastos) {
+      requests.push(
+        apiFetch<GastosMes>(`/api/reportes/gastos-mes?anio=${anio}&mes=${mes}`)
+          .then(setGastosMes)
+          .catch(() => {}),
+      );
+    }
+    if (hasInventario) {
+      requests.push(
+        apiFetch<ProductosSinStock>("/api/reportes/productos-sin-stock")
+          .then(setSinStock)
+          .catch(() => {}),
       );
     }
     void Promise.all(requests).finally(() => setLoading(false));
@@ -199,7 +229,7 @@ export function Dashboard() {
       )}
 
       {/* Tarjetas resumen */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={`grid grid-cols-1 gap-4 ${hasGastos ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         <SummaryCard
           label="Facturas emitidas"
           value={String(usadas)}
@@ -220,7 +250,30 @@ export function Dashboard() {
           icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
           bg="bg-emerald-50"
         />
+        {hasGastos && (
+          <SummaryCard
+            label="Gastos del mes"
+            value={cop(gastosMes?.total ?? 0)}
+            sub={gastosMes?.pendiente && gastosMes.pendiente > 0 ? `${cop(gastosMes.pendiente)} pendiente` : `${gastosMes?.cantidad ?? 0} registros`}
+            icon={<ShoppingBag className="h-5 w-5 text-orange-600" />}
+            bg="bg-orange-50"
+          />
+        )}
       </div>
+
+      {/* Alerta productos sin stock */}
+      {hasInventario && sinStock && sinStock.total > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <Package className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+          <div className="flex-1 text-sm text-red-800">
+            <span className="font-semibold">{sinStock.total} producto{sinStock.total !== 1 ? "s" : ""} sin stock:</span>{" "}
+            {sinStock.productos.slice(0, 5).map((p) => p.nombre).join(", ")}
+            {sinStock.total > 5 && " y más."}
+            {" "}
+            <Link to="/inventario" className="font-medium underline">Ver inventario →</Link>
+          </div>
+        </div>
+      )}
 
       {/* Comparativo — solo Brote+ */}
       {hasComparativo && comparativo && (

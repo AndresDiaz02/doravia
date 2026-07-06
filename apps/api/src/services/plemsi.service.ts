@@ -2,7 +2,7 @@
  * Servicio Plemsi — integración con facturación electrónica DIAN Colombia
  * URL staging:    https://stagingapi.plemsi.com/company/{id}/...
  * URL producción: https://api.plemsi.com/company/{id}/...
- * Auth: Authorization: Token {api_key}
+ * Auth: POST /auth/api-key con { api_key } → JWT Bearer token de corta duración
  */
 
 const PLEMSI_BASE    = process.env.PLEMSI_URL        ?? "https://stagingapi.plemsi.com";
@@ -12,10 +12,52 @@ function companyPath(path: string): string {
   return `${PLEMSI_BASE}/company/${PLEMSI_COMPANY}${path}`;
 }
 
-function headersParaTenant(apiKey: string) {
+// Caché del JWT — se renueva 60s antes de expirar
+let jwtCache: { token: string; expiresAt: number } | null = null;
+
+async function getJwt(apiKey: string): Promise<string> {
+  if (jwtCache && Date.now() < jwtCache.expiresAt - 60_000) {
+    return jwtCache.token;
+  }
+
+  // Intentar los endpoints de auth más comunes de Plemsi
+  const endpoints = [
+    { url: `${PLEMSI_BASE}/auth/api-key`, body: { api_key: apiKey } },
+    { url: `${PLEMSI_BASE}/auth/login`,   body: { apiKey }           },
+    { url: `${PLEMSI_BASE}/auth/token`,   body: { api_key: apiKey }  },
+  ];
+
+  for (const ep of endpoints) {
+    const res = await fetch(ep.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ep.body),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) continue;
+    const json = await res.json() as Record<string, unknown>;
+    const token = (json.access_token ?? json.token ?? json.jwt) as string | undefined;
+    if (!token) continue;
+
+    // Leer expiración del JWT payload
+    try {
+      const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString()) as { exp?: number };
+      jwtCache = { token, expiresAt: (payload.exp ?? 0) * 1000 };
+    } catch {
+      jwtCache = { token, expiresAt: Date.now() + 23 * 60 * 60 * 1000 };
+    }
+    console.log(`[PLEMSI] Auth OK via ${ep.url}`);
+    return token;
+  }
+
+  throw new Error("No se pudo autenticar con Plemsi. Verifica PLEMSI_API_KEY_DEFAULT y PLEMSI_COMPANY_ID.");
+}
+
+async function headersParaTenant(apiKey: string): Promise<Record<string, string>> {
+  const jwt = await getJwt(apiKey);
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Bearer ${jwt}`,
   };
 }
 
@@ -254,7 +296,7 @@ export async function emitirFactura(params: {
 
     const res = await fetch(companyPath("/billing/invoice"), {
       method: "POST",
-      headers: headersParaTenant(params.apiKey),
+      headers: await headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
     });
@@ -325,7 +367,7 @@ export async function emitirNotaCredito(params: {
 
     const res = await fetch(companyPath("/billing/credit"), {
       method: "POST",
-      headers: headersParaTenant(params.apiKey),
+      headers: await headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
     });
@@ -388,7 +430,7 @@ export async function emitirDocumentoPOS(params: {
 
     const res = await fetch(companyPath("/equivalent/pos"), {
       method: "POST",
-      headers: headersParaTenant(params.apiKey),
+      headers: await headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
     });
@@ -431,7 +473,7 @@ export async function registrarResolucion(params: {
     };
     const res = await fetch(companyPath("/billing/resolution"), {
       method: "POST",
-      headers: headersParaTenant(params.apiKey),
+      headers: await headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),
     });
@@ -449,7 +491,7 @@ export async function obtenerFoliosRestantes(apiKey: string, resolution?: string
     const url = resolution
       ? companyPath(`/billing/resolution/remaining-numbers/${resolution}`)
       : companyPath("/billing/resolution/remaining-numbers");
-    const res = await fetch(url, { headers: headersParaTenant(apiKey), signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(url, { headers: await headersParaTenant(apiKey), signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
     const json = await res.json() as Record<string, unknown>;
     return (json.remaining ?? json.folios_restantes) as number ?? null;

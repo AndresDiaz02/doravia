@@ -5,7 +5,7 @@
  */
 
 const API = "https://api.doraviasoft.com";
-const EMAIL    = process.env.DORAVIA_EMAIL    ?? "epsa2211@gmail.com";
+const EMAIL    = process.env.DORAVIA_EMAIL    ?? "andres@doravia.com";
 const PASSWORD = process.env.DORAVIA_PASSWORD ?? "";
 
 if (!PASSWORD) {
@@ -27,21 +27,25 @@ if (!loginRes.ok) {
   process.exit(1);
 }
 
-// Si hay selección de empresa (multi-tenant), elegir la primera con facturación electrónica
-let token = loginData.access_token;
-if (loginData.selectionToken) {
-  // Obtener la empresa con facturación electrónica
-  const empRes = await fetch(`${API}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  // Para multi-empresa usar select-empresa
+// El API devuelve accessToken (camelCase) para usuario único
+// o { requiresEmpresaSelect, selectionToken, empresas } para multi-empresa
+let token = loginData.accessToken ?? loginData.access_token;
+if (loginData.selectionToken && loginData.empresas?.length) {
+  // Buscar la empresa con facturación electrónica o tomar la primera
+  const empresa = loginData.empresas.find(e => e.facturacion_electronica) ?? loginData.empresas[0];
   const selectRes = await fetch(`${API}/api/auth/select-empresa`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ selectionToken: loginData.selectionToken, tenantId: loginData.empresas?.[0]?.id }),
+    body: JSON.stringify({ selectionToken: loginData.selectionToken, tenantId: empresa.id }),
   });
   const selectData = await selectRes.json();
-  token = selectData.access_token ?? token;
+  token = selectData.accessToken ?? selectData.access_token ?? token;
+  console.log(`  → Empresa seleccionada: ${empresa.nombre}`);
+}
+
+if (!token) {
+  console.error("No se pudo obtener token. Respuesta:", loginData);
+  process.exit(1);
 }
 
 console.log("✓ Autenticado");

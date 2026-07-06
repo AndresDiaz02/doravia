@@ -54,6 +54,12 @@ interface RegisterPaidResponse {
   };
 }
 
+interface RegisterTrialResponse {
+  accessToken: string;
+  refreshToken: string;
+  trial_ends_at: string;
+}
+
 type RegisterResponse = RegisterFreeResponse | RegisterPaidResponse;
 
 declare global {
@@ -67,6 +73,7 @@ export function Register() {
   const planFromUrl = params.get("plan") ?? "";
   const planFijo = planFromUrl in PLANES_INFO ? planFromUrl : "";
   const redirectAfterRegister = params.get("redirect") ?? "";
+  const esTrial = params.get("trial") === "true" && planFijo !== "" && planFijo !== "origen";
 
   const [form, setForm] = useState({
     plan_slug: planFijo || "semilla",
@@ -102,6 +109,17 @@ export function Register() {
     setError(null);
     setLoading(true);
     try {
+      if (esTrial) {
+        // Modo trial: crear cuenta directamente, sin pago
+        const data = await apiFetch<RegisterTrialResponse>("/api/auth/register-trial", {
+          method: "POST",
+          body: JSON.stringify(form),
+        });
+        await login(data.accessToken, data.refreshToken);
+        navigate(redirectAfterRegister || "/configuracion/dian", { replace: true });
+        return;
+      }
+
       const data = await apiFetch<RegisterResponse>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(form),
@@ -157,14 +175,26 @@ export function Register() {
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm">
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
 
-            {planFijo ? (
+            {esTrial && (
+              <div className="rounded-lg border border-violet-200 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-800 px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">Prueba gratuita · 15 días</p>
+                <p className="text-sm font-semibold text-violet-900 dark:text-violet-200 mt-0.5">
+                  {PLANES_INFO[planFijo].nombre} — acceso completo sin pago
+                </p>
+                <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
+                  Al terminar el período puedes activar tu plan con un pago anual.
+                </p>
+              </div>
+            )}
+
+            {planFijo && !esTrial ? (
               <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 px-4 py-3">
                 <p className="text-xs text-action font-medium uppercase tracking-wide">Plan seleccionado</p>
                 <p className="text-sm font-semibold text-green-900 dark:text-green-300 mt-0.5">
                   {PLANES_INFO[planFijo].nombre} — {PLANES_INFO[planFijo].precio}
                 </p>
               </div>
-            ) : (
+            ) : !planFijo ? (
               <div className="space-y-1.5">
                 <Label>Plan</Label>
                 <div className="space-y-2">
@@ -225,7 +255,7 @@ export function Register() {
               <p className="text-xs text-gray-400">Mínimo 8 caracteres</p>
             </div>
 
-            {!planSeleccionadoEsGratis && (
+            {!planSeleccionadoEsGratis && !esTrial && (
               <p className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
                 Tu cuenta se activará una vez confirmemos el pago. Serás redirigido a la pasarela de pago Wompi.
               </p>
@@ -256,9 +286,11 @@ export function Register() {
             <Button type="submit" disabled={loading || !aceptaTerminos} className="w-full">
               {loading
                 ? "Procesando..."
-                : planSeleccionadoEsGratis
-                  ? "Crear cuenta gratis"
-                  : `Continuar al pago — ${PLANES_INFO[planFijo || form.plan_slug]?.precio ?? ""}`}
+                : esTrial
+                  ? "Comenzar 15 días gratis →"
+                  : planSeleccionadoEsGratis
+                    ? "Crear cuenta gratis"
+                    : `Continuar al pago — ${PLANES_INFO[planFijo || form.plan_slug]?.precio ?? ""}`}
             </Button>
 
             <p className="text-center text-xs text-gray-400">

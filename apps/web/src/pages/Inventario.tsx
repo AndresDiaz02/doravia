@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen } from "lucide-react";
+import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen, Search } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { RecibirMercanciaIA } from "./RecibirMercanciaIA";
 import { TutorialOverlay } from "../components/TutorialOverlay";
@@ -75,6 +75,7 @@ export default function Inventario() {
     observaciones: "",
   });
   const [guardando, setGuardando] = useState(false);
+  const [busquedaStock, setBusquedaStock] = useState("");
 
   async function cargarDatos() {
     try {
@@ -206,30 +207,47 @@ export default function Inventario() {
               </CardContent>
             </Card>
           ) : (
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Código</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Producto</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Bodega</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600">Stock</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {stock.map((s) => (
-                    <tr key={`${s.producto_id}-${s.bodega_id}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.producto_codigo}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{s.producto_nombre}</td>
-                      <td className="px-4 py-3 text-gray-600">{s.bodega_nombre}</td>
-                      <td className={`px-4 py-3 text-right font-semibold ${s.stock < 0 ? "text-red-600" : "text-gray-900"}`}>
-                        {s.stock.toLocaleString("es-CO", { maximumFractionDigits: 4 })}
-                      </td>
+            <>
+              <div className="relative mb-4 max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={busquedaStock}
+                  onChange={(e) => setBusquedaStock(e.target.value)}
+                  placeholder="Buscar por código o nombre…"
+                  className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm"
+                />
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Código</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Producto</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Bodega</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-600">Stock</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {stock
+                      .filter((s) => {
+                        const q = busquedaStock.toLowerCase();
+                        return !q || s.producto_nombre.toLowerCase().includes(q) || s.producto_codigo.toLowerCase().includes(q);
+                      })
+                      .map((s) => (
+                        <tr key={`${s.producto_id}-${s.bodega_id}`} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.producto_codigo}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">{s.producto_nombre}</td>
+                          <td className="px-4 py-3 text-gray-600">{s.bodega_nombre}</td>
+                          <td className={`px-4 py-3 text-right font-semibold ${s.stock < 0 ? "text-red-600" : "text-gray-900"}`}>
+                            {s.stock.toLocaleString("es-CO", { maximumFractionDigits: 4 })}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}

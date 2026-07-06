@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { apiFetch, apiFetchPaged, cop, fecha } from "../lib/api";
+import { apiFetch, apiFetchPaged, cop, fecha, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { Plus, Receipt, AlertCircle, Sparkles, Upload } from "lucide-react";
+import { Plus, Receipt, AlertCircle, Sparkles, Upload, FileDown } from "lucide-react";
 
 interface Proveedor { id: string; nombre: string; nit: string | null }
 
@@ -233,11 +233,16 @@ export default function Gastos() {
           <h1 className="text-2xl font-semibold text-gray-900">Gastos</h1>
           <p className="text-sm text-gray-500 mt-1">Control de egresos y cuentas por pagar</p>
         </div>
-        {!isContador && (
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Nuevo gasto
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => void descargarExcel("/api/exportar/gastos", "gastos.xlsx")}>
+            <FileDown className="w-4 h-4" /> Excel
           </Button>
-        )}
+          {!isContador && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Nuevo gasto
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (

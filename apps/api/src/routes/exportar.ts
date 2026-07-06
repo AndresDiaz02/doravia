@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users } from "@workspace/db";
+import { db, facturas, clientes, retenciones_factura, productos, movimientos_inventario, bodegas, tenants, users, gastos, proveedores } from "@workspace/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
@@ -259,6 +259,66 @@ router.get("/productos", async (req, res) => {
     enviarExcel(res, wb, "productos.xlsx");
   } catch (err) {
     console.error("Error en GET /exportar/productos:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/exportar/gastos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get("/gastos", async (req, res) => {
+  try {
+    const desde = req.query.desde as string | undefined;
+    const hasta = req.query.hasta as string | undefined;
+
+    const condiciones = [eq(gastos.tenant_id, req.tenantId)];
+    if (desde) condiciones.push(gte(gastos.fecha, desde));
+    if (hasta) condiciones.push(lte(gastos.fecha, hasta));
+
+    const rows = await db
+      .select({
+        fecha:             gastos.fecha,
+        categoria:         gastos.categoria,
+        descripcion:       gastos.descripcion,
+        proveedor_nombre:  proveedores.nombre,
+        monto:             gastos.monto,
+        iva:               gastos.iva,
+        total:             gastos.total,
+        estado:            gastos.estado,
+        pagado_at:         gastos.pagado_at,
+        fecha_vencimiento: gastos.fecha_vencimiento,
+        observaciones:     gastos.observaciones,
+      })
+      .from(gastos)
+      .leftJoin(proveedores, eq(gastos.proveedor_id, proveedores.id))
+      .where(and(...condiciones))
+      .orderBy(desc(gastos.fecha));
+
+    const CATEGORIA_LABEL: Record<string, string> = {
+      nomina: "Nómina", arriendo: "Arriendo", servicios_publicos: "Servicios públicos",
+      proveedores: "Proveedores", impuestos: "Impuestos", marketing: "Marketing",
+      transporte: "Transporte", tecnologia: "Tecnología", seguros: "Seguros", otros: "Otros",
+    };
+
+    const data = rows.map((r) => ({
+      "Fecha":             r.fecha ?? "",
+      "Categoría":         CATEGORIA_LABEL[r.categoria] ?? r.categoria,
+      "Descripción":       r.descripcion,
+      "Proveedor":         r.proveedor_nombre ?? "",
+      "Monto base":        Number(r.monto),
+      "IVA":               Number(r.iva),
+      "Total":             Number(r.total),
+      "Estado":            r.estado,
+      "Pagado":            r.pagado_at ? new Date(r.pagado_at).toLocaleDateString("es-CO") : "No",
+      "Vencimiento":       r.fecha_vencimiento ?? "",
+      "Observaciones":     r.observaciones ?? "",
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [12, 18, 40, 30, 14, 12, 14, 12, 12, 12, 30].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, "Gastos");
+    enviarExcel(res, wb, `gastos_${desde ?? "todo"}_${hasta ?? "todo"}.xlsx`);
+  } catch (err) {
+    console.error("Error en GET /exportar/gastos:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

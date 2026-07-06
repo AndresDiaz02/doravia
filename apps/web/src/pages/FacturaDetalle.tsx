@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX, Mail } from "lucide-react";
+import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX, FileText, Mail } from "lucide-react";
 import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -99,6 +99,9 @@ export function FacturaDetalle() {
   const [openNC, setOpenNC] = useState(false);
   const [ncForm, setNcForm] = useState({ tipo: "anulacion", motivo: "" });
   const [creandoNC, setCreandoNC] = useState(false);
+  const [openND, setOpenND] = useState(false);
+  const [ndForm, setNdForm] = useState({ tipo: "gastos", motivo: "" });
+  const [creandoND, setCreandoND] = useState(false);
   const [reenviandoDian, setReenviandoDian] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [emailOk, setEmailOk] = useState(false);
@@ -204,6 +207,32 @@ export function FacturaDetalle() {
       setErrorReenvio(err instanceof ApiError ? err.message : "Error al crear nota crédito.");
     } finally {
       setCreandoNC(false);
+    }
+  }
+
+  async function handleCrearNotaDebito() {
+    if (!factura) return;
+    setCreandoND(true);
+    setErrorReenvio(null);
+    try {
+      const items = factura.items.map((i) => ({
+        descripcion: i.descripcion,
+        cantidad: Number(i.cantidad),
+        precio_unitario: Number(i.precio_unitario),
+        iva_pct: Number(i.iva_pct),
+      }));
+
+      await apiFetch(`/api/notas-debito/factura/${factura.id}`, {
+        method: "POST",
+        body: JSON.stringify({ tipo: ndForm.tipo, motivo: ndForm.motivo, items }),
+      });
+
+      setOpenND(false);
+      setNdForm({ tipo: "gastos", motivo: "" });
+    } catch (err) {
+      setErrorReenvio(err instanceof ApiError ? err.message : "Error al crear nota débito.");
+    } finally {
+      setCreandoND(false);
     }
   }
 
@@ -325,6 +354,12 @@ export function FacturaDetalle() {
             <Button variant="secondary" onClick={() => setOpenNC(true)}>
               <FileX className="h-4 w-4" />
               Nota crédito
+            </Button>
+          )}
+          {!isContador && factura.estado === "aceptada" && (
+            <Button variant="secondary" onClick={() => setOpenND(true)}>
+              <FileText className="h-4 w-4" />
+              Nota débito
             </Button>
           )}
           {!isContador && factura.estado === "borrador" && (
@@ -528,6 +563,52 @@ export function FacturaDetalle() {
           .
         </p>
       )}
+
+      {/* Dialog nota débito */}
+      <Dialog open={openND} onClose={() => setOpenND(false)} title="Crear nota débito">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label>Tipo</Label>
+              <HelpTooltip text="La nota débito aumenta el valor de la factura. Úsala para intereses de mora, gastos adicionales o ajustes de precio hacia arriba." />
+            </div>
+            <select
+              value={ndForm.tipo}
+              onChange={(e) => setNdForm((f) => ({ ...f, tipo: e.target.value }))}
+              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="interes">Intereses — intereses de mora u otros cargos financieros</option>
+              <option value="gastos">Gastos — gastos adicionales no incluidos en la factura</option>
+              <option value="ajuste">Ajuste de valor — corrección de precio hacia arriba</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="nd_motivo">Motivo *</Label>
+            <Input
+              id="nd_motivo"
+              required
+              value={ndForm.motivo}
+              onChange={(e) => setNdForm((f) => ({ ...f, motivo: e.target.value }))}
+              placeholder="Describe el motivo de la nota débito"
+            />
+          </div>
+
+          {errorReenvio && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{errorReenvio}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setOpenND(false)}>Cancelar</Button>
+            <Button
+              onClick={() => void handleCrearNotaDebito()}
+              disabled={creandoND || !ndForm.motivo.trim()}
+            >
+              {creandoND ? "Creando..." : "Crear nota débito"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* Dialog nota crédito */}
       <Dialog open={openNC} onClose={() => setOpenNC(false)} title="Crear nota crédito">

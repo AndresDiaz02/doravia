@@ -49,6 +49,7 @@ const NAV_BASE = [
   { to: "/clientes",     label: "Clientes",     icon: Users },
   { to: "/facturas",      label: "Facturas",      icon: FileText },
   { to: "/notas-credito", label: "Notas crédito", icon: FileX },
+  { to: "/notas-debito",  label: "Notas débito",  icon: Receipt },
   { to: "/productos",    label: "Productos",    icon: Package },
   { to: "/contabilidad", label: "Contabilidad", icon: BookOpen },
   { to: "/contabilidad/balance-prueba", label: "Balance de Prueba", icon: TrendingUp },

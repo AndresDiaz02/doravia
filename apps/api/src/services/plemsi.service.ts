@@ -362,6 +362,86 @@ export async function emitirNotaCredito(params: {
   }
 }
 
+/** Emite nota débito (aumenta valor de una factura previa) */
+export async function emitirNotaDebito(params: {
+  apiKey: string;
+  prefix: string;
+  number: number;
+  resolution: string;
+  discrepancy_code: number;
+  discrepancy_description: string;
+  customer: PlemsiPersona;
+  items: PlemsiItems;
+  invoice_reference: { cufe: string; number: string; date: string };
+  invoiceBaseTotal: number;
+  invoiceTaxExclusiveTotal: number;
+  invoiceTaxInclusiveTotal: number;
+  totalToPay: number;
+  allTaxTotals: Array<{ tax_id: number; tax_amount: number; percent: number; taxable_amount: number }>;
+}): Promise<ResultadoPlemsi> {
+  try {
+    const body = {
+      prefix: params.prefix,
+      number: params.number,
+      resolution: params.resolution,
+      discrepancy: { code: params.discrepancy_code, description: params.discrepancy_description },
+      customer: params.customer,
+      items: params.items.map((item) => ({
+        ...item,
+        line_extension_amount: Number(item.line_extension_amount).toFixed(2),
+        price_amount: Number(item.price_amount).toFixed(2),
+        base_quantity: Number(item.base_quantity).toFixed(4),
+        invoiced_quantity: Number(item.invoiced_quantity).toFixed(4),
+        tax_totals: item.tax_totals.map((t) => ({
+          ...t,
+          tax_amount: Number(t.tax_amount).toFixed(2),
+          percent: Number(t.percent).toFixed(2),
+          taxable_amount: Number(t.taxable_amount).toFixed(2),
+        })),
+      })),
+      invoiceReference: {
+        issue_date: params.invoice_reference.date,
+        uuid: params.invoice_reference.cufe,
+        number: params.invoice_reference.number,
+      },
+      allowanceTotal: "0.00",
+      invoiceBaseTotal: params.invoiceBaseTotal.toFixed(2),
+      invoiceTaxExclusiveTotal: params.invoiceTaxExclusiveTotal.toFixed(2),
+      invoiceTaxInclusiveTotal: params.invoiceTaxInclusiveTotal.toFixed(2),
+      totalToPay: params.totalToPay.toFixed(2),
+      allTaxTotals: params.allTaxTotals.map((t) => ({
+        tax_id: t.tax_id,
+        tax_amount: t.tax_amount.toFixed(2),
+        percent: t.percent.toFixed(2),
+        taxable_amount: t.taxable_amount.toFixed(2),
+      })),
+    };
+
+    const res = await fetch(`${PLEMSI_BASE}/api/billing/debit`, {
+      method: "POST",
+      headers: headersParaTenant(params.apiKey),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const rawText = await res.text();
+    console.log(`[PLEMSI] POST /api/billing/debit → status=${res.status} body=${rawText.slice(0, 600)}`);
+    let json: Record<string, unknown>;
+    try { json = JSON.parse(rawText) as Record<string, unknown>; }
+    catch { return { ok: false, error: `Plemsi respuesta no-JSON (${res.status}): ${rawText.slice(0, 200)}` }; }
+
+    if (!res.ok) return { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(json)}` };
+    const data = (typeof json.data === "object" && json.data !== null ? json.data : json) as Record<string, unknown>;
+    return {
+      ok: true,
+      cufe: (data.cude ?? data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cude ?? json.cufe) as string | undefined,
+      plemsi_id: (data.id ?? json.id) as string | undefined,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };
+  }
+}
+
 /** Emite documento equivalente POS */
 export async function emitirDocumentoPOS(params: {
   apiKey: string;

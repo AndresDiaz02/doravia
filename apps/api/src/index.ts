@@ -26,6 +26,7 @@ import pagosRouter from "./routes/pagos.js";
 import { boldRouter } from "./routes/bold.js";
 import retencionesRouter from "./routes/retenciones.js";
 import notasCreditoRouter from "./routes/notas-credito.js";
+import notasDebitoRouter  from "./routes/notas-debito.js";
 import exportarRouter from "./routes/exportar.js";
 import empresaRouter from "./routes/empresa.js";
 import centrosCostosRouter from "./routes/centros-costos.js";
@@ -147,6 +148,7 @@ app.use("/api/pagos",         pagosRouter); // después: más general (Wompi/otr
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────
 app.use("/api/retenciones",    authenticate, retencionesRouter);
 app.use("/api/notas-credito",  authenticate, notasCreditoRouter);
+app.use("/api/notas-debito",   authenticate, notasDebitoRouter);
 app.use("/api/exportar",       authenticate, exportarRouter);
 app.use("/api/empresa",        authenticate, empresaRouter);
 app.use("/api/centros-costos", authenticate, requirePlanFeature("centros_costos"),  centrosCostosRouter);

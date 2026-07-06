@@ -29,6 +29,8 @@ import UpgradePlan from "./pages/UpgradePlan";
 import Retenciones from "./pages/Retenciones";
 import NotasCredito from "./pages/NotasCredito";
 import NotaCreditoDetalle from "./pages/NotaCreditoDetalle";
+import NotasDebito from "./pages/NotasDebito";
+import NotaDebitoDetalle from "./pages/NotaDebitoDetalle";
 import PeriodosContables from "./pages/PeriodosContables";
 import ConfiguracionEmpresa from "./pages/ConfiguracionEmpresa";
 import AdminCajas from "./pages/AdminCajas";
@@ -119,6 +121,8 @@ export default function App() {
               <Route path="/retenciones" element={<><RequiereRol allow={["admin", "contador"]} /><Retenciones /></>} />
               <Route path="/notas-credito" element={<NotasCredito />} />
               <Route path="/notas-credito/:id" element={<NotaCreditoDetalle />} />
+              <Route path="/notas-debito" element={<NotasDebito />} />
+              <Route path="/notas-debito/:id" element={<NotaDebitoDetalle />} />
               <Route path="/periodos-contables" element={<><RequiereRol allow={["admin", "contador"]} /><PeriodosContables /></>} />
               <Route path="/configuracion/empresa" element={<><SoloEscritura /><ConfiguracionEmpresa /></>} />
               <Route path="/pos/cajas" element={<><SoloEscritura /><AdminCajas /></>} />

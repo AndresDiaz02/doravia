@@ -7,7 +7,7 @@ const router = Router();
 
 interface Notificacion {
   id: string;
-  tipo: "stock_sin_existencia" | "cartera_vencida" | "factura_vence_pronto" | "turno_abierto";
+  tipo: "stock_sin_existencia" | "cartera_vencida" | "factura_vence_pronto" | "turno_abierto" | "dian_error";
   titulo: string;
   descripcion: string;
   urgencia: "alta" | "media" | "baja";
@@ -28,6 +28,7 @@ router.get("/", async (req, res) => {
       resultProximas,
       resultSinStock,
       resultTurnos,
+      resultDianError,
     ] = await Promise.all([
       // Facturas vencidas sin pagar
       db
@@ -78,6 +79,17 @@ router.get("/", async (req, res) => {
             eq(turnos_pos.estado, "abierto"),
           ),
         ),
+
+      // Facturas con error en envío a la DIAN (estado_dian = error o pendiente)
+      db
+        .select({ total: count() })
+        .from(facturas)
+        .where(
+          and(
+            eq(facturas.tenant_id, req.tenantId),
+            sql`${facturas.estado_dian} IN ('error', 'pendiente')`,
+          ),
+        ),
     ]);
 
     const notificaciones: Notificacion[] = [];
@@ -86,6 +98,7 @@ router.get("/", async (req, res) => {
     const totalProximas = Number(resultProximas[0]?.total ?? 0);
     const totalSinStock = Number(resultSinStock[0]?.total ?? 0);
     const totalTurnos = Number(resultTurnos[0]?.total ?? 0);
+    const totalDianError = Number(resultDianError[0]?.total ?? 0);
 
     if (totalCartera > 0) {
       notificaciones.push({
@@ -132,6 +145,18 @@ router.get("/", async (req, res) => {
         urgencia: "baja",
         link: "/pos",
         count: totalTurnos,
+      });
+    }
+
+    if (totalDianError > 0) {
+      notificaciones.push({
+        id: "dian_error",
+        tipo: "dian_error",
+        titulo: "Error en envío a la DIAN",
+        descripcion: `${totalDianError} factura${totalDianError > 1 ? "s" : ""} con error o pendiente de envío a la DIAN.`,
+        urgencia: "alta",
+        link: "/facturas",
+        count: totalDianError,
       });
     }
 

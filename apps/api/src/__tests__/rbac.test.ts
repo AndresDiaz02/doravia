@@ -51,6 +51,14 @@ function makeNext(): NextFunction {
 // ── Lógica RBAC extraída de auth.ts ─────────────────────────────────────────
 // Reproducimos aquí la lógica de bloques de rol para testearla de forma aislada.
 // Si auth.ts cambia, estos tests deben actualizarse.
+//
+// Rutas de escritura autenticadas en /api/auth/ que el contador puede usar:
+//   PATCH /api/auth/password    — cambiar su propia contraseña
+//   PATCH /api/auth/preferencias — dark_mode y preferencias de UI
+//   POST  /api/auth/cambiar-empresa — switch de empresa sin re-login
+//   POST  /api/auth/verify-fundador-pin — bloqueado por lógica interna (FUNDADOR_EMAILS)
+//
+// Las demás rutas de /api/auth/ son públicas (no requieren authenticate).
 
 const BLOQUEADO_VENDEDOR = [
   "/api/gastos",
@@ -74,6 +82,11 @@ const BLOQUEADO_OPERARIO = [
   "/api/cartera",
 ];
 
+const CONTABLE_WRITE_OK = [
+  /^\/api\/contabilidad(\/|$)/,
+  /^\/api\/gastos\//,
+];
+
 function applyRbacRules(
   req: Partial<Request>,
   res: Response,
@@ -83,10 +96,19 @@ function applyRbacRules(
   const url = req.originalUrl ?? "";
   const method = req.method ?? "GET";
 
-  // Contador sin permisos_contables: solo GET
-  if (role === "contador" && method !== "GET") {
+  // Contador: /api/auth/* siempre permitido (cambiar-empresa, password, preferencias)
+  const esAuthPropia = url.startsWith("/api/auth/");
+
+  // Contador sin permisos_contables: solo GET (excepto rutas /api/auth/)
+  if (role === "contador" && method !== "GET" && !esAuthPropia) {
     if (!req.userContable) {
       (res.status as Mock)(403).json({ error: "El rol Contador solo tiene permisos de lectura.", code: "CONTADOR_READ_ONLY" });
+      return;
+    }
+    // Con permisos_contables: solo contabilidad y gastos, nunca DELETE
+    const contableOk = method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
+    if (!contableOk) {
+      (res.status as Mock)(403).json({ error: "El contador no tiene permisos para modificar este módulo.", code: "CONTADOR_READ_ONLY" });
       return;
     }
   }
@@ -290,8 +312,80 @@ describe("RBAC por rol", () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
-    it("bloquea POST /api/facturas sin permisos_contables", () => {
+    it("bloquea POST /api/facturas sin permisos_contables → 403", () => {
       const req = makeReq("contador", "/api/facturas", "POST");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea PATCH /api/clientes/:id sin permisos_contables → 403", () => {
+      const req = makeReq("contador", "/api/clientes/abc-123", "PATCH");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea POST /api/gastos sin permisos_contables → 403", () => {
+      const req = makeReq("contador", "/api/gastos", "POST");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    // Fix Fase 3B: rutas /api/auth/ siempre permitidas para contador (cambiar-empresa, password, logout)
+    it("permite POST /api/auth/cambiar-empresa → pasa (acción de sesión)", () => {
+      const req = makeReq("contador", "/api/auth/cambiar-empresa", "POST");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite PATCH /api/auth/password → pasa (cambiar contraseña propia)", () => {
+      const req = makeReq("contador", "/api/auth/password", "PATCH");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite POST /api/auth/logout → pasa (cierre de sesión)", () => {
+      const req = makeReq("contador", "/api/auth/logout", "POST");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite PATCH /api/auth/preferencias → pasa (preferencias UI)", () => {
+      const req = makeReq("contador", "/api/auth/preferencias", "PATCH");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("bloquea escrituras fuera de /api/auth/ incluso si empieza similar → 403", () => {
+      // Asegura que /api/auth-fake/ no pasa por la excepción
+      const req = makeReq("contador", "/api/auth-tokens/crear", "POST");
       req.userContable = false;
       const res = makeRes();
       const next = makeNext();

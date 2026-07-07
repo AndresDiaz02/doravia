@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db, users, user_accesos, USER_ROLES } from "@workspace/db";
+import type { UserRole } from "@workspace/db";
 import { eq, and, isNotNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
@@ -49,7 +50,13 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
   }
 
-  const roleValido = role && (USER_ROLES as readonly string[]).includes(role) ? role : "operario";
+  if (role && !(USER_ROLES as readonly string[]).includes(role)) {
+    return res.status(400).json({
+      error: `Rol inválido: "${role}". Roles permitidos: ${USER_ROLES.join(", ")}.`,
+      roles_validos: [...USER_ROLES],
+    });
+  }
+  const roleValido: UserRole = (role as UserRole) ?? "operario";
 
   try {
     await assertCanAddUsuario(req.tenant);

@@ -5,7 +5,7 @@ import {
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
 } from "@workspace/db";
-import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -643,6 +643,32 @@ ${contexto ? `\nContexto actual:\n${contexto}` : ""}`,
     const respuesta = msg.content[0]?.type === "text" ? msg.content[0].text : "Sin respuesta.";
     res.json({ respuesta });
   } catch (err) { next(err); }
+});
+
+// ── GET /api/fundador/registros-pendientes ────────────────────────────────────
+router.get("/registros-pendientes", async (_req, res, next) => {
+  try {
+    const pendientes = await db
+      .select({
+        id: pending_registrations.id,
+        nit: pending_registrations.nit,
+        tenant_nombre: pending_registrations.tenant_nombre,
+        usuario_nombre: pending_registrations.usuario_nombre,
+        email: pending_registrations.email,
+        plan_slug: pending_registrations.plan_slug,
+        wompi_reference: pending_registrations.wompi_reference,
+        expires_at: pending_registrations.expires_at,
+        created_at: pending_registrations.created_at,
+      })
+      .from(pending_registrations)
+      .where(isNull(pending_registrations.completed_at))
+      .orderBy(desc(pending_registrations.created_at));
+
+    return res.json(pendientes);
+  } catch (err) {
+    console.error("Error en GET /fundador/registros-pendientes:", err);
+    next(err);
+  }
 });
 
 // POST /api/fundador/activar-registro/:id

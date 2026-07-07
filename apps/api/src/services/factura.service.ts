@@ -38,6 +38,8 @@ export interface CrearFacturaInput {
   cliente_id: string;
   items: ItemInput[];
   retenciones?: RetencionInput[];
+  /** Fecha del documento. Si se omite, se usa la fecha actual. */
+  fecha?: Date;
   fecha_vencimiento?: string;
   observaciones?: string;
   condicion_pago?: string;
@@ -125,7 +127,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   const total_retenciones = Number(retencionesCalculadas.reduce((s, r) => s + r.valor, 0).toFixed(2));
   const neto_a_pagar = Number((total - total_retenciones).toFixed(2));
 
-  const fechaEmision = new Date();
+  const fechaEmision = input.fecha ?? new Date();
 
   // Insertar factura + items + retenciones en una transacción atómica.
   // El consecutivo se lee con SELECT FOR UPDATE dentro de la transacción para

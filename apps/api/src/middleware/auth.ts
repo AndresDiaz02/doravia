@@ -73,7 +73,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 
   // Rol Contador
-  if (req.userRole === "contador" && req.method !== "GET") {
+  // /api/auth/cambiar-empresa es una acción de sesión, no de datos — siempre permitida
+  const esAuthPropia = req.originalUrl.startsWith("/api/auth/");
+  if (req.userRole === "contador" && req.method !== "GET" && !esAuthPropia) {
     if (!req.userContable) {
       return res.status(403).json({
         error: "El rol Contador solo tiene permisos de lectura.",
@@ -109,6 +111,41 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
     }
     // Empresa y DIAN: solo lectura
+    if (
+      (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
+      req.method !== "GET"
+    ) {
+      return res.status(403).json({ error: "No tienes permisos para modificar esta información.", code: "FORBIDDEN" });
+    }
+  }
+
+  // Rol Cajero: SOLO módulo POS
+  if (req.userRole === "cajero") {
+    const url = req.originalUrl;
+    if (!url.startsWith("/api/pos") && !url.startsWith("/api/auth")) {
+      return res.status(403).json({
+        error: "El rol Cajero solo tiene acceso al módulo POS.",
+        code: "FORBIDDEN",
+      });
+    }
+  }
+
+  // Rol Operario: mismo perímetro que vendedor (BUG-11C fix)
+  if (req.userRole === "operario") {
+    const url = req.originalUrl;
+    const BLOQUEADO_OPERARIO = [
+      "/api/gastos",
+      "/api/contabilidad",
+      "/api/retenciones",
+      "/api/centros-costos",
+      "/api/recurrentes",
+      "/api/ensamble",
+      "/api/usuarios",
+      "/api/cartera",
+    ];
+    if (BLOQUEADO_OPERARIO.some((p) => url.startsWith(p))) {
+      return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
+    }
     if (
       (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
       req.method !== "GET"

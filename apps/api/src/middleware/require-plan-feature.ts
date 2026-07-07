@@ -73,3 +73,20 @@ export function requireAccountingLevel(minLevel: number) {
     next();
   };
 }
+
+/**
+ * Middleware reutilizable por ruta para restringir acceso por rol.
+ * Uso: router.post("/", requireRole(["admin"]), handler)
+ */
+export function requireRole(roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!roles.includes(req.userRole)) {
+      return res.status(403).json({
+        error: "No tienes permisos para realizar esta acción.",
+        code: "FORBIDDEN",
+        required_roles: roles,
+      });
+    }
+    next();
+  };
+}

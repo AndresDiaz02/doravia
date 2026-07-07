@@ -328,8 +328,17 @@ router.post("/ventas", async (req, res) => {
       }>;
     };
 
-  if (!turno_id || !caja_id || !items?.length) {
-    return res.status(400).json({ error: "Faltan campos requeridos." });
+  if (!turno_id) return res.status(400).json({ error: "Campo requerido: turno_id." });
+  if (!caja_id)  return res.status(400).json({ error: "Campo requerido: caja_id." });
+  if (!metodo_pago) return res.status(400).json({ error: "Campo requerido: metodo_pago (efectivo|tarjeta|transferencia|nequi|daviplata)." });
+  if (!items?.length) return res.status(400).json({ error: "La venta debe tener al menos un ítem." });
+
+  for (const [i, item] of items.entries()) {
+    if (typeof item.subtotal !== "number") return res.status(400).json({ error: `items[${i}].subtotal debe ser number.` });
+    if (typeof item.iva_valor !== "number") return res.status(400).json({ error: `items[${i}].iva_valor debe ser number.` });
+    if (typeof item.total !== "number")    return res.status(400).json({ error: `items[${i}].total debe ser number.` });
+    if (typeof item.cantidad !== "number" || item.cantidad <= 0) return res.status(400).json({ error: `items[${i}].cantidad debe ser number > 0.` });
+    if (typeof item.precio_unitario !== "number") return res.status(400).json({ error: `items[${i}].precio_unitario debe ser number.` });
   }
 
   try {

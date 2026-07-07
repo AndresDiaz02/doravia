@@ -116,13 +116,16 @@ const loginRateLimit = rateLimit({
   message: { error: "Demasiados intentos de acceso. Intenta de nuevo en 15 minutos." },
 });
 
-// Rate limit para endpoints de escritura (POST/PATCH/DELETE autenticados)
+// Rate limit para endpoints de escritura — configurable por WRITE_RATE_LIMIT_PER_MIN (default 60)
+// Usa el tenantId como clave para usuarios autenticados, IP como fallback
+const WRITE_RL_LIMIT = parseInt(process.env.WRITE_RATE_LIMIT_PER_MIN ?? "60", 10);
 const writeRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  limit: 60,
+  windowMs: 60 * 1000,
+  limit: WRITE_RL_LIMIT,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: (req) => req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS",
+  keyGenerator: (req) => (req as { tenantId?: string }).tenantId ?? req.ip ?? "anon",
   message: { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
 });
 

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { FEATURE_LABELS } from "@workspace/shared";
+import { FEATURE_LABELS, FEATURE_MIN_PLAN } from "@workspace/shared";
 import type { PlanFeature } from "@workspace/shared";
 
 /**
@@ -34,11 +34,14 @@ export function requirePlanFeature(feature: PlanFeature) {
     const hasFeature = plan.features[feature] || (addons as Record<string, boolean> | null)?.[feature];
 
     if (!hasFeature) {
+      const minPlan = FEATURE_MIN_PLAN[feature];
+      const upgrade = minPlan ? ` Requiere plan ${minPlan} o superior.` : " Actualiza tu plan para acceder.";
       return res.status(403).json({
-        error: `Tu plan (${plan.nombre}) no incluye el módulo de ${FEATURE_LABELS[feature]}. Actualiza tu plan para acceder a esta funcionalidad.`,
+        error: `Tu plan (${plan.nombre}) no incluye el módulo de ${FEATURE_LABELS[feature]}.${upgrade}`,
         code: "PLAN_FEATURE_NOT_INCLUDED",
         feature,
         current_plan: plan.slug,
+        required_plan: minPlan ?? null,
         upgrade_required: true,
       });
     }

@@ -179,7 +179,7 @@ APP_URL                    = https://app.doraviasoft.com
 
 #### Notas débito (`NotasDebito.tsx`, `NotaDebitoDetalle.tsx`)
 - Lista con badge DIAN
-- Crear: tipo (intereses/gastos/ajuste), factura origen, motivo, ítems propios
+- Crear: tipo (`interes`/`gastos`/`ajuste` — sin plural en "interes"), factura origen, motivo, ítems propios
 - Reenviar a DIAN (endpoint `POST /api/notas-debito/:id/reenviar-dian`)
 - Botón "Excel" → `GET /api/exportar/notas-debito?desde&hasta`
 
@@ -229,7 +229,7 @@ APP_URL                    = https://app.doraviasoft.com
 #### Ensamble / BOM (`Ensamble.tsx`)
 - Bill of Materials: producto terminado + componentes + cantidades
 - Registro de ensamble: reduce stock componentes, aumenta stock producto terminado
-- Feature `ensamble` requerida
+- Feature `ensamble` requerida — disponible desde plan **Raíz** (no en Semilla)
 
 #### Recibir mercancía con IA (`RecibirMercanciaIA.tsx`)
 - Sube foto de factura/remisión de compra
@@ -463,16 +463,22 @@ Todos bajo `https://api.doraviasoft.com`. Requieren `Authorization: Bearer <toke
 |---|---|---|
 | GET | `/` | Lista con estado_dian |
 | GET | `/:id` | Detalle |
-| POST | `/` | Crear NC |
+| POST | `/factura/:facturaId` | Crear NC (vinculada a una factura) |
 | POST | `/:id/reenviar-dian` | Reintentar envío a Plemsi |
+
+> ⚠️ La ruta de creación es `POST /api/notas-credito/factura/:facturaId`, NO `POST /api/notas-credito/`.
 
 ### Notas débito (`/api/notas-debito`)
 | Método | Endpoint | Descripción |
 |---|---|---|
 | GET | `/` | Lista |
 | GET | `/:id` | Detalle |
-| POST | `/` | Crear ND |
+| POST | `/factura/:facturaId` | Crear ND (vinculada a una factura) |
 | POST | `/:id/reenviar-dian` | Reintentar envío a Plemsi |
+
+> ⚠️ La ruta de creación es `POST /api/notas-debito/factura/:facturaId`. Tipos válidos de ND: `interes`, `gastos`, `ajuste` (sin plural en "interes").
+
+> **`estado_dian` enum real:** `"pendiente"` | `"emitida"` | `"error"` | `"no_aplica"` (este último en modo stub).
 
 ### Clientes (`/api/clientes`)
 | Método | Endpoint | Descripción |
@@ -509,11 +515,11 @@ Todos bajo `https://api.doraviasoft.com`. Requieren `Authorization: Bearer <toke
 ### Contabilidad (`/api/contabilidad`)
 - `GET /plan-cuentas` — árbol PUC
 - `GET /asientos` — diario/mayor filtrable
-- `GET /balance` — balance de prueba
+- `GET /balance-prueba` — balance de prueba (⚠️ no `/balance`)
 - `GET /auxiliares/:cuentaId` — movimientos de cuenta
 - `GET /periodos` — períodos contables
 - `POST /periodos` — crear período
-- `PATCH /periodos/:id` — abrir/cerrar
+- `PATCH /periodos/:id/cerrar` — cerrar período (⚠️ no `PATCH /periodos/:id`)
 
 ### Reportes (`/api/reportes`)
 - `GET /ventas-mes?anio&mes`

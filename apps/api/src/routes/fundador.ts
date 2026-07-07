@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   db, tenants, users, plans, refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
-  retencion_seguimiento, leads_doravia,
+  retencion_seguimiento, leads_doravia, pending_registrations,
 } from "@workspace/db";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray } from "drizzle-orm";
 
@@ -643,6 +643,70 @@ ${contexto ? `\nContexto actual:\n${contexto}` : ""}`,
     const respuesta = msg.content[0]?.type === "text" ? msg.content[0].text : "Sin respuesta.";
     res.json({ respuesta });
   } catch (err) { next(err); }
+});
+
+// POST /api/fundador/activar-registro/:id
+// Activa un pending_registration sin pago — útil en desarrollo/QA y cuando el fundador
+// quiere confirmar manualmente un registro (ej. pago por fuera).
+// Protegido por requireFundador. En producción, solo el fundador puede usarlo.
+router.post("/activar-registro/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const [pending] = await db
+    .select()
+    .from(pending_registrations)
+    .where(eq(pending_registrations.id, id))
+    .limit(1);
+
+  if (!pending) return res.status(404).json({ error: "Registro pendiente no encontrado." });
+  if (pending.completed_at) return res.status(409).json({ error: "Este registro ya fue completado.", tenant_id: null });
+
+  const [plan] = await db.select().from(plans).where(eq(plans.slug, pending.plan_slug)).limit(1);
+  if (!plan) return res.status(422).json({ error: `Plan "${pending.plan_slug}" no encontrado en DB. Corre db:seed primero.` });
+
+  const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, pending.nit)).limit(1);
+  if (nitExistente) return res.status(422).json({ error: `Ya existe un tenant con NIT ${pending.nit}.` });
+
+  const ahora = new Date();
+  const planFin = new Date(ahora);
+  planFin.setFullYear(planFin.getFullYear() + 1);
+
+  const { tenant, user } = await db.transaction(async (tx) => {
+    const [tenant] = await tx.insert(tenants).values({
+      nombre: pending.tenant_nombre,
+      nit: pending.nit,
+      plan_id: plan.id,
+      plan_starts_at: ahora,
+      plan_ends_at: planFin,
+      activo: true,
+      ultimo_pago_confirmado_at: ahora,
+    }).returning();
+
+    const [user] = await tx.insert(users).values({
+      tenant_id: tenant.id,
+      email: pending.email,
+      nombre: pending.usuario_nombre,
+      role: "admin",
+      password_hash: pending.password_hash,
+    }).returning();
+
+    await tx.update(pending_registrations)
+      .set({ completed_at: ahora })
+      .where(eq(pending_registrations.id, pending.id));
+
+    return { tenant, user };
+  });
+
+  console.log(`[fundador] Registro activado manualmente: ${tenant.nombre} (${tenant.nit}) — ${user.email}`);
+  res.status(201).json({
+    ok: true,
+    tenant_id: tenant.id,
+    tenant_nombre: tenant.nombre,
+    nit: tenant.nit,
+    plan: plan.slug,
+    email: user.email,
+    plan_ends_at: planFin.toISOString(),
+  });
 });
 
 export default router;

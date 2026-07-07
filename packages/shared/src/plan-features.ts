@@ -30,6 +30,29 @@ export const PLAN_FEATURES = [
 
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
+// Plan mínimo requerido para desbloquear cada feature
+export const FEATURE_MIN_PLAN: Partial<Record<PlanFeature, string>> = {
+  inventario:             "Semilla",
+  facturacion_ilimitada:  "Semilla",
+  cotizaciones:           "Raíz",
+  cotizacion_a_factura:   "Raíz",
+  cartera_avanzada:       "Raíz",
+  ensamble:               "Raíz",
+  gastos:                 "Semilla",
+  cuentas_por_pagar:      "Raíz",
+  programacion_pagos:     "Raíz",
+  facturacion_recurrente: "Brote",
+  reportes_comparativos:  "Brote",
+  oportunidades_crm:      "Brote",
+  pipeline_comercial:     "Brote",
+  ia_asistente:           "Raíz",
+  centros_costos:         "Cosecha",
+  multi_sede:             "Cosecha",
+  flujo_caja:             "Cosecha",
+  pos:                    "Punto",
+  pos_multi_caja:         "Punto Plus",
+};
+
 export const FEATURE_LABELS: Record<PlanFeature, string> = {
   inventario:              "Inventario",
   facturacion_ilimitada:   "Facturación ilimitada",

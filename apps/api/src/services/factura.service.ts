@@ -24,6 +24,7 @@ export interface ItemInput {
   precio_unitario: number;
   descuento_pct?: number;
   iva_pct?: number;
+  impoconsumo_pct?: number;
   unidad_medida?: string;
 }
 
@@ -52,18 +53,33 @@ function calcularItem(item: ItemInput) {
   const precio = item.precio_unitario;
   const descPct = item.descuento_pct ?? 0;
   const ivaPct = item.iva_pct ?? 19;
+  const impoconsumoPct = item.impoconsumo_pct ?? 0;
 
   const precioConDesc = precio * (1 - descPct / 100);
   const subtotal = Number((cant * precioConDesc).toFixed(2));
   const iva_valor = Number((subtotal * (ivaPct / 100)).toFixed(2));
-  const total = Number((subtotal + iva_valor).toFixed(2));
+  const impoconsumo_valor = Number((subtotal * (impoconsumoPct / 100)).toFixed(2));
+  const total = Number((subtotal + iva_valor + impoconsumo_valor).toFixed(2));
 
-  return { subtotal, iva_valor, total, iva_pct: ivaPct, descuento_pct: descPct };
+  return { subtotal, iva_valor, impoconsumo_valor, total, iva_pct: ivaPct, impoconsumo_pct: impoconsumoPct, descuento_pct: descPct };
 }
 
 export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaInput) {
   // Guard numérico — lanza PlanLimitError si se superó el límite del mes
   await assertCanEmitirFactura(tenant);
+
+  // Validar régimen: "simplificado" aquí equivale a "no responsable de IVA" (no al RST fiscal).
+  // El RST (Régimen Simple de Tributación, art. 903 ET) es distinto y puede cobrar IVA.
+  const esNoResponsableIva = (tenant as { regimen?: string | null }).regimen === "simplificado";
+  if (esNoResponsableIva) {
+    for (const item of input.items) {
+      if (Number(item.iva_pct ?? 0) !== 0) {
+        throw new Error(
+          "No responsable de IVA no puede cobrar IVA en sus facturas. Cambia la tarifa de IVA a 0% en todos los ítems.",
+        );
+      }
+    }
+  }
 
   // Validar items
   if (!input.items.length) throw new Error("Se requiere al menos un ítem.");
@@ -118,7 +134,8 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
   const itemsCalculados = input.items.map((item) => ({ ...item, ...calcularItem(item) }));
   const subtotal = Number(itemsCalculados.reduce((s, i) => s + i.subtotal, 0).toFixed(2));
   const iva_total = Number(itemsCalculados.reduce((s, i) => s + i.iva_valor, 0).toFixed(2));
-  const total = Number((subtotal + iva_total).toFixed(2));
+  const impoconsumo_total = Number(itemsCalculados.reduce((s, i) => s + i.impoconsumo_valor, 0).toFixed(2));
+  const total = Number((subtotal + iva_total + impoconsumo_total).toFixed(2));
 
   // Calcular retenciones
   const retencionesCalculadas = (input.retenciones ?? []).map((r) => ({
@@ -184,6 +201,8 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         precio_unitario: String(item.precio_unitario),
         descuento_pct: String(item.descuento_pct ?? 0),
         iva_pct: String(item.iva_pct ?? 19),
+        impoconsumo_pct: String(item.impoconsumo_pct ?? 0),
+        impoconsumo_valor: String(item.impoconsumo_valor ?? 0),
         unidad_medida: (item.unidad_medida ?? "UN") as "UN" | "KG" | "GR" | "LT" | "ML" | "MT" | "CM" | "M2" | "M3" | "HOR" | "DIA" | "MES" | "BOL" | "CJA" | "PAR" | "DOZ",
         subtotal: String(item.subtotal),
         iva_valor: String(item.iva_valor),
@@ -328,6 +347,7 @@ export async function enviarAPlemsiSiAplica(
     precio_unitario: i.precio_unitario,
     descuento: i.descuento_pct,
     iva_porcentaje: i.iva_pct,
+    impoconsumo_porcentaje: i.impoconsumo_pct,
   })));
 
   const totales = calcularTotalesPlemsi(itemsPlemsi);

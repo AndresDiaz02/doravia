@@ -67,6 +67,7 @@ const NAV_VENTAS = [
 const NAV_GASTOS = [
   { to: "/gastos", label: "Gastos", icon: Receipt },
   { to: "/proveedores", label: "Proveedores", icon: Truck },
+  { to: "/activos-fijos", label: "Activos fijos", icon: Package },
 ];
 
 const NAV_INVENTARIO = [

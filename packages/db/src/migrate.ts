@@ -246,6 +246,8 @@ const migrations = [
   `UPDATE clientes SET digito_verificacion = '5' WHERE numero_documento = '800123456' AND digito_verificacion = '7'`,
   `UPDATE clientes SET digito_verificacion = '7' WHERE numero_documento = '901234567' AND digito_verificacion = '1'`,
   `UPDATE clientes SET digito_verificacion = '8' WHERE numero_documento = '860012345' AND digito_verificacion = '9'`,
+  // trial_ends_at: columna añadida en schema (commit 733c459) pero nunca aplicada a la BD
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz`,
 ];
 
 for (const migration of migrations) {

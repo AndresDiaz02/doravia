@@ -33,6 +33,7 @@ const CODIGOS = {
   CAJA: "1105",
   BANCOS: "1110",
   IVA_POR_PAGAR: "2408",
+  IMPOCONSUMO_POR_PAGAR: "2410",
   INGRESOS_COMERCIO: "4135",
   INGRESOS_SERVICIOS: "4175",
   PROVEEDORES: "2205",
@@ -110,21 +111,27 @@ async function getConsecutivoAsiento(tenantId: string, anio: number): Promise<st
  *   Débito:  1305 Clientes nacionales    = total factura
  *   Crédito: 4135 Ingresos               = subtotal
  *   Crédito: 2408 IVA por pagar          = iva_total (omitida si iva = 0)
+ *   Crédito: 2410 Impoconsumo por pagar  = impoconsumoTotal (omitida si = 0)
  *
  * Devuelve el id del asiento creado.
  */
 export async function crearAsientoFactura(
   tenantId: string,
   factura: Factura,
-  ingresosCodigo: "4135" | "4175" = "4135"
+  ingresosCodigo: "4135" | "4175" = "4135",
+  impoconsumoTotal = 0,
 ): Promise<string> {
   const fecha = new Date(factura.fecha_emision);
   const numero = await getConsecutivoAsiento(tenantId, fecha.getFullYear());
 
-  const [cClientes, cIngresos, cIva] = await Promise.all([
+  const cuentasCodigos: string[] = [CODIGOS.CLIENTES, ingresosCodigo, CODIGOS.IVA_POR_PAGAR];
+  if (impoconsumoTotal > 0) cuentasCodigos.push(CODIGOS.IMPOCONSUMO_POR_PAGAR);
+
+  const [cClientes, cIngresos, cIva, cImpoconsumo] = await Promise.all([
     getCuenta(tenantId, CODIGOS.CLIENTES),
     getCuenta(tenantId, ingresosCodigo),
     getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
+    impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
   ]);
 
   const total = Number(factura.total);
@@ -155,6 +162,16 @@ export async function crearAsientoFactura(
       descripcion: "IVA generado",
       debito: "0",
       credito: String(iva),
+    });
+  }
+
+  if (impoconsumoTotal > 0 && cImpoconsumo) {
+    lineas.push({
+      asiento_id: asiento.id,
+      cuenta_id: cImpoconsumo.id,
+      descripcion: "Impuesto al Consumo generado",
+      debito: "0",
+      credito: String(impoconsumoTotal),
     });
   }
 
@@ -261,12 +278,12 @@ export async function crearAsientoGasto(tenantId: string, gasto: Gasto): Promise
  *   Débito:  1105 Caja / 1110 Bancos   = total venta  (según método de pago)
  *   Crédito: 4135 Ingresos comercio    = subtotal
  *   Crédito: 2408 IVA por pagar        = iva_total (si > 0)
- *
- * Se ejecuta dentro de la transacción de la venta (tx opcional).
+ *   Crédito: 2410 Impoconsumo por pagar = impoconsumoTotal (si > 0)
  */
 export async function crearAsientoVentaPOS(
   tenantId: string,
   venta: VentaPOS,
+  impoconsumoTotal = 0,
   tx?: typeof db,
 ): Promise<string> {
   const runner = tx ?? db;
@@ -276,10 +293,11 @@ export async function crearAsientoVentaPOS(
   const numero = await getConsecutivoAsiento(tenantId, venta.created_at.getFullYear());
   const codigoCaja = METODO_PAGO_A_CUENTA[venta.metodo_pago] ?? "1105";
 
-  const [cCaja, cIngresos, cIva] = await Promise.all([
+  const [cCaja, cIngresos, cIva, cImpoconsumo] = await Promise.all([
     getCuenta(tenantId, codigoCaja),
     getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
     getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
+    impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
   ]);
 
   const total    = Number(venta.total);
@@ -322,6 +340,16 @@ export async function crearAsientoVentaPOS(
       descripcion: "IVA generado POS",
       debito: "0",
       credito: String(iva),
+    });
+  }
+
+  if (impoconsumoTotal > 0 && cImpoconsumo) {
+    lineas.push({
+      asiento_id: asiento.id,
+      cuenta_id: cImpoconsumo.id,
+      descripcion: "Impuesto al Consumo POS",
+      debito: "0",
+      credito: String(impoconsumoTotal),
     });
   }
 

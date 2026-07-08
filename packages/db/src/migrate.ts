@@ -360,6 +360,10 @@ const migrations = [
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_por uuid`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_en timestamptz`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_motivo text`,
+  // Cuenta 2410 Impuesto al Consumo por pagar — faltaba en el seed original
+  `INSERT INTO cuentas_contables (id, tenant_id, codigo, nombre, tipo, naturaleza, nivel, padre_id, activo)
+   SELECT gen_random_uuid(), NULL, '2410', 'Impuesto al Consumo por pagar', 'pasivo', 'credito', 3, NULL, true
+   WHERE NOT EXISTS (SELECT 1 FROM cuentas_contables WHERE codigo = '2410' AND tenant_id IS NULL)`,
 ];
 
 for (const migration of migrations) {

@@ -22,6 +22,7 @@ export const PUC_BASE: Omit<NewCuentaContable, "id" | "tenant_id" | "created_at"
   { codigo: "2205", nombre: "Proveedores nacionales", tipo: "pasivo", naturaleza: "credito", nivel: 3, padre_id: null, activo: true },
   { codigo: "24", nombre: "Impuestos por pagar", tipo: "pasivo", naturaleza: "credito", nivel: 2, padre_id: null, activo: true },
   { codigo: "2408", nombre: "IVA por pagar", tipo: "pasivo", naturaleza: "credito", nivel: 3, padre_id: null, activo: true },
+  { codigo: "2410", nombre: "Impuesto al Consumo por pagar", tipo: "pasivo", naturaleza: "credito", nivel: 3, padre_id: null, activo: true },
   { codigo: "2365", nombre: "Retención en la fuente por pagar", tipo: "pasivo", naturaleza: "credito", nivel: 3, padre_id: null, activo: true },
   { codigo: "2368", nombre: "Impuesto de industria y comercio retenido (ReteICA)", tipo: "pasivo", naturaleza: "credito", nivel: 3, padre_id: null, activo: true },
 

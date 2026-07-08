@@ -256,7 +256,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
       let asientoId: string | null = null;
       let asientoError: string | null = null;
       try {
-        asientoId = await crearAsientoFactura(tenant.id, factura);
+        asientoId = await crearAsientoFactura(tenant.id, factura, "4135", impoconsumo_total);
       } catch (e) {
         asientoError = e instanceof Error ? e.message : "Error desconocido al crear asiento contable.";
         console.error(`[CONTABILIDAD] Asiento factura ${factura.numero} fallido:`, asientoError);

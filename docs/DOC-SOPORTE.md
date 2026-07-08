@@ -9,7 +9,11 @@ Para activarlo en un ambiente de pruebas, se requiere la variable de entorno:
 FEATURE_DOC_SOPORTE=true
 ```
 
-## Qué funciona
+## ¿Corrió alguna vez de punta a punta?
+
+**No.** El schema `packages/db/src/schema/documentos_soporte.ts` importaba `integer` sin haberlo declarado en el import de drizzle-orm/pg-core. Eso causa un `ReferenceError` en tiempo de ejecución desde la primera línea del módulo. El import fue corregido en la rama `feature/audit-implementations`, pero confirma que el módulo nunca fue compilado ni ejecutado exitosamente en ningún ambiente.
+
+## Qué funciona (en código, no probado en producción)
 
 - Crear documentos soporte con ítems, totales y consecutivo automático.
 - Listar y consultar documentos por tenant.

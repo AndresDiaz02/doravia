@@ -453,7 +453,7 @@ router.post("/ventas", async (req, res) => {
   // Asiento contable — fuera de la tx de inventario para no bloquearla si el tenant
   // no tiene cuentas configuradas (plan sin contabilidad)
   try {
-    await crearAsientoVentaPOS(req.tenantId, result);
+    await crearAsientoVentaPOS(req.tenantId, result, impoconsumo_total);
   } catch (err) {
     console.error("Error al crear asiento de venta POS:", err);
   }

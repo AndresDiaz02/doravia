@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura } from "@workspace/db";
 import type { ResolucionDian } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -372,5 +373,22 @@ export async function enviarAPlemsiSiAplica(
     console.log(`[PLEMSI] Factura ${factura.numero} emitida. CUFE: ${resultado.cufe}`);
   } else {
     console.error(`[PLEMSI] Error factura ${factura.numero}: ${resultado.error}`);
+    // Captura explícita: Plemsi es fire-and-forget, el error no llega al Express handler
+    // Contexto: tenant + documento. Sin datos personales del cliente (nombre, NIT, email).
+    Sentry.withScope((scope) => {
+      scope.setTag("tipo_error", "dian_emission");
+      scope.setTag("tipo_documento", "factura");
+      scope.setContext("documento", {
+        factura_id: factura.id,
+        numero: factura.numero,
+        tenant_id: factura.tenant_id,
+        consecutivo: factura.consecutivo,
+        total: factura.total,
+        estado_dian: "error",
+      });
+      Sentry.captureException(
+        new Error(`Plemsi emission failed [${factura.numero}]: ${resultado.error}`)
+      );
+    });
   }
 }

@@ -84,7 +84,7 @@
 ### Deploy
 - **API**: `railway up --service doravia` (Railway usa sus propias env vars)
 - **ERP/POS/Landing**: GitHub Actions (`deploy-erp.yml`, `deploy-pos.yml`, `deploy-landing.yml`)
-- **API start command**: `pnpm db:push && pnpm db:seed && pnpm --filter @workspace/api run start`
+- **API start command**: `pnpm db:migrate && pnpm db:seed && pnpm --filter @workspace/api run start`
 
 ### Variables de entorno Railway (principales)
 ```

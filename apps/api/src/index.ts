@@ -205,11 +205,6 @@ app.use("/api/contadores",     contadoresRouter); // registro público + rutas a
 app.use("/api/fundador",       requireFundador, fundadorRouter);
 app.use("/api/notificaciones", authenticate, notificacionesRouter);
 
-// TEMP — endpoint de prueba de integración Sentry. Se elimina tras verificación en producción.
-app.get("/api/__sentry_test__", (_req, _res) => {
-  throw new Error("[Sentry Test] Doravia — verificación manual de integración");
-});
-
 // ── Manejo de errores ────────────────────────────────────────────────────────
 // El handler de Sentry debe ir ANTES del handler personalizado
 if (process.env.SENTRY_DSN) {

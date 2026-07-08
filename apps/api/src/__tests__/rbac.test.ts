@@ -125,9 +125,15 @@ function applyRbacRules(
     }
   }
 
-  // Cajero: SOLO POS
+  // Cajero: POS + auth + lista blanca explícita (debe mantenerse sincronizada con auth.ts)
   if (role === "cajero") {
-    if (!url.startsWith("/api/pos") && !url.startsWith("/api/auth")) {
+    const esPOS         = url.startsWith("/api/pos");
+    const esAuth        = url.startsWith("/api/auth");
+    const esTutorial    = url.startsWith("/api/tutoriales");
+    const esClientesGet = url.startsWith("/api/clientes") && method === "GET";
+    const esBodegasGet  = url.startsWith("/api/bodegas")  && method === "GET";
+
+    if (!esPOS && !esAuth && !esTutorial && !esClientesGet && !esBodegasGet) {
       (res.status as Mock)(403).json({ error: "El rol Cajero solo tiene acceso al módulo POS.", code: "FORBIDDEN" });
       return;
     }
@@ -152,7 +158,8 @@ function applyRbacRules(
 
 describe("RBAC por rol", () => {
   describe("Rol cajero", () => {
-    it("permite acceso a /api/pos/ventas", () => {
+    // ── Rutas permitidas ─────────────────────────────────────────────────────
+    it("permite POST /api/pos/ventas", () => {
       const req = makeReq("cajero", "/api/pos/ventas", "POST");
       const res = makeRes();
       const next = makeNext();
@@ -161,7 +168,7 @@ describe("RBAC por rol", () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
-    it("permite acceso a /api/auth/login", () => {
+    it("permite POST /api/auth/login", () => {
       const req = makeReq("cajero", "/api/auth/login", "POST");
       const res = makeRes();
       const next = makeNext();
@@ -170,7 +177,46 @@ describe("RBAC por rol", () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
-    it("bloquea acceso a /api/facturas con 403", () => {
+    it("permite GET /api/clientes para cargar lista de fiados", () => {
+      // Venta.tsx carga GET /api/clientes?limit=500 al montar el componente
+      const req = makeReq("cajero", "/api/clientes?limit=500", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite GET /api/bodegas para selección de caja", () => {
+      // SeleccionCaja.tsx carga GET /api/bodegas al iniciar turno
+      const req = makeReq("cajero", "/api/bodegas", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite GET /api/tutoriales/estado", () => {
+      const req = makeReq("cajero", "/api/tutoriales/estado", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite POST /api/tutoriales/pos/completar", () => {
+      const req = makeReq("cajero", "/api/tutoriales/pos/completar", "POST");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    // ── Rutas bloqueadas ─────────────────────────────────────────────────────
+    it("bloquea POST /api/facturas → 403", () => {
       const req = makeReq("cajero", "/api/facturas", "POST");
       const res = makeRes();
       const next = makeNext();
@@ -179,8 +225,8 @@ describe("RBAC por rol", () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it("bloquea acceso a /api/clientes con 403", () => {
-      const req = makeReq("cajero", "/api/clientes", "GET");
+    it("bloquea GET /api/contabilidad → 403", () => {
+      const req = makeReq("cajero", "/api/contabilidad", "GET");
       const res = makeRes();
       const next = makeNext();
       applyRbacRules(req, res, next);
@@ -188,8 +234,36 @@ describe("RBAC por rol", () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it("bloquea acceso a /api/contabilidad con 403", () => {
-      const req = makeReq("cajero", "/api/contabilidad", "GET");
+    it("bloquea POST /api/clientes (escritura) → 403", () => {
+      // El cajero puede LEER clientes pero no crearlos
+      const req = makeReq("cajero", "/api/clientes", "POST");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea PATCH /api/clientes/:id (escritura) → 403", () => {
+      const req = makeReq("cajero", "/api/clientes/abc-123", "PATCH");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea POST /api/bodegas (escritura) → 403", () => {
+      const req = makeReq("cajero", "/api/bodegas", "POST");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea GET /api/usuarios → 403", () => {
+      const req = makeReq("cajero", "/api/usuarios", "GET");
       const res = makeRes();
       const next = makeNext();
       applyRbacRules(req, res, next);

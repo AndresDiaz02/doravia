@@ -119,10 +119,19 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
   }
 
-  // Rol Cajero: SOLO módulo POS
+  // Rol Cajero: POS + auth + lista blanca explícita de lo que la app POS consume fuera de /api/pos/
+  // /api/clientes  — GET para cargar lista de clientes al registrar fiados (Venta.tsx)
+  // /api/bodegas   — GET para cargar bodegas al seleccionar caja (SeleccionCaja.tsx)
+  // /api/tutoriales — GET/POST para estado y completar/saltar el tutorial de onboarding
   if (req.userRole === "cajero") {
     const url = req.originalUrl;
-    if (!url.startsWith("/api/pos") && !url.startsWith("/api/auth")) {
+    const esPOS           = url.startsWith("/api/pos");
+    const esAuth          = url.startsWith("/api/auth");
+    const esTutorial      = url.startsWith("/api/tutoriales");
+    const esClientesGet   = url.startsWith("/api/clientes") && req.method === "GET";
+    const esBodegasGet    = url.startsWith("/api/bodegas")  && req.method === "GET";
+
+    if (!esPOS && !esAuth && !esTutorial && !esClientesGet && !esBodegasGet) {
       return res.status(403).json({
         error: "El rol Cajero solo tiene acceso al módulo POS.",
         code: "FORBIDDEN",

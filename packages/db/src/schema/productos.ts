@@ -18,6 +18,8 @@ export const productos = pgTable("productos", {
   precio_base: numeric("precio_base", { precision: 14, scale: 2 }).notNull(),
   precio_venta: numeric("precio_venta", { precision: 14, scale: 2 }),
   iva_pct: numeric("iva_pct", { precision: 5, scale: 2 }).notNull().default("19"),
+  impoconsumo_pct: numeric("impoconsumo_pct", { precision: 5, scale: 2 }).notNull().default("0"),
+  codigo_barras: varchar("codigo_barras", { length: 50 }),
   stock_actual: numeric("stock_actual", { precision: 12, scale: 4 }).default("0"),
   activo: boolean("activo").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

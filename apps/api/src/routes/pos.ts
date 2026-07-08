@@ -322,8 +322,10 @@ router.post("/ventas", async (req, res) => {
         precio_unitario: number;
         descuento_pct: number;
         iva_pct: number;
+        impoconsumo_pct?: number;
         subtotal: number;
         iva_valor: number;
+        impoconsumo_valor?: number;
         total: number;
       }>;
     };
@@ -363,6 +365,7 @@ router.post("/ventas", async (req, res) => {
   // Calcula totales
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const iva_total = items.reduce((s, i) => s + i.iva_valor, 0);
+  const impoconsumo_total = items.reduce((s, i) => s + (i.impoconsumo_valor ?? 0), 0);
   const total = items.reduce((s, i) => s + i.total, 0);
   const descuento_total = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario * (i.descuento_pct / 100)), 0);
 
@@ -397,6 +400,8 @@ router.post("/ventas", async (req, res) => {
         precio_unitario: String(i.precio_unitario),
         descuento_pct: String(i.descuento_pct),
         iva_pct: String(i.iva_pct),
+        impoconsumo_pct: String(i.impoconsumo_pct ?? 0),
+        impoconsumo_valor: String(i.impoconsumo_valor ?? 0),
         subtotal: String(i.subtotal),
         iva_valor: String(i.iva_valor),
         total: String(i.total),

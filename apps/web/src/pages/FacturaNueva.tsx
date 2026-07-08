@@ -21,6 +21,7 @@ interface Producto {
   codigo: string;
   precio_base: string;
   iva_pct: string;
+  impoconsumo_pct: string;
 }
 
 interface RetencionConfig {
@@ -68,6 +69,7 @@ interface Linea {
   precio_unitario: string;
   descuento_pct: string;
   iva_pct: string;
+  impoconsumo_pct: string;
   unidad_medida: string;
 }
 
@@ -76,10 +78,12 @@ function calcLinea(l: Linea) {
   const precio = Number(l.precio_unitario) || 0;
   const desc = Number(l.descuento_pct) || 0;
   const iva = Number(l.iva_pct) || 0;
+  const impo = Number(l.impoconsumo_pct) || 0;
   const precioConDesc = precio * (1 - desc / 100);
   const subtotal = cant * precioConDesc;
   const ivaValor = subtotal * (iva / 100);
-  return { subtotal, ivaValor, total: subtotal + ivaValor };
+  const impoValor = subtotal * (impo / 100);
+  return { subtotal, ivaValor, impoValor, total: subtotal + ivaValor + impoValor };
 }
 
 let nextKey = 0;
@@ -92,6 +96,7 @@ function newLinea(): Linea {
     precio_unitario: "",
     descuento_pct: "0",
     iva_pct: "19",
+    impoconsumo_pct: "0",
     unidad_medida: "UN",
   };
 }
@@ -136,6 +141,7 @@ export function FacturaNueva() {
             updated.descripcion = p.nombre;
             updated.precio_unitario = p.precio_base;
             updated.iva_pct = p.iva_pct;
+            updated.impoconsumo_pct = p.impoconsumo_pct ?? "0";
           }
         }
         return updated;
@@ -156,6 +162,7 @@ export function FacturaNueva() {
       precio_unitario: String(campos.precio_unitario),
       descuento_pct: "0",
       iva_pct: String(campos.iva_porcentaje),
+      impoconsumo_pct: "0",
       unidad_medida: "UN",
     };
     setLineas((prev) => [...prev, linea]);
@@ -168,9 +175,9 @@ export function FacturaNueva() {
   const totales = lineas.reduce(
     (acc, l) => {
       const c = calcLinea(l);
-      return { subtotal: acc.subtotal + c.subtotal, iva: acc.iva + c.ivaValor, total: acc.total + c.total };
+      return { subtotal: acc.subtotal + c.subtotal, iva: acc.iva + c.ivaValor, impo: acc.impo + c.impoValor, total: acc.total + c.total };
     },
-    { subtotal: 0, iva: 0, total: 0 },
+    { subtotal: 0, iva: 0, impo: 0, total: 0 },
   );
 
   const totalRetenciones = retencionesAplicadas.reduce((s, r) => {
@@ -227,6 +234,7 @@ export function FacturaNueva() {
           precio_unitario: Number(l.precio_unitario),
           descuento_pct: Number(l.descuento_pct),
           iva_pct: Number(l.iva_pct),
+          impoconsumo_pct: Number(l.impoconsumo_pct) || 0,
           unidad_medida: l.unidad_medida,
         })),
         retenciones: retencionesAplicadas.map((r) => ({
@@ -484,6 +492,11 @@ export function FacturaNueva() {
                 <div className="flex justify-between text-gray-600">
                   <span>IVA</span><span>{cop(totales.iva)}</span>
                 </div>
+                {totales.impo > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Impoconsumo</span><span>{cop(totales.impo)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-gray-200 pt-1.5 font-semibold text-gray-900">
                   <span>Total bruto</span><span>{cop(totales.total)}</span>
                 </div>

@@ -52,7 +52,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/productos
 router.post("/", async (req, res) => {
-  const { codigo, nombre, descripcion, tipo, precio_base, iva_pct } = req.body;
+  const { codigo, nombre, descripcion, tipo, precio_base, iva_pct, impoconsumo_pct, codigo_barras } = req.body;
 
   if (!codigo || !nombre || !tipo || precio_base == null) {
     return res.status(400).json({ error: "Campos requeridos: codigo, nombre, tipo, precio_base." });
@@ -66,6 +66,8 @@ router.post("/", async (req, res) => {
   if (!(TARIFAS_IVA as readonly number[]).includes(ivaPctNum)) {
     return res.status(400).json({ error: `iva_pct debe ser ${TARIFAS_IVA.join(", ")}.` });
   }
+
+  const impoconsumoPctNum = Number(impoconsumo_pct ?? 0);
 
   const [existente] = await db
     .select({ id: productos.id })
@@ -85,6 +87,8 @@ router.post("/", async (req, res) => {
       tipo,
       precio_base: String(precio_base),
       iva_pct: String(ivaPctNum),
+      impoconsumo_pct: String(impoconsumoPctNum),
+      codigo_barras: codigo_barras ?? null,
     })
     .returning();
 
@@ -101,7 +105,7 @@ router.patch("/:id", async (req, res) => {
 
   if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
 
-  const { nombre, descripcion, precio_base, iva_pct, activo } = req.body;
+  const { nombre, descripcion, precio_base, iva_pct, impoconsumo_pct, codigo_barras, activo } = req.body;
 
   if (iva_pct !== undefined && !(TARIFAS_IVA as readonly number[]).includes(Number(iva_pct))) {
     return res.status(400).json({ error: `iva_pct debe ser ${TARIFAS_IVA.join(", ")}.` });
@@ -114,6 +118,8 @@ router.patch("/:id", async (req, res) => {
       ...(descripcion !== undefined && { descripcion }),
       ...(precio_base !== undefined && { precio_base: String(precio_base) }),
       ...(iva_pct !== undefined && { iva_pct: String(iva_pct) }),
+      ...(impoconsumo_pct !== undefined && { impoconsumo_pct: String(Number(impoconsumo_pct)) }),
+      ...(codigo_barras !== undefined && { codigo_barras: codigo_barras ?? null }),
       ...(activo !== undefined && { activo }),
     })
     .where(eq(productos.id, producto.id))

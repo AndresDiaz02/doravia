@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX, FileText, Mail } from "lucide-react";
+import { ArrowLeft, RefreshCw, ExternalLink, CheckCircle, Download, FileX, FileText, Mail, MessageCircle, CreditCard } from "lucide-react";
+import PagoBold from "../components/PagoBold";
 import { HelpTooltip } from "../components/HelpTooltip";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -107,6 +108,8 @@ export function FacturaDetalle() {
   const [reenviandoDian, setReenviandoDian] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [emailOk, setEmailOk] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [openPagoBold, setOpenPagoBold] = useState(false);
 
   useEffect(() => {
     void apiFetch<Factura>(`/api/facturas/${id!}`)
@@ -114,6 +117,19 @@ export function FacturaDetalle() {
       .catch(() => navigate("/facturas", { replace: true }))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  async function handleWhatsApp() {
+    if (!factura) return;
+    setWhatsappLoading(true);
+    try {
+      const resp = await apiFetch<{ link: string }>(`/api/facturas/${factura.id}/whatsapp-link`, { method: "POST" });
+      window.open(resp.link, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setErrorReenvio(err instanceof ApiError ? err.message : "No se pudo generar el link de WhatsApp.");
+    } finally {
+      setWhatsappLoading(false);
+    }
+  }
 
   async function handleEnviarEmail() {
     if (!factura) return;
@@ -353,6 +369,16 @@ export function FacturaDetalle() {
               {enviandoEmail ? "Enviando…" : emailOk ? "¡Enviado!" : "Enviar por correo"}
             </Button>
           )}
+          {factura.cliente.telefono && factura.estado === "aceptada" && (
+            <Button
+              variant="secondary"
+              onClick={() => void handleWhatsApp()}
+              disabled={whatsappLoading}
+            >
+              <MessageCircle className="h-4 w-4" />
+              {whatsappLoading ? "Generando…" : "Enviar por WhatsApp"}
+            </Button>
+          )}
           {factura.pagada_at && (
             <Button variant="secondary" onClick={handleDescargarRecibo} disabled={descargando}>
               <Download className="h-4 w-4" />
@@ -387,6 +413,12 @@ export function FacturaDetalle() {
             <Button variant="secondary" onClick={() => void handleReenviarDian()} disabled={reenviandoDian}>
               <RefreshCw className={`h-4 w-4 ${reenviandoDian ? "animate-spin" : ""}`} />
               {reenviandoDian ? "Enviando..." : "Reenviar a DIAN (Plemsi)"}
+            </Button>
+          )}
+          {!isContador && factura.estado === "aceptada" && !factura.pagada_at && (
+            <Button variant="secondary" onClick={() => setOpenPagoBold(true)}>
+              <CreditCard className="h-4 w-4" />
+              Cobrar en línea
             </Button>
           )}
         </div>
@@ -762,6 +794,25 @@ export function FacturaDetalle() {
             </Button>
           </div>
         </div>
+      </Dialog>
+
+      {/* Dialog pago Bold */}
+      <Dialog open={openPagoBold} onClose={() => setOpenPagoBold(false)} title="Cobrar factura en línea">
+        {factura && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Genera el botón de pago Bold para la factura <span className="font-semibold">{factura.numero}</span>.
+              El cliente podrá pagar con tarjeta de crédito, débito o PSE.
+            </p>
+            <PagoBold
+              planSlug={`factura-${factura.numero}`}
+              monto={Math.round(Number(factura.neto_a_pagar ?? factura.total))}
+              descripcion={`Pago factura ${factura.numero}`}
+              apiBase={`/api/facturas/${factura.id}/bold`}
+              onCancelar={() => setOpenPagoBold(false)}
+            />
+          </div>
+        )}
       </Dialog>
     </div>
   );

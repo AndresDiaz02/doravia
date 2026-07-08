@@ -97,6 +97,7 @@ export interface ItemInput {
   precio_unitario: number | string;
   descuento?: number | string | null;
   iva_porcentaje?: number | string | null;
+  impoconsumo_porcentaje?: number | string | null; // Impuesto al consumo (p.ej. cervezas, cigarrillos, bolsas plásticas)
 }
 
 /** Construye items para Plemsi desde items de Doravia */
@@ -125,12 +126,25 @@ export function buildItems(items: ItemInput[]) {
         }],
       } : {}),
       // IVA 0% también debe declararse para que la base imponible total cuadre (FAU04)
-      tax_totals: [{
-        tax_id: 1,
-        percent: ivaPct,
-        tax_amount: ivaMonto,
-        taxable_amount: baseGravable,
-      }],
+      tax_totals: [
+        {
+          tax_id: 1,
+          percent: ivaPct,
+          tax_amount: ivaMonto,
+          taxable_amount: baseGravable,
+        },
+        ...((() => {
+          const impoconsumoPct = Number(item.impoconsumo_porcentaje ?? 0);
+          if (impoconsumoPct <= 0) return [];
+          const impoconsumoMonto = Math.round(baseGravable * impoconsumoPct / 100);
+          return [{
+            tax_id: 5,
+            percent: impoconsumoPct,
+            tax_amount: impoconsumoMonto,
+            taxable_amount: baseGravable,
+          }];
+        })()),
+      ],
       description: item.descripcion,
       code: item.codigo ?? "GEN",
       type_item_identification_id: 4,

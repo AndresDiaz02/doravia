@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, FileDown } from "lucide-react";
+import { Plus, Search, FileDown, Upload, Download } from "lucide-react";
 import { apiFetchPaged, apiFetch, ApiError, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -33,6 +33,9 @@ export function Clientes() {
   const [exportando, setExportando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [importResult, setImportResult] = useState<{ importados: number; actualizados: number; errores: { fila: number; mensaje: string }[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     tipo_persona: "natural",
@@ -80,6 +83,48 @@ export function Clientes() {
     }
   }
 
+  function descargarPlantilla() {
+    const token = localStorage.getItem("access_token");
+    fetch("/api/clientes/plantilla-importacion", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(async (r) => {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "plantilla_clientes.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  async function handleImportar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImportando(true);
+    setImportResult(null);
+    try {
+      const token = localStorage.getItem("access_token");
+      const fd = new FormData();
+      fd.append("archivo", file);
+      const resp = await fetch("/api/clientes/importar", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await resp.json() as { importados: number; actualizados: number; errores: { fila: number; mensaje: string }[]; error?: string };
+      if (!resp.ok) throw new Error(data.error ?? "Error al importar.");
+      setImportResult(data);
+      const r = await apiFetchPaged<Cliente>("/api/clientes", 1, 200);
+      setClientes(r.data);
+    } catch (err) {
+      setImportResult({ importados: 0, actualizados: 0, errores: [{ fila: 0, mensaje: err instanceof Error ? err.message : "Error desconocido" }] });
+    } finally {
+      setImportando(false);
+    }
+  }
+
   const filtrados = clientes.filter(
     (c) =>
       c.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -90,7 +135,7 @@ export function Clientes() {
     <div className="flex-1 space-y-6 p-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-gray-900">Clientes</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="secondary" disabled={exportando} onClick={() => {
             setExportando(true);
             void descargarExcel("/api/exportar/clientes", "clientes.xlsx").finally(() => setExportando(false));
@@ -99,13 +144,41 @@ export function Clientes() {
             {exportando ? "Exportando..." : "Exportar Excel"}
           </Button>
           {!isContador && (
-            <Button onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Nuevo cliente
-            </Button>
+            <>
+              <Button variant="secondary" onClick={descargarPlantilla}>
+                <Download className="h-4 w-4" />
+                Plantilla
+              </Button>
+              <Button variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={importando}>
+                <Upload className="h-4 w-4" />
+                {importando ? "Importando..." : "Importar Excel"}
+              </Button>
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => void handleImportar(e)} />
+              <Button onClick={() => setOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Nuevo cliente
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {importResult && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${importResult.errores.length > 0 && importResult.importados + importResult.actualizados === 0 ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>
+          <p className="font-medium">
+            Importación completada: {importResult.importados} creados, {importResult.actualizados} actualizados
+            {importResult.errores.length > 0 && `, ${importResult.errores.length} errores`}
+          </p>
+          {importResult.errores.length > 0 && (
+            <ul className="mt-1 space-y-0.5 text-xs">
+              {importResult.errores.slice(0, 5).map((e) => (
+                <li key={e.fila}>Fila {e.fila}: {e.mensaje}</li>
+              ))}
+              {importResult.errores.length > 5 && <li>... y {importResult.errores.length - 5} más</li>}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Buscador */}
       <div className="relative w-full max-w-sm">

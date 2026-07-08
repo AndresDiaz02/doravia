@@ -30,4 +30,7 @@ export * from "./tutorial_progress.ts";
 export * from "./contador_registrations.ts";
 export * from "./remisiones.ts";
 export * from "./bold_payments.ts";
+export * from "./retenciones_proveedor.ts";
+export * from "./activos_fijos.ts";
+export * from "./documentos_soporte.ts";
 

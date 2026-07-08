@@ -10,9 +10,11 @@ import type { CajaConfig } from "./SeleccionCaja";
 interface Producto {
   id: string;
   codigo: string;
+  codigo_barras: string | null;
   nombre: string;
   precio_venta: string;
   iva_pct: string;
+  impoconsumo_pct: string;
   stock_actual: string | null;
   unidad: string;
 }
@@ -97,7 +99,9 @@ function useBarcodeScanner(
         // Solo procesar si parece un código de barras (>2 chars, llegaron rápido)
         if (codigo.length > 2) {
           const prod = productos.find(
-            (p) => p.codigo.toLowerCase() === codigo.toLowerCase()
+            (p) =>
+              p.codigo.toLowerCase() === codigo.toLowerCase() ||
+              (p.codigo_barras && p.codigo_barras.toLowerCase() === codigo.toLowerCase())
           );
           if (prod) {
             e.preventDefault();
@@ -149,7 +153,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [ultimaVenta, setUltimaVenta] = useState<{
     numero: string; total: number; vuelto: number;
     items: ItemCarrito[]; clienteNombre: string; metodoPago: string;
-    montoRecibido: number; subtotal: number; iva: number;
+    montoRecibido: number; subtotal: number; iva: number; impo: number;
     cajaNombre: string;
   } | null>(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
@@ -190,15 +194,20 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       ).slice(0, 6)
     : [];
 
-  const totalCarrito = carrito.reduce((s, i) => {
-    const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
-    return s + base * (1 + Number(i.producto.iva_pct) / 100);
-  }, 0);
-
   const subtotalCarrito = carrito.reduce((s, i) =>
     s + i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100), 0);
 
-  const ivaCarrito = totalCarrito - subtotalCarrito;
+  const ivaCarrito = carrito.reduce((s, i) => {
+    const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
+    return s + base * (Number(i.producto.iva_pct) / 100);
+  }, 0);
+
+  const impocarrito = carrito.reduce((s, i) => {
+    const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
+    return s + base * (Number(i.producto.impoconsumo_pct ?? 0) / 100);
+  }, 0);
+
+  const totalCarrito = subtotalCarrito + ivaCarrito + impocarrito;
   const descuentoTotal = carrito.reduce((s, i) =>
     s + i.cantidad * i.precio_unitario * (i.descuento_pct / 100), 0);
 
@@ -266,6 +275,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       const items = carrito.map((i) => {
         const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
         const ivaVal = base * (Number(i.producto.iva_pct) / 100);
+        const impoVal = base * (Number(i.producto.impoconsumo_pct ?? 0) / 100);
         return {
           producto_id: i.producto.id,
           descripcion: i.producto.nombre,
@@ -273,9 +283,11 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
           precio_unitario: i.precio_unitario,
           descuento_pct: i.descuento_pct,
           iva_pct: Number(i.producto.iva_pct),
+          impoconsumo_pct: Number(i.producto.impoconsumo_pct ?? 0),
           subtotal: base,
           iva_valor: ivaVal,
-          total: base + ivaVal,
+          impoconsumo_valor: impoVal,
+          total: base + ivaVal + impoVal,
         };
       });
 
@@ -298,7 +310,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
         numero: venta.numero, total: Number(venta.total), vuelto,
         items: [...carrito], clienteNombre, metodoPago,
         montoRecibido: metodoPago === "efectivo" ? Number(montoRecibido) : Number(venta.total),
-        subtotal: subtotalCarrito, iva: ivaCarrito, cajaNombre,
+        subtotal: subtotalCarrito, iva: ivaCarrito, impo: impocarrito, cajaNombre,
       });
       setCarrito([]);
       setShowPago(false);
@@ -321,12 +333,15 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       const items = carrito.map((i) => {
         const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
         const ivaVal = base * (Number(i.producto.iva_pct) / 100);
+        const impoVal = base * (Number(i.producto.impoconsumo_pct ?? 0) / 100);
         return {
           producto_id: i.producto.id,
           descripcion: i.producto.nombre,
           cantidad: i.cantidad,
           precio_unitario: i.precio_unitario,
-          total: base + ivaVal,
+          impoconsumo_pct: Number(i.producto.impoconsumo_pct ?? 0),
+          impoconsumo_valor: impoVal,
+          total: base + ivaVal + impoVal,
         };
       });
 
@@ -370,11 +385,13 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       nequi: "Nequi", daviplata: "Daviplata",
     };
     const itemsTexto = venta.items.map((i) => {
-      const subtotal = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100) * (1 + Number(i.producto.iva_pct) / 100);
+      const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
+      const subtotal = base * (1 + Number(i.producto.iva_pct) / 100 + Number(i.producto.impoconsumo_pct ?? 0) / 100);
       return `• ${i.producto.nombre} x${i.cantidad} — ${cop(subtotal)}`;
     }).join("\n");
 
-    return `*${empresa}*\nVenta No. ${venta.numero}\n${fecha}\n\n${itemsTexto}\n\n*Subtotal:* ${cop(venta.subtotal)}\n*IVA:* ${cop(venta.iva)}\n*TOTAL:* ${cop(venta.total)}\n*Pago:* ${METODO_LABEL[venta.metodoPago] ?? venta.metodoPago}\n${venta.vuelto > 0 ? `*Vuelto:* ${cop(venta.vuelto)}\n` : ""}\n¡Gracias por su compra!`;
+    const impoLine = venta.impo > 0 ? `\n*Impoconsumo:* ${cop(venta.impo)}` : "";
+    return `*${empresa}*\nVenta No. ${venta.numero}\n${fecha}\n\n${itemsTexto}\n\n*Subtotal:* ${cop(venta.subtotal)}\n*IVA:* ${cop(venta.iva)}${impoLine}\n*TOTAL:* ${cop(venta.total)}\n*Pago:* ${METODO_LABEL[venta.metodoPago] ?? venta.metodoPago}\n${venta.vuelto > 0 ? `*Vuelto:* ${cop(venta.vuelto)}\n` : ""}\n¡Gracias por su compra!`;
   }
 
   function enviarWhatsApp() {
@@ -396,7 +413,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       nequi: "Nequi", daviplata: "Daviplata",
     };
     const itemsHTML = ultimaVenta.items.map((i) => {
-      const subtotal = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100) * (1 + Number(i.producto.iva_pct) / 100);
+      const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
+      const subtotal = base * (1 + Number(i.producto.iva_pct) / 100 + Number(i.producto.impoconsumo_pct ?? 0) / 100);
       return `
         <tr><td colspan="2" class="pt-1"><strong>${i.producto.nombre}</strong></td></tr>
         <tr>
@@ -431,6 +449,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 <table>
   <tr><td>Subtotal</td><td class="td-r">${cop(ultimaVenta.subtotal)}</td></tr>
   <tr><td>IVA</td><td class="td-r">${cop(ultimaVenta.iva)}</td></tr>
+  ${ultimaVenta.impo > 0 ? `<tr><td>Impoconsumo</td><td class="td-r">${cop(ultimaVenta.impo)}</td></tr>` : ""}
   <tr class="total-row"><td>TOTAL</td><td class="td-r">${cop(ultimaVenta.total)}</td></tr>
 </table>
 <hr class="sep">
@@ -744,6 +763,11 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500">
               <span>IVA</span><span>{cop(ivaCarrito)}</span>
             </div>
+            {impocarrito > 0 && (
+              <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500">
+                <span>Impoconsumo</span><span>{cop(impocarrito)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-baseline pt-1.5 border-t border-gray-200 dark:border-slate-800">
               <span className="text-sm font-semibold text-gray-600 dark:text-slate-300">TOTAL</span>
               <span className="text-2xl font-black text-gray-900 dark:text-white">{cop(totalCarrito)}</span>

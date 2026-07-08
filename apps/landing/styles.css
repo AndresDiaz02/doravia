@@ -172,6 +172,15 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .diferencial-icon{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7B2FF7 0%,#4A6FF5 55%,#2E9BF5 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 .diferencial-text{font-size:14.5px;color:var(--carbon);font-weight:500;line-height:1.4;}
 
+/* Tarjetas de contacto — sección Quiénes somos */
+.contacto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:880px;margin:48px auto 0;}
+.contacto-card{background:#fff;border-radius:20px;padding:40px 28px;text-align:center;box-shadow:0 2px 16px rgba(59,30,140,0.07);border:1px solid var(--border);}
+.contacto-icon{font-size:40px;line-height:1;margin-bottom:16px;}
+.contacto-label{font-size:10.5px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#8A9AB8;margin-bottom:10px;}
+.contacto-valor{font-size:15px;color:var(--carbon);font-weight:500;line-height:1.55;}
+.contacto-valor a{color:var(--navy-light);text-decoration:none;}
+.contacto-valor a:hover{text-decoration:underline;}
+
 /* MIGRACIÓN */
 .migration-section{background:var(--navy);padding:110px 0;position:relative;overflow:hidden;}
 .migration-section::before{content:'';position:absolute;top:-20%;left:-10%;width:50%;height:120%;background:radial-gradient(circle,rgba(123,47,247,0.18) 0%,transparent 65%);pointer-events:none;}
@@ -292,9 +301,39 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
   .hero-lines{gap:20px;}
   .products-grid{grid-template-columns:1fr;max-width:400px;margin:0 auto;}
   .diferenciales-grid{grid-template-columns:1fr 1fr;}
+  .contacto-grid{grid-template-columns:1fr;max-width:400px;}
+  /* Reducir padding vertical de secciones en tablet */
+  .comparativa-section,.products-section,.diferenciales-section,.testimonials-section,.faq-section,.cta-final{padding:72px 0;}
+  .migration-section,.contadores-section,.casos-section{padding:72px 0;}
+  .section-head{margin-bottom:44px;}
+  /* Comparativa: reducir ancho del chip de producto en tablet */
+  .comparativa-product{width:150px;font-size:14px;padding:10px 14px;}
+}
+@media(max-width:640px){
+  /* Reducir padding de container en celulares */
+  .container{padding:0 20px;}
+  .hero-inner{padding:0 20px;}
+  .page-hero-inner{padding:0 20px;}
+  /* Comparativa: apilar en una columna */
+  .comparativa-row{flex-wrap:wrap;gap:10px;}
+  .comparativa-arrow{display:none;}
+  .comparativa-product{width:auto;min-width:0;font-size:13.5px;}
+  .comparativa-need{font-size:15px;}
 }
 @media(max-width:500px){
   .diferenciales-grid{grid-template-columns:1fr;}
+  .contacto-grid{grid-template-columns:1fr;max-width:340px;}
+  .contacto-card{padding:32px 20px;}
   .origen-card{padding:32px 24px;}
   .origen-features{grid-template-columns:1fr;}
+  /* Reducir más el padding en móviles pequeños */
+  .container{padding:0 16px;}
+  .hero-inner{padding:0 16px;}
+  .page-hero-inner{padding:0 16px;}
+  .comparativa-section,.products-section,.diferenciales-section,.testimonials-section,.faq-section,.cta-final{padding:52px 0;}
+  .migration-section,.contadores-section,.casos-section{padding:52px 0;}
+  .section-head{margin-bottom:28px;}
+  .section-head p{font-size:15px;}
+  .hero-sub{font-size:16px;}
+  .casos-grid{grid-template-columns:1fr 1fr;}
 }

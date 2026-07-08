@@ -165,6 +165,8 @@ export function generarXmlUbl(
     const ivaPct = Number(item.iva_pct ?? 19);
     const subtotalItem = Number(item.subtotal);
     const ivaValor = Number(item.iva_valor);
+    const impoconsumoPct = Number(item.impoconsumo_pct ?? 0);
+    const impoconsumoValor = Number(item.impoconsumo_valor ?? 0);
 
     return `
     <cac:InvoiceLine>
@@ -198,10 +200,29 @@ export function generarXmlUbl(
           </cac:TaxCategory>
         </cac:TaxSubtotal>
       </cac:TaxTotal>` : ""}
+      ${impoconsumoPct > 0 ? `
+      <cac:TaxTotal>
+        <cbc:TaxAmount currencyID="COP">${f2(impoconsumoValor)}</cbc:TaxAmount>
+        <cac:TaxSubtotal>
+          <cbc:TaxableAmount currencyID="COP">${f2(subtotalItem)}</cbc:TaxableAmount>
+          <cbc:TaxAmount currencyID="COP">${f2(impoconsumoValor)}</cbc:TaxAmount>
+          <cac:TaxCategory>
+            <cbc:Percent>${impoconsumoPct.toFixed(2)}</cbc:Percent>
+            <cac:TaxScheme><cbc:ID>05</cbc:ID><cbc:Name>Impuesto al consumo</cbc:Name></cac:TaxScheme>
+          </cac:TaxCategory>
+        </cac:TaxSubtotal>
+      </cac:TaxTotal>` : ""}
     </cac:InvoiceLine>`;
   }).join("\n");
 
   // ── TaxTotal ──────────────────────────────────────────────────────────────
+  // Calcular totales de impoconsumo desde los ítems
+  const impoconsumoTot = items.reduce((s, item) => s + Number(item.impoconsumo_valor ?? 0), 0);
+  const impoconsumoBase = items.reduce((s, item) => s + (Number(item.impoconsumo_valor ?? 0) > 0 ? Number(item.subtotal) : 0), 0);
+  const impoconsumoPctPromedio = impoconsumoBase > 0
+    ? (items.reduce((s, item) => s + Number(item.impoconsumo_pct ?? 0) * Number(item.subtotal), 0) / impoconsumoBase)
+    : 0;
+
   const taxTotal = ivaTot > 0 ? `
     <cac:TaxTotal>
       <cbc:TaxAmount currencyID="COP">${f2(ivaTot)}</cbc:TaxAmount>
@@ -217,6 +238,19 @@ export function generarXmlUbl(
     <cac:TaxTotal>
       <cbc:TaxAmount currencyID="COP">0.00</cbc:TaxAmount>
     </cac:TaxTotal>`;
+
+  const taxTotalImpoconsumo = impoconsumoTot > 0 ? `
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="COP">${f2(impoconsumoTot)}</cbc:TaxAmount>
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="COP">${f2(impoconsumoBase)}</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="COP">${f2(impoconsumoTot)}</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>${impoconsumoPctPromedio.toFixed(2)}</cbc:Percent>
+          <cac:TaxScheme><cbc:ID>05</cbc:ID><cbc:Name>Impuesto al consumo</cbc:Name></cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>
+    </cac:TaxTotal>` : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
@@ -298,6 +332,7 @@ export function generarXmlUbl(
   </cac:AllowanceCharge>` : ""}
 
   ${taxTotal}
+  ${taxTotalImpoconsumo}
 
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="COP">${f2(subtotal)}</cbc:LineExtensionAmount>

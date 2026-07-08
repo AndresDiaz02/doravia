@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
-import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
 import { requireAccountingLevel, requireNotContador } from "../middleware/require-plan-feature.js";
 import * as XLSX from "xlsx";
 
@@ -814,6 +814,202 @@ router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireNotContador,
     res.json(actualizada);
   } catch (err) {
     console.error("Error en PATCH /plan-cuentas/:id:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/contabilidad/cierre-anual
+// Cierra el ejercicio anual: crea asiento de cierre de cuentas de resultado.
+// Solo admins. El año debe tener todos los períodos mensuales cerrados.
+router.post("/cierre-anual", requireNotContador, async (req, res) => {
+  try {
+    const { ano } = req.body as { ano?: number };
+    if (!ano || isNaN(Number(ano))) {
+      return res.status(400).json({ error: "Se requiere el campo 'ano' (número, ej. 2025)." });
+    }
+    const anoNum = Number(ano);
+
+    // Solo admin puede hacer cierre anual
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ error: "Solo el administrador puede realizar el cierre anual." });
+    }
+
+    const desdeAno = `${anoNum}-01-01`;
+    const hastaAno = `${anoNum}-12-31`;
+
+    // 1. Verificar que todos los períodos mensuales estén cerrados
+    const periodosAbiertos = await db
+      .select({ id: periodos_contables.id, nombre: periodos_contables.nombre })
+      .from(periodos_contables)
+      .where(
+        and(
+          eq(periodos_contables.tenant_id, req.tenantId),
+          gte(periodos_contables.fecha_inicio, desdeAno),
+          lte(periodos_contables.fecha_fin, hastaAno),
+          sql`${periodos_contables.estado} != 'cerrado'`,
+        ),
+      );
+
+    if (periodosAbiertos.length > 0) {
+      return res.status(422).json({
+        error: `Deben cerrarse todos los períodos mensuales antes del cierre anual. Períodos pendientes: ${periodosAbiertos.map((p) => p.nombre).join(", ")}.`,
+      });
+    }
+
+    // 2. Verificar si ya existe un asiento de cierre anual para este año
+    const patronCierre = `Cierre anual ${anoNum}%`;
+    const [asientoCierreExistente] = await db
+      .select({ id: asientos_contables.id })
+      .from(asientos_contables)
+      .where(
+        and(
+          eq(asientos_contables.tenant_id, req.tenantId),
+          sql`${asientos_contables.origen} = 'ajuste'`,
+          sql`${asientos_contables.descripcion} LIKE ${patronCierre}`,
+        ),
+      )
+      .limit(1);
+
+    if (asientoCierreExistente) {
+      return res.status(409).json({
+        error: `El cierre del ejercicio ${anoNum} ya fue realizado.`,
+      });
+    }
+
+    // 3. Calcular saldos de cuentas de resultado (4xxx ingresos, 5xxx costos/gastos)
+    const saldosResultado = await db
+      .select({
+        codigo: cuentas_contables.codigo,
+        id: cuentas_contables.id,
+        tipo: cuentas_contables.tipo,
+        naturaleza: cuentas_contables.naturaleza,
+        total_debito: sql<string>`COALESCE(SUM(${lineas_asiento.debito}), 0)`,
+        total_credito: sql<string>`COALESCE(SUM(${lineas_asiento.credito}), 0)`,
+      })
+      .from(lineas_asiento)
+      .innerJoin(asientos_contables, eq(lineas_asiento.asiento_id, asientos_contables.id))
+      .innerJoin(cuentas_contables, eq(lineas_asiento.cuenta_id, cuentas_contables.id))
+      .where(
+        and(
+          eq(asientos_contables.tenant_id, req.tenantId),
+          gte(asientos_contables.fecha, desdeAno),
+          lte(asientos_contables.fecha, hastaAno),
+          or(eq(cuentas_contables.tenant_id, req.tenantId), isNull(cuentas_contables.tenant_id)),
+          sql`(${cuentas_contables.codigo} LIKE '4%' OR ${cuentas_contables.codigo} LIKE '5%')`,
+        ),
+      )
+      .groupBy(cuentas_contables.codigo, cuentas_contables.id, cuentas_contables.tipo, cuentas_contables.naturaleza)
+      .orderBy(cuentas_contables.codigo);
+
+    // 4. Calcular utilidad/pérdida
+    let totalIngresos = 0;
+    let totalGastos = 0;
+
+    for (const fila of saldosResultado) {
+      const debito = Number(fila.total_debito);
+      const credito = Number(fila.total_credito);
+      if (fila.codigo.startsWith("4")) {
+        // Ingresos: naturaleza crédito → saldo = crédito - débito
+        totalIngresos += credito - debito;
+      } else if (fila.codigo.startsWith("5")) {
+        // Gastos/costos: naturaleza débito → saldo = débito - crédito
+        totalGastos += debito - credito;
+      }
+    }
+
+    const utilidad = totalIngresos - totalGastos;
+
+    // 5. Crear asiento de cierre anual
+    const [{ value: totalAsientos }] = await db
+      .select({ value: count() })
+      .from(asientos_contables)
+      .where(eq(asientos_contables.tenant_id, req.tenantId));
+
+    const seq = String(Number(totalAsientos) + 1).padStart(5, "0");
+    const numeroAsiento = `AC-${anoNum}-${seq}`;
+    const fechaCierre = `${anoNum}-12-31`;
+
+    const [asiento] = await db
+      .insert(asientos_contables)
+      .values({
+        tenant_id: req.tenantId,
+        numero: numeroAsiento,
+        fecha: fechaCierre,
+        descripcion: `Cierre anual ${anoNum}`,
+        origen: "ajuste",
+      })
+      .returning();
+
+    // Construir líneas del asiento de cierre
+    const lineasCierre: { asiento_id: string; cuenta_id: string; descripcion: string; debito: string; credito: string }[] = [];
+
+    // Cancelar cuentas de ingresos (4xxx): débito = saldo ingreso
+    for (const fila of saldosResultado.filter((f) => f.codigo.startsWith("4"))) {
+      const saldo = Number(fila.total_credito) - Number(fila.total_debito);
+      if (saldo !== 0) {
+        lineasCierre.push({
+          asiento_id: asiento.id,
+          cuenta_id: fila.id,
+          descripcion: `Cierre ingresos ${anoNum}`,
+          debito: saldo > 0 ? String(saldo) : "0",
+          credito: saldo < 0 ? String(Math.abs(saldo)) : "0",
+        });
+      }
+    }
+
+    // Cancelar cuentas de gastos/costos (5xxx): crédito = saldo gasto
+    for (const fila of saldosResultado.filter((f) => f.codigo.startsWith("5"))) {
+      const saldo = Number(fila.total_debito) - Number(fila.total_credito);
+      if (saldo !== 0) {
+        lineasCierre.push({
+          asiento_id: asiento.id,
+          cuenta_id: fila.id,
+          descripcion: `Cierre gastos/costos ${anoNum}`,
+          debito: saldo < 0 ? String(Math.abs(saldo)) : "0",
+          credito: saldo > 0 ? String(saldo) : "0",
+        });
+      }
+    }
+
+    // La diferencia va a utilidad (360505) o pérdida (330500)
+    if (utilidad !== 0) {
+      const codigoResultado = utilidad >= 0 ? "360505" : "330500";
+      const nombreResultado = utilidad >= 0 ? "Utilidad del ejercicio" : "Pérdida del ejercicio";
+
+      // Buscar o usar cuenta genérica
+      const cuentaResultadoRows = await db
+        .select({ id: cuentas_contables.id })
+        .from(cuentas_contables)
+        .where(
+          and(
+            eq(cuentas_contables.codigo, codigoResultado),
+            or(eq(cuentas_contables.tenant_id, req.tenantId), isNull(cuentas_contables.tenant_id)),
+          ),
+        )
+        .limit(1);
+
+      if (cuentaResultadoRows.length > 0) {
+        lineasCierre.push({
+          asiento_id: asiento.id,
+          cuenta_id: cuentaResultadoRows[0].id,
+          descripcion: `${nombreResultado} ${anoNum}`,
+          debito: utilidad < 0 ? String(Math.abs(utilidad)) : "0",
+          credito: utilidad >= 0 ? String(utilidad) : "0",
+        });
+      }
+    }
+
+    if (lineasCierre.length > 0) {
+      await db.insert(lineas_asiento).values(lineasCierre);
+    }
+
+    const mensaje = utilidad >= 0
+      ? `Cierre anual ${anoNum} registrado. Utilidad del ejercicio: $${utilidad.toLocaleString("es-CO")}`
+      : `Cierre anual ${anoNum} registrado. Pérdida del ejercicio: $${Math.abs(utilidad).toLocaleString("es-CO")}`;
+
+    res.status(201).json({ ano: anoNum, utilidad, asiento_id: asiento.id, mensaje });
+  } catch (err) {
+    console.error("Error en POST /cierre-anual:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

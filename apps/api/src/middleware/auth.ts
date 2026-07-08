@@ -106,6 +106,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       "/api/ensamble",
       "/api/usuarios",
       "/api/cartera",
+      "/api/activos-fijos",
+      "/api/documentos-soporte",
+      "/api/retenciones-proveedor",
     ];
     if (BLOQUEADO.some((p) => url.startsWith(p))) {
       return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
@@ -151,6 +154,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       "/api/ensamble",
       "/api/usuarios",
       "/api/cartera",
+      "/api/activos-fijos",
+      "/api/documentos-soporte",
+      "/api/retenciones-proveedor",
     ];
     if (BLOQUEADO_OPERARIO.some((p) => url.startsWith(p))) {
       return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });

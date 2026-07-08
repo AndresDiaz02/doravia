@@ -74,9 +74,11 @@ export const items_factura = pgTable("items_factura", {
   precio_unitario: numeric("precio_unitario", { precision: 14, scale: 4 }).notNull(),
   descuento_pct: numeric("descuento_pct", { precision: 5, scale: 2 }).notNull().default("0"),
   iva_pct: numeric("iva_pct", { precision: 5, scale: 2 }).notNull().default("19"),
+  impoconsumo_pct: numeric("impoconsumo_pct", { precision: 5, scale: 2 }).notNull().default("0"),
   unidad_medida: varchar("unidad_medida", { length: 10 }).$type<UnidadMedida>().notNull().default("UN"),
   subtotal: numeric("subtotal", { precision: 14, scale: 2 }).notNull(),
   iva_valor: numeric("iva_valor", { precision: 14, scale: 2 }).notNull(),
+  impoconsumo_valor: numeric("impoconsumo_valor", { precision: 14, scale: 2 }).notNull().default("0"),
   total: numeric("total", { precision: 14, scale: 2 }).notNull(),
 }, (t) => [
   index("items_factura_factura_idx").on(t.factura_id),

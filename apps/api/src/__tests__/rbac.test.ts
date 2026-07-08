@@ -69,6 +69,9 @@ const BLOQUEADO_VENDEDOR = [
   "/api/ensamble",
   "/api/usuarios",
   "/api/cartera",
+  "/api/activos-fijos",
+  "/api/documentos-soporte",
+  "/api/retenciones-proveedor",
 ];
 
 const BLOQUEADO_OPERARIO = [
@@ -80,6 +83,9 @@ const BLOQUEADO_OPERARIO = [
   "/api/ensamble",
   "/api/usuarios",
   "/api/cartera",
+  "/api/activos-fijos",
+  "/api/documentos-soporte",
+  "/api/retenciones-proveedor",
 ];
 
 const CONTABLE_WRITE_OK = [
@@ -486,6 +492,119 @@ describe("RBAC por rol", () => {
         expect(next).toHaveBeenCalled();
         expect(res.status).not.toHaveBeenCalled();
       }
+    });
+
+    it("permite GET /api/activos-fijos al admin", () => {
+      const req = makeReq("admin", "/api/activos-fijos", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite GET /api/retenciones-proveedor al admin", () => {
+      const req = makeReq("admin", "/api/retenciones-proveedor", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Módulos nuevos — RBAC en auth.ts", () => {
+    it("bloquea vendedor en GET /api/activos-fijos → 403", () => {
+      const req = makeReq("vendedor", "/api/activos-fijos", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea vendedor en GET /api/documentos-soporte → 403", () => {
+      const req = makeReq("vendedor", "/api/documentos-soporte", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea vendedor en GET /api/retenciones-proveedor → 403", () => {
+      const req = makeReq("vendedor", "/api/retenciones-proveedor", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea operario en GET /api/activos-fijos → 403", () => {
+      const req = makeReq("operario", "/api/activos-fijos", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea operario en GET /api/retenciones-proveedor → 403", () => {
+      const req = makeReq("operario", "/api/retenciones-proveedor", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea cajero en GET /api/activos-fijos → 403", () => {
+      const req = makeReq("cajero", "/api/activos-fijos", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea cajero en GET /api/retenciones-proveedor → 403", () => {
+      const req = makeReq("cajero", "/api/retenciones-proveedor", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("contador puede GET /api/activos-fijos (solo lectura)", () => {
+      const req = makeReq("contador", "/api/activos-fijos", "GET");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("contador sin permisos_contables bloqueado en POST /api/activos-fijos → 403", () => {
+      const req = makeReq("contador", "/api/activos-fijos", "POST");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("contador puede GET /api/retenciones-proveedor (solo lectura)", () => {
+      const req = makeReq("contador", "/api/retenciones-proveedor", "GET");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });

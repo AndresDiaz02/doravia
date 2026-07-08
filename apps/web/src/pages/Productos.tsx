@@ -12,21 +12,25 @@ import { Badge } from "../components/ui/badge";
 interface Producto {
   id: string;
   codigo: string;
+  codigo_barras: string | null;
   nombre: string;
   descripcion: string | null;
   tipo: "producto" | "servicio";
   precio_base: string;
   iva_pct: string;
+  impoconsumo_pct: string;
   activo: boolean;
 }
 
 const emptyForm = {
   codigo: "",
+  codigo_barras: "",
   nombre: "",
   descripcion: "",
   tipo: "producto" as "producto" | "servicio",
   precio_base: "",
   iva_pct: "19",
+  impoconsumo_pct: "0",
 };
 
 export function Productos() {
@@ -64,11 +68,13 @@ export function Productos() {
     setEditing(p);
     setForm({
       codigo: p.codigo,
+      codigo_barras: p.codigo_barras ?? "",
       nombre: p.nombre,
       descripcion: p.descripcion ?? "",
       tipo: p.tipo,
       precio_base: p.precio_base,
       iva_pct: p.iva_pct,
+      impoconsumo_pct: p.impoconsumo_pct ?? "0",
     });
     setError(null);
     setOpen(true);
@@ -87,6 +93,8 @@ export function Productos() {
             descripcion: form.descripcion || null,
             precio_base: form.precio_base,
             iva_pct: form.iva_pct,
+            impoconsumo_pct: form.impoconsumo_pct,
+            codigo_barras: form.codigo_barras || null,
           }),
         });
         setProductos((prev) => prev.map((p) => (p.id === editing.id ? actualizado : p)));
@@ -349,6 +357,37 @@ export function Productos() {
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ean_p">Código de barras (EAN)</Label>
+              <Input
+                id="ean_p"
+                placeholder="ej. 7702001234567"
+                value={form.codigo_barras}
+                onChange={(e) => set("codigo_barras", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Impoconsumo %</Label>
+              <select
+                value={form.impoconsumo_pct}
+                onChange={(e) => set("impoconsumo_pct", e.target.value)}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="0">0% (no aplica)</option>
+                <option value="8">8% (restaurantes, bares)</option>
+                <option value="4">4% (juegos de azar)</option>
+                <option value="16">16% (cigarrillos)</option>
+              </select>
+            </div>
+          </div>
+
+          {Number(form.iva_pct) > 0 && Number(form.impoconsumo_pct) > 0 && (
+            <p className="rounded-md bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+              Verifica con tu contador: la mayoría de productos lleva IVA o impoconsumo, no ambos.
+            </p>
+          )}
 
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

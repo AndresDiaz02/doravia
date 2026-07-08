@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
 import { eq, and, desc, gte, lte, ilike, or, SQL, sql } from "drizzle-orm";
 import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
+import { generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
@@ -240,6 +241,91 @@ router.post("/:id/enviar-email", async (req, res) => {
       error: err instanceof Error ? err.message : "Error al enviar el correo.",
     });
   }
+});
+
+// POST /api/facturas/:id/bold/intent — genera parámetros para botón de pago Bold
+router.post("/:id/bold/intent", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "vendedor") {
+    return res.status(403).json({ error: "Solo administradores o vendedores pueden generar links de pago." });
+  }
+
+  if (!BOLD_IDENTITY_KEY) {
+    return res.status(422).json({ error: "Bold no está configurado en este ambiente." });
+  }
+
+  const [factura] = await db
+    .select()
+    .from(facturas)
+    .where(and(eq(facturas.id, req.params.id), eq(facturas.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!factura) return res.status(404).json({ error: "Factura no encontrada." });
+  if (factura.estado !== "aceptada") {
+    return res.status(422).json({ error: "Solo se pueden generar links de pago para facturas aceptadas." });
+  }
+  if (factura.pagada_at) {
+    return res.status(422).json({ error: "Esta factura ya está marcada como pagada." });
+  }
+
+  const monto = Math.round(Number(factura.neto_a_pagar ?? factura.total));
+  if (monto <= 0) return res.status(422).json({ error: "El monto de la factura no es válido." });
+
+  const reference_id = `FACT-${factura.numero}-${Date.now()}`;
+  const firma = generarFirma(reference_id, monto);
+
+  res.json({
+    reference_id,
+    firma,
+    api_key: BOLD_IDENTITY_KEY,
+    monto,
+    descripcion: `Pago factura ${factura.numero}`,
+    numero: factura.numero,
+  });
+});
+
+// POST /api/facturas/:id/whatsapp-link — genera link de WhatsApp con texto de la factura
+router.post("/:id/whatsapp-link", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "vendedor") {
+    return res.status(403).json({ error: "Solo administradores o vendedores pueden generar links de WhatsApp." });
+  }
+
+  const [row] = await db
+    .select({ factura: facturas, cliente: clientes })
+    .from(facturas)
+    .innerJoin(clientes, eq(facturas.cliente_id, clientes.id))
+    .where(and(eq(facturas.id, req.params.id), eq(facturas.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!row) return res.status(404).json({ error: "Factura no encontrada." });
+
+  const { factura, cliente } = row;
+
+  if (!cliente.telefono) {
+    return res.status(422).json({ error: "El cliente no tiene número de teléfono registrado." });
+  }
+
+  // Limpiar teléfono: solo dígitos, agregar código de país Colombia si no empieza con 57
+  const telefonoLimpio = cliente.telefono.replace(/\D/g, "");
+  const telefonoWa = telefonoLimpio.startsWith("57") ? telefonoLimpio : `57${telefonoLimpio}`;
+
+  // Formatear total en COP
+  const totalFormateado = Number(factura.total).toLocaleString("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+  const fechaVencimiento = factura.fecha_vencimiento
+    ? new Date(factura.fecha_vencimiento).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : "al momento de la entrega";
+
+  const correoEmpresa = req.tenant.correo ?? "";
+  const texto = `Estimado/a ${cliente.nombre}, le enviamos la factura ${factura.numero} por valor de ${totalFormateado} con vencimiento el ${fechaVencimiento}.${correoEmpresa ? ` Para consultas puede escribirnos a ${correoEmpresa}.` : ""} Gracias por su preferencia.`;
+
+  const link = `https://wa.me/${telefonoWa}?text=${encodeURIComponent(texto)}`;
+
+  res.json({ link, texto, telefono: telefonoWa });
 });
 
 router.post("/", async (req, res) => {

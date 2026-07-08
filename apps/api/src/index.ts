@@ -52,6 +52,9 @@ import soporteRouter from "./routes/soporte.js";
 import { contadoresRouter } from "./routes/contadores.js";
 import remisionesRouter from "./routes/remisiones.js";
 import notificacionesRouter from "./routes/notificaciones.js";
+import activosFijosRouter from "./routes/activos-fijos.js";
+import documentosSoporteRouter from "./routes/documentos-soporte.js";
+import retencionesProveedorRouter from "./routes/retenciones-proveedor.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
@@ -110,9 +113,10 @@ app.use(express.json({ limit: "1mb" }));
 
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: parseInt(process.env.LOGIN_RATE_LIMIT ?? "10", 10),
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: (req) => req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1",
   message: { error: "Demasiados intentos de acceso. Intenta de nuevo en 15 minutos." },
 });
 
@@ -204,6 +208,9 @@ app.use("/api/remisiones",     authenticate, remisionesRouter);
 app.use("/api/contadores",     contadoresRouter); // registro público + rutas autenticadas internas
 app.use("/api/fundador",       requireFundador, fundadorRouter);
 app.use("/api/notificaciones", authenticate, notificacionesRouter);
+app.use("/api/activos-fijos", authenticate, activosFijosRouter);
+app.use("/api/documentos-soporte", authenticate, documentosSoporteRouter);
+app.use("/api/retenciones-proveedor", authenticate, retencionesProveedorRouter);
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 // El handler de Sentry debe ir ANTES del handler personalizado

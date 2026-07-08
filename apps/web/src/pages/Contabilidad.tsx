@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, type ReactNode } from "react";
-import { apiFetch, cop, descargarExcel } from "../lib/api";
+import { apiFetch, ApiError, cop, descargarExcel } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Lock, FileDown } from "lucide-react";
 
-type Tab = "diario" | "mayor" | "balance" | "resultados";
+type Tab = "diario" | "mayor" | "balance" | "resultados" | "cierre";
 
 interface Asiento {
   id: string;
@@ -103,6 +103,12 @@ export function Contabilidad() {
   const [estado, setEstado] = useState<EstadoResultadosResp | null>(null);
   const [loadingEstado, setLoadingEstado] = useState(false);
 
+  // Cierre anual
+  const [anoCierre, setAnoCierre] = useState(String(hoy.getFullYear() - 1));
+  const [cierreMensaje, setCierreMensaje] = useState<string | null>(null);
+  const [cierreError, setCierreError] = useState<string | null>(null);
+  const [ejecutandoCierre, setEjecutandoCierre] = useState(false);
+
   useEffect(() => {
     void apiFetch<Cuenta[]>("/api/contabilidad/cuentas").then(setCuentas);
   }, []);
@@ -135,6 +141,24 @@ export function Contabilidad() {
     void apiFetch<EstadoResultadosResp>(`/api/contabilidad/estado-resultados?desde=${desde}&hasta=${hasta}`)
       .then(setEstado)
       .finally(() => setLoadingEstado(false));
+  }
+
+  async function ejecutarCierreAnual() {
+    if (!confirm(`¿Confirmas el cierre contable del año ${anoCierre}? Esta acción no se puede deshacer.`)) return;
+    setEjecutandoCierre(true);
+    setCierreMensaje(null);
+    setCierreError(null);
+    try {
+      const resp = await apiFetch<{ mensaje: string }>("/api/contabilidad/cierre-anual", {
+        method: "POST",
+        body: JSON.stringify({ ano: Number(anoCierre) }),
+      });
+      setCierreMensaje(resp.mensaje);
+    } catch (err) {
+      setCierreError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setEjecutandoCierre(false);
+    }
   }
 
   useEffect(() => {
@@ -186,6 +210,13 @@ export function Contabilidad() {
           locked={!hasLevel2}
         >
           Estado de resultados
+        </TabBtn>
+        <TabBtn
+          active={tab === "cierre"}
+          onClick={() => hasLevel2 && setTab("cierre")}
+          locked={!hasLevel2}
+        >
+          Cierre anual
         </TabBtn>
       </div>
 
@@ -444,6 +475,54 @@ export function Contabilidad() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cierre Anual */}
+      {tab === "cierre" && !hasLevel2 && <PlanUpgradeNotice feature="Cierre de ejercicio anual" />}
+      {tab === "cierre" && hasLevel2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cierre de ejercicio anual</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <p className="font-medium">Antes de ejecutar el cierre:</p>
+              <ul className="mt-1 space-y-0.5 list-disc list-inside">
+                <li>Todos los períodos mensuales del año deben estar cerrados.</li>
+                <li>Se creará un asiento contable de cierre que traslada la utilidad o pérdida a patrimonio.</li>
+                <li>Esta acción solo puede ejecutarse una vez por año.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-end gap-3">
+              <div className="space-y-1.5">
+                <Label>Año a cerrar</Label>
+                <Input
+                  type="number"
+                  min="2020"
+                  max={hoy.getFullYear()}
+                  value={anoCierre}
+                  onChange={(e) => setAnoCierre(e.target.value)}
+                  className="w-28"
+                />
+              </div>
+              <Button onClick={() => void ejecutarCierreAnual()} disabled={ejecutandoCierre}>
+                {ejecutandoCierre ? "Ejecutando..." : `Ejecutar cierre ${anoCierre}`}
+              </Button>
+            </div>
+
+            {cierreMensaje && (
+              <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
+                {cierreMensaje}
+              </div>
+            )}
+            {cierreError && (
+              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {cierreError}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,11 +1,11 @@
 /**
- * Seed de producción — solo datos estructurales (planes + PUC base).
+ * Seed de producción — datos estructurales (planes + PUC base + hub de contadores).
  * Seguro para correr en Railway en cada deploy.
- * NO toca tenants, usuarios ni datos de clientes.
+ * NO toca tenants de clientes ni usuarios de clientes.
  */
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { db } from "../client.js";
-import { plans, cuentas_contables } from "../schema/index.js";
+import { plans, cuentas_contables, tenants } from "../schema/index.js";
 import { PLAN_SEEDS } from "./plans.js";
 import { PUC_BASE } from "./cuentas_puc.js";
 
@@ -36,6 +36,31 @@ async function seedProd() {
     .values(PUC_BASE.map((c) => ({ ...c, tenant_id: null })))
     .onConflictDoNothing();
   console.log(`✓ PUC: ${PUC_BASE.length} cuentas base`);
+
+  console.log("Creando hub de contadores...");
+  const [cosechaPlan] = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(eq(plans.slug, "cosecha"))
+    .limit(1);
+
+  if (cosechaPlan) {
+    await db
+      .insert(tenants)
+      .values({
+        nit: "0000000001",
+        nombre: "Hub Contadores Doravia",
+        plan_id: cosechaPlan.id,
+        activo: true,
+        plan_starts_at: new Date("2024-01-01"),
+        plan_ends_at: new Date("2099-12-31"),
+        onboarding_completado: true,
+      })
+      .onConflictDoNothing();
+    console.log("✓ Hub de contadores: NIT 0000000001");
+  } else {
+    console.warn("⚠ Plan 'cosecha' no encontrado — hub de contadores no creado.");
+  }
 
   console.log("✓ Seed de producción completado.");
 }

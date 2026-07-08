@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 // Nota: usuario_pos es el nombre corto para cajeros POS (sin email)
 import { tenants } from "./tenants.ts";
 
-export const USER_ROLES = ["admin", "contador", "vendedor", "operario"] as const;
+export const USER_ROLES = ["admin", "contador", "vendedor", "operario", "cajero"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const users = pgTable("users", {

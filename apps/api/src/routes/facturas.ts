@@ -243,15 +243,16 @@ router.post("/:id/enviar-email", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { cliente_id, items, fecha_vencimiento, observaciones } = req.body;
+  const { cliente_id, items, fecha, fecha_vencimiento, observaciones } = req.body;
 
   if (!cliente_id || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Campos requeridos: cliente_id, items (array no vacío)." });
   }
 
   try {
-    await verificarPeriodoAbierto(req.tenantId, new Date());
-    const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha_vencimiento, observaciones });
+    const fechaDoc = fecha ? new Date(fecha) : new Date();
+    await verificarPeriodoAbierto(req.tenantId, fechaDoc);
+    const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha: fechaDoc, fecha_vencimiento, observaciones });
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.creada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total, estado: factura.estado }, ip: req.ip });
     res.status(201).json({ ...factura, advertencias });
   } catch (err) {

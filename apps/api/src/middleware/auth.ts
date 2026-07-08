@@ -73,7 +73,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 
   // Rol Contador
-  if (req.userRole === "contador" && req.method !== "GET") {
+  // /api/auth/cambiar-empresa es una acción de sesión, no de datos — siempre permitida
+  const esAuthPropia = req.originalUrl.startsWith("/api/auth/");
+  if (req.userRole === "contador" && req.method !== "GET" && !esAuthPropia) {
     if (!req.userContable) {
       return res.status(403).json({
         error: "El rol Contador solo tiene permisos de lectura.",
@@ -109,6 +111,50 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
     }
     // Empresa y DIAN: solo lectura
+    if (
+      (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
+      req.method !== "GET"
+    ) {
+      return res.status(403).json({ error: "No tienes permisos para modificar esta información.", code: "FORBIDDEN" });
+    }
+  }
+
+  // Rol Cajero: POS + auth + lista blanca explícita de lo que la app POS consume fuera de /api/pos/
+  // /api/clientes  — GET para cargar lista de clientes al registrar fiados (Venta.tsx)
+  // /api/bodegas   — GET para cargar bodegas al seleccionar caja (SeleccionCaja.tsx)
+  // /api/tutoriales — GET/POST para estado y completar/saltar el tutorial de onboarding
+  if (req.userRole === "cajero") {
+    const url = req.originalUrl;
+    const esPOS           = url.startsWith("/api/pos");
+    const esAuth          = url.startsWith("/api/auth");
+    const esTutorial      = url.startsWith("/api/tutoriales");
+    const esClientesGet   = url.startsWith("/api/clientes") && req.method === "GET";
+    const esBodegasGet    = url.startsWith("/api/bodegas")  && req.method === "GET";
+
+    if (!esPOS && !esAuth && !esTutorial && !esClientesGet && !esBodegasGet) {
+      return res.status(403).json({
+        error: "El rol Cajero solo tiene acceso al módulo POS.",
+        code: "FORBIDDEN",
+      });
+    }
+  }
+
+  // Rol Operario: mismo perímetro que vendedor (BUG-11C fix)
+  if (req.userRole === "operario") {
+    const url = req.originalUrl;
+    const BLOQUEADO_OPERARIO = [
+      "/api/gastos",
+      "/api/contabilidad",
+      "/api/retenciones",
+      "/api/centros-costos",
+      "/api/recurrentes",
+      "/api/ensamble",
+      "/api/usuarios",
+      "/api/cartera",
+    ];
+    if (BLOQUEADO_OPERARIO.some((p) => url.startsWith(p))) {
+      return res.status(403).json({ error: "No tienes acceso a esta sección.", code: "FORBIDDEN" });
+    }
     if (
       (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
       req.method !== "GET"

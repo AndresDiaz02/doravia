@@ -177,5 +177,62 @@ router.get("/mis-comisiones", authenticate, async (req, res) => {
   }
 });
 
+// ── POST /api/contadores/asignar (admin del tenant invita un contador) ────────
+router.post("/asignar", authenticate, async (req, res) => {
+  if (req.userRole !== "admin") {
+    return res.status(403).json({ error: "Solo el administrador puede asignar contadores." });
+  }
+
+  const { email, permisos_contables } = req.body as { email?: string; permisos_contables?: boolean };
+  if (!email?.trim()) {
+    return res.status(400).json({ error: "Campo requerido: email del contador." });
+  }
+
+  try {
+    // Buscar usuario contador por email
+    const [contadorUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.trim().toLowerCase()))
+      .limit(1);
+
+    if (!contadorUser) {
+      return res.status(404).json({ error: "No se encontró ningún usuario con ese correo." });
+    }
+    if (contadorUser.role !== "contador") {
+      return res.status(422).json({ error: "El usuario con ese correo no tiene rol de contador." });
+    }
+
+    // Crear o actualizar user_acceso
+    await db
+      .insert(user_accesos)
+      .values({
+        user_id: contadorUser.id,
+        tenant_id: req.tenantId,
+        role: "contador",
+        invitado_por: req.userId,
+        permisos_contables: permisos_contables ?? false,
+      })
+      .onConflictDoUpdate({
+        target: [user_accesos.user_id, user_accesos.tenant_id],
+        set: {
+          permisos_contables: permisos_contables ?? false,
+          invitado_por: req.userId,
+        },
+      });
+
+    return res.json({
+      ok: true,
+      mensaje: `Contador ${contadorUser.nombre} asignado exitosamente a tu empresa.`,
+      contador_id: contadorUser.id,
+      nombre: contadorUser.nombre,
+      permisos_contables: permisos_contables ?? false,
+    });
+  } catch (err) {
+    console.error("Error en POST /contadores/asignar:", err);
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 export { router as contadoresRouter };
 export default router;

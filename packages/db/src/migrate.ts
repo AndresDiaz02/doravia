@@ -1,4 +1,7 @@
 import postgres from "postgres";
+import { is } from "drizzle-orm";
+import { PgTable, getTableConfig } from "drizzle-orm/pg-core";
+import * as schema from "./schema/index.ts";
 
 const sql = postgres(process.env.DATABASE_URL!);
 
@@ -255,10 +258,64 @@ for (const migration of migrations) {
     await sql.unsafe(migration);
     console.log("✓", migration.slice(0, 70));
   } catch (e) {
-    console.error("✗", e instanceof Error ? e.message : e);
+    console.error("✗ MIGRACIÓN FALLIDA — abortando deploy");
+    console.error(e instanceof Error ? e.message : e);
+    await sql.end();
+    process.exit(1);
   }
 }
 
+// ── Verificación de drift entre schema Drizzle y BD real ─────────────────────
+// Si falta cualquier tabla o columna definida en el schema → el deploy aborta.
+// Cierra el hueco donde el schema se actualizó pero migrate.ts no (bug 2026-07-06).
+
+const tables = Object.values(schema).filter((v): v is PgTable => is(v, PgTable));
+
+const expected = new Map<string, Set<string>>();
+for (const table of tables) {
+  const config = getTableConfig(table);
+  expected.set(config.name, new Set(config.columns.map((c) => c.name)));
+}
+
+const rows = await sql<{ table_name: string; column_name: string }[]>`
+  SELECT c.table_name, c.column_name
+  FROM information_schema.columns c
+  JOIN information_schema.tables t
+    ON t.table_name = c.table_name AND t.table_schema = c.table_schema
+  WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+`;
+
+const actual = new Map<string, Set<string>>();
+for (const { table_name, column_name } of rows) {
+  if (!actual.has(table_name)) actual.set(table_name, new Set());
+  actual.get(table_name)!.add(column_name);
+}
+
+const drift: string[] = [];
+for (const [tableName, expectedCols] of expected) {
+  const actualCols = actual.get(tableName);
+  if (!actualCols) {
+    drift.push(`TABLA FALTANTE en BD: "${tableName}"`);
+    continue;
+  }
+  for (const col of expectedCols) {
+    if (!actualCols.has(col)) {
+      drift.push(`COLUMNA FALTANTE en BD: "${tableName}.${col}"`);
+    }
+  }
+}
+
+if (drift.length > 0) {
+  console.error("\n❌ DRIFT DE SCHEMA DETECTADO — abortando deploy:");
+  for (const d of drift) {
+    console.error("  •", d);
+  }
+  console.error("\nSolución: agrega el ALTER TABLE o CREATE TABLE correspondiente a migrate.ts");
+  await sql.end();
+  process.exit(1);
+}
+
+console.log("✓ Schema Drizzle coincide con la BD — sin drift");
 await sql.end();
 console.log("Migración completada.");
 process.exit(0);

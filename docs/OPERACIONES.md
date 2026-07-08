@@ -53,12 +53,12 @@ pg_restore --clean --no-acl --no-owner \
 El deploy es automático al hacer push a `main`. Railway ejecuta:
 
 ```
-pnpm db:push && pnpm db:seed && pnpm --filter @workspace/api run start
+pnpm db:migrate && pnpm db:seed && pnpm --filter @workspace/api run start
 ```
 
-- `db:push` aplica el schema sin migraciones destructivas
+- `db:migrate` ejecuta `packages/db/src/migrate.ts`: aplica migraciones SQL explícitas y verifica drift entre el schema Drizzle y la BD. Si falla → `process.exit(1)` → Railway aborta el deploy sin arrancar el servidor
 - `db:seed` siembra planes y PUC. Solo siembra datos demo si `SEED_DEMO=true`
-- Para un deploy manual forzado: Railway → proyecto → **Deploy** → "Trigger deploy"
+- Para un deploy manual forzado: `railway up --service doravia` o Railway → proyecto → **Deploy** → "Trigger deploy"
 
 ### 2.2 Web (Cloudflare Pages)
 

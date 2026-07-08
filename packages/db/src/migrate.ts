@@ -251,6 +251,14 @@ const migrations = [
   `UPDATE clientes SET digito_verificacion = '8' WHERE numero_documento = '860012345' AND digito_verificacion = '9'`,
   // trial_ends_at: columna añadida en schema (commit 733c459) pero nunca aplicada a la BD
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz`,
+  // ventas_pos — columnas DIAN/FE y auditoría de anulación (detectadas por drift check)
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS tipo_documento varchar(30) NOT NULL DEFAULT 'tiquete_pos'`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'pendiente_envio'`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS fecha_limite_envio timestamptz`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS enviado_en timestamptz`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_por uuid`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_en timestamptz`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_motivo text`,
 ];
 
 for (const migration of migrations) {

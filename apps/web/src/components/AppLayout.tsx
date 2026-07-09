@@ -46,6 +46,7 @@ import { Dialog } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
+import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
 
 const NAV_BASE = [
   { to: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
@@ -302,6 +303,9 @@ export function AppLayout() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          <div className="mb-1.5">
+            <SearchTrigger />
+          </div>
           {NAV_BASE.map(({ to, label, icon: Icon, feature }) => {
             if (to.startsWith("/contabilidad") && isVendedor) return null;
             if (feature) {
@@ -538,6 +542,9 @@ export function AppLayout() {
 
       {/* Chat de soporte flotante */}
       <SoporteChat />
+
+      {/* Búsqueda global */}
+      <GlobalSearch />
 
       {/* Dialog cambio de contraseña */}
       <Dialog open={showPassword} onClose={() => setShowPassword(false)} title="Cambiar contraseña">

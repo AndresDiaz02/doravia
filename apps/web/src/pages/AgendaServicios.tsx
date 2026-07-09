@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { HelpTooltip } from "../components/HelpTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -360,6 +361,7 @@ function TabReportes() {
             />
             <KpiCard
               label="No-shows"
+              labelExtra={<HelpTooltip text="Cliente que tenía cita agendada y no se presentó sin avisar. Una tasa de no-show superior al 15% suele indicar que hay que mejorar los recordatorios." side="bottom" />}
               value={reporte.no_shows}
               extra={`${reporte.tasa_no_show}% del total`}
               highlight={reporte.tasa_no_show >= 15}
@@ -399,6 +401,7 @@ function TabReportes() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <PawPrint className="h-4 w-4 text-violet-500" />
                   Sujetos sin visita hace más de {diasSinVisita} días
+                  <HelpTooltip text="'Sujeto' es lo que trae el cliente al servicio: su mascota, vehículo, prenda, etc. Esta lista muestra sujetos que llevan mucho tiempo sin volver — útil para campañas de reactivación." side="bottom" />
                   <Badge variant="secondary">{reporte.sujetos_sin_visita.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -548,9 +551,10 @@ function TabConfig() {
 // ── KpiCard ───────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, extra, highlight, icon,
+  label, labelExtra, value, extra, highlight, icon,
 }: {
   label: string;
+  labelExtra?: React.ReactNode;
   value: string | number;
   extra?: string;
   highlight?: boolean;
@@ -561,7 +565,7 @@ function KpiCard({
       <CardContent className="pt-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">{label}{labelExtra}</p>
             <p className={cn(
               "text-2xl font-bold",
               highlight ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"

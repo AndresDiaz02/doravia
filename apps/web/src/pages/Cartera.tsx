@@ -4,6 +4,7 @@ import { apiFetch, cop, fecha } from "../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { TrendingUp, AlertTriangle, Clock, Users } from "lucide-react";
+import { HelpTooltip } from "../components/HelpTooltip";
 
 interface ResumenCartera {
   total_cartera: number;
@@ -110,7 +111,10 @@ export default function Cartera() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Cartera</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900">Cartera</h1>
+          <HelpTooltip text="Cartera son todas las facturas que aún no han sido pagadas por tus clientes. Aquí puedes ver cuánto te deben, quién debe más y hace cuánto tiempo." />
+        </div>
         <p className="text-sm text-gray-500 mt-1">Seguimiento de cuentas por cobrar y estado de clientes</p>
       </div>
 
@@ -138,6 +142,7 @@ export default function Cartera() {
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-red-500" />
                 <p className="text-xs text-gray-500">Cartera vencida</p>
+                <HelpTooltip text="Son las facturas cuya fecha de vencimiento ya pasó y todavía no han sido pagadas. Entre más alta sea, más urgente es gestionar el cobro." side="bottom" />
               </div>
               <p className="text-xl font-bold text-red-600">{cop(resumen.total_vencida)}</p>
               <p className="text-xs text-gray-400 mt-1">{resumen.facturas_vencidas} factura(s) vencida(s)</p>
@@ -236,6 +241,7 @@ export default function Cartera() {
           {aging && (
             <>
               {/* Resumen por bucket */}
+              {/* El aging clasifica la cartera según cuántos días lleva vencida */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {Object.entries(aging.resumen).map(([bucket, info]) => (
                   <div key={bucket} className="rounded-lg border border-gray-200 bg-white p-3 text-center">
@@ -257,7 +263,12 @@ export default function Cartera() {
                         <th className="px-4 py-3 text-left font-medium text-gray-600">Factura</th>
                         <th className="px-4 py-3 text-left font-medium text-gray-600">Cliente</th>
                         <th className="px-4 py-3 text-left font-medium text-gray-600">Vencimiento</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-600">Antigüedad</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">
+                          <span className="flex items-center gap-1">
+                            Antigüedad
+                            <HelpTooltip text="Clasifica la deuda según cuántos días lleva vencida. 'Al día' = aún no vence. Más de 90 días = cobro urgente." side="bottom" />
+                          </span>
+                        </th>
                         <th className="px-4 py-3 text-right font-medium text-gray-600">Saldo</th>
                       </tr>
                     </thead>

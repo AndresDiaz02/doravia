@@ -30,6 +30,9 @@ interface Cotizacion {
   fecha_vencimiento: string | null;
   total: string;
   factura_id: string | null;
+  descripcion_plan: string | null;
+  condiciones_pago: string | null;
+  metodo_pago: string | null;
   cliente: { id: string; nombre: string };
 }
 
@@ -78,6 +81,9 @@ export default function Cotizaciones() {
     cliente_id: clientePreseleccionado,
     fecha_vencimiento: "",
     observaciones: "",
+    descripcion_plan: "",
+    condiciones_pago: "",
+    metodo_pago: "",
   });
   const [items, setItems] = useState<CotizacionItem[]>([itemVacio()]);
 
@@ -126,6 +132,9 @@ export default function Cotizaciones() {
           cliente_id: form.cliente_id,
           fecha_vencimiento: form.fecha_vencimiento || null,
           observaciones: form.observaciones || null,
+          descripcion_plan: form.descripcion_plan || null,
+          condiciones_pago: form.condiciones_pago || null,
+          metodo_pago: form.metodo_pago || null,
           items: items.map((i) => ({
             ...i,
             producto_id: i.producto_id || undefined,
@@ -133,7 +142,7 @@ export default function Cotizaciones() {
         }),
       });
       setDialogOpen(false);
-      setForm({ cliente_id: "", fecha_vencimiento: "", observaciones: "" });
+      setForm({ cliente_id: "", fecha_vencimiento: "", observaciones: "", descripcion_plan: "", condiciones_pago: "", metodo_pago: "" });
       setItems([itemVacio()]);
       cargar();
     } catch (err: unknown) {
@@ -182,7 +191,7 @@ export default function Cotizaciones() {
             <FileDown className="w-4 h-4" /> Excel
           </Button>
           {!isContador && (
-            <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
+            <Button onClick={() => { setForm({ cliente_id: clientePreseleccionado, fecha_vencimiento: "", observaciones: "", descripcion_plan: "", condiciones_pago: "", metodo_pago: "" }); setItems([itemVacio()]); setDialogOpen(true); }}>
               <Plus className="w-4 h-4 mr-1" /> Nueva cotización
             </Button>
           )}
@@ -202,7 +211,7 @@ export default function Cotizaciones() {
             <p className="text-gray-500">
               {isContador ? "Aún no hay cotizaciones registradas en el sistema." : "No hay cotizaciones todavía."}
             </p>
-            {!isContador && <Button onClick={() => setDialogOpen(true)}><Plus className="w-4 h-4 mr-1" /> Crear primera cotización</Button>}
+            {!isContador && <Button onClick={() => { setForm({ cliente_id: "", fecha_vencimiento: "", observaciones: "", descripcion_plan: "", condiciones_pago: "", metodo_pago: "" }); setItems([itemVacio()]); setDialogOpen(true); }}><Plus className="w-4 h-4 mr-1" /> Crear primera cotización</Button>}
           </CardContent>
         </Card>
       ) : (
@@ -354,6 +363,47 @@ export default function Cotizaciones() {
             <div>
               <Label htmlFor="obs">Observaciones</Label>
               <Input id="obs" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} placeholder="Opcional" />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="plan">Descripción del plan / servicio</Label>
+            <textarea
+              id="plan"
+              rows={2}
+              value={form.descripcion_plan}
+              onChange={(e) => setForm({ ...form, descripcion_plan: e.target.value })}
+              placeholder="Ej: Plan ERP Raíz — 3 usuarios, facturación ilimitada, inventario, contabilidad y cotizaciones"
+              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="metodo">Método de pago</Label>
+              <select
+                id="metodo"
+                value={form.metodo_pago}
+                onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })}
+                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
+              >
+                <option value="">Sin especificar</option>
+                <option value="transferencia">Transferencia bancaria</option>
+                <option value="pse">PSE</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta_credito">Tarjeta de crédito</option>
+                <option value="cheque">Cheque</option>
+                <option value="contraentrega">Contra entrega</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="condpago">Condiciones de pago</Label>
+              <Input
+                id="condpago"
+                value={form.condiciones_pago}
+                onChange={(e) => setForm({ ...form, condiciones_pago: e.target.value })}
+                placeholder="Ej: 50% anticipo, 50% entrega"
+              />
             </div>
           </div>
 

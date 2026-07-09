@@ -31,6 +31,9 @@ export const cotizaciones = pgTable("cotizaciones", {
   // Consecutivo para autonumeracion
   consecutivo: integer("consecutivo").notNull(),
   observaciones: text("observaciones"),
+  descripcion_plan: text("descripcion_plan"),
+  condiciones_pago: varchar("condiciones_pago", { length: 150 }),
+  metodo_pago: varchar("metodo_pago", { length: 30 }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

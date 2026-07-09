@@ -68,7 +68,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/cotizaciones
 router.post("/", async (req, res) => {
-  const { cliente_id, items, fecha_vencimiento, observaciones } = req.body;
+  const { cliente_id, items, fecha_vencimiento, observaciones, descripcion_plan, condiciones_pago, metodo_pago } = req.body;
 
   if (!cliente_id || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Campos requeridos: cliente_id, items." });
@@ -110,6 +110,9 @@ router.post("/", async (req, res) => {
       iva_total: String(iva_total),
       total: String(total),
       observaciones: observaciones ?? null,
+      descripcion_plan: descripcion_plan ?? null,
+      condiciones_pago: condiciones_pago ?? null,
+      metodo_pago: metodo_pago ?? null,
     })
     .returning();
 
@@ -147,7 +150,7 @@ router.patch("/:id", async (req, res) => {
     return res.status(422).json({ error: "No se puede modificar una cotización ya convertida." });
   }
 
-  const { estado, observaciones, fecha_vencimiento } = req.body;
+  const { estado, observaciones, fecha_vencimiento, descripcion_plan, condiciones_pago, metodo_pago } = req.body;
 
   const [actualizada] = await db
     .update(cotizaciones)
@@ -155,6 +158,9 @@ router.patch("/:id", async (req, res) => {
       ...(estado !== undefined && { estado }),
       ...(observaciones !== undefined && { observaciones }),
       ...(fecha_vencimiento !== undefined && { fecha_vencimiento }),
+      ...(descripcion_plan !== undefined && { descripcion_plan }),
+      ...(condiciones_pago !== undefined && { condiciones_pago }),
+      ...(metodo_pago !== undefined && { metodo_pago }),
     })
     .where(eq(cotizaciones.id, cot.id))
     .returning();

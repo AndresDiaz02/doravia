@@ -442,6 +442,11 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS citas_pos_tenant_fecha_idx ON citas_pos(tenant_id, fecha_hora)`,
   `CREATE INDEX IF NOT EXISTS citas_pos_cliente_idx ON citas_pos(cliente_id) WHERE cliente_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS citas_pos_sujeto_idx ON citas_pos(sujeto_id) WHERE sujeto_id IS NOT NULL`,
+
+  // ── Cotizaciones — campos de plan y pago (FASE 8) ───────────────────────────
+  `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS descripcion_plan text`,
+  `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS condiciones_pago varchar(150)`,
+  `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS metodo_pago varchar(30)`,
 ];
 
 for (const migration of migrations) {

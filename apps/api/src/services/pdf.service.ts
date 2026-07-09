@@ -261,9 +261,39 @@ export function generarPdfCotizacion(
   tablaItems(doc, items);
   tablaTotales(doc, cotizacion.subtotal, cotizacion.descuento_total, cotizacion.iva_total, cotizacion.total);
 
-  if (cotizacion.observaciones) {
+  // Bloque descripción del plan / servicio cotizado
+  if (cotizacion.descripcion_plan) {
     doc.moveDown(1);
-    doc.fontSize(8).fillColor(GRIS).text("Condiciones / Observaciones:", 50, doc.y);
+    doc.roundedRect(50, doc.y, 495, doc.heightOfString(cotizacion.descripcion_plan, { width: 460 }) + 22, 4)
+      .fill("#f0f9ff").stroke("#bae6fd");
+    const yPlan = doc.y + 8;
+    doc.fillColor("#0369a1").fontSize(8).text("Plan / Servicio incluido:", 62, yPlan);
+    doc.fillColor(NEGRO).fontSize(9).text(cotizacion.descripcion_plan, 62, doc.y + 2, { width: 460 });
+    doc.y += 12;
+  }
+
+  // Bloque opción de pago
+  const metodoLabels: Record<string, string> = {
+    transferencia: "Transferencia bancaria",
+    pse: "PSE",
+    efectivo: "Efectivo",
+    tarjeta_credito: "Tarjeta de crédito",
+    cheque: "Cheque",
+    contraentrega: "Contra entrega",
+  };
+  if (cotizacion.metodo_pago || cotizacion.condiciones_pago) {
+    doc.moveDown(0.8);
+    doc.fontSize(8).fillColor(GRIS).text("Condiciones de pago:", 50, doc.y);
+    const linea = [
+      cotizacion.metodo_pago ? metodoLabels[cotizacion.metodo_pago] ?? cotizacion.metodo_pago : null,
+      cotizacion.condiciones_pago ?? null,
+    ].filter(Boolean).join("  ·  ");
+    doc.fontSize(8).fillColor(NEGRO).text(linea, 50, doc.y, { width: 280 });
+  }
+
+  if (cotizacion.observaciones) {
+    doc.moveDown(0.8);
+    doc.fontSize(8).fillColor(GRIS).text("Observaciones:", 50, doc.y);
     doc.fontSize(8).fillColor(NEGRO).text(cotizacion.observaciones, 50, doc.y, { width: 280 });
   }
 

@@ -21,6 +21,7 @@ const noFeatures: PlanFeatures = {
   programacion_pagos:     false,
   flujo_caja:             false,
   ia_asistente:           false,
+  conciliacion_bancaria:  false,
 };
 
 // Features compartidas por todos los planes Origen
@@ -101,7 +102,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 1,   // libro diario + mayor
     features: {
       ...noFeatures,
-      inventario:           true,
+      inventario:            true,
       facturacion_ilimitada: true,
       cotizaciones:          true,
       cotizacion_a_factura:  true,
@@ -109,6 +110,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       gastos:                true,
       cuentas_por_pagar:     true,
       ia_asistente:          true,
+      conciliacion_bancaria: true,
     },
     precio_anual_cop: 730_000,
   },
@@ -133,6 +135,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       programacion_pagos:    true,
       ensamble:              true,
       ia_asistente:          true,
+      conciliacion_bancaria: true,
     },
     precio_anual_cop: 990_000,
   },
@@ -160,6 +163,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       programacion_pagos:     true,
       ensamble:               true,
       ia_asistente:           true,
+      conciliacion_bancaria:  true,
     },
     precio_anual_cop: 1_450_000,
   },
@@ -190,6 +194,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       programacion_pagos:     true,
       flujo_caja:             true,
       ia_asistente:           true,
+      conciliacion_bancaria:  true,
       pos:                    false,
       pos_multi_caja:         false,
     },
@@ -226,10 +231,11 @@ export const PLAN_SEEDS: NewPlan[] = [
     features: {
       ...noFeatures,
       inventario:        true,
-      gastos:            true,
-      cuentas_por_pagar: true,
-      pos:               true,
-      pos_multi_caja:    true,
+      gastos:                true,
+      cuentas_por_pagar:     true,
+      conciliacion_bancaria: true,
+      pos:                   true,
+      pos_multi_caja:        true,
     },
     precio_anual_cop: 790_000,
   },

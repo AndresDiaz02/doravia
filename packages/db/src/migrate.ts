@@ -364,6 +364,52 @@ const migrations = [
   `INSERT INTO cuentas_contables (id, tenant_id, codigo, nombre, tipo, naturaleza, nivel, padre_id, activo)
    SELECT gen_random_uuid(), NULL, '2410', 'Impuesto al Consumo por pagar', 'pasivo', 'credito', 3, NULL, true
    WHERE NOT EXISTS (SELECT 1 FROM cuentas_contables WHERE codigo = '2410' AND tenant_id IS NULL)`,
+  // ── Conciliación bancaria ───────────────────────────────────────────────────
+  // Cuentas bancarias del tenant (multi-banco desde el día uno)
+  `CREATE TABLE IF NOT EXISTS cuentas_bancarias (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    nombre varchar(200) NOT NULL,
+    banco varchar(100) NOT NULL,
+    numero_cuenta varchar(50),
+    cuenta_contable_id uuid REFERENCES cuentas_contables(id),
+    activa boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS cuentas_bancarias_tenant_idx ON cuentas_bancarias(tenant_id)`,
+  // Cabecera de cada proceso de conciliación
+  `CREATE TABLE IF NOT EXISTS conciliaciones (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    cuenta_bancaria_id uuid NOT NULL REFERENCES cuentas_bancarias(id),
+    fecha_desde date NOT NULL,
+    fecha_hasta date NOT NULL,
+    saldo_inicial_banco numeric(14,2) NOT NULL DEFAULT 0,
+    saldo_final_banco numeric(14,2) NOT NULL DEFAULT 0,
+    estado varchar(20) NOT NULL DEFAULT 'en_proceso',
+    cerrada_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS conciliaciones_tenant_idx ON conciliaciones(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS conciliaciones_cuenta_idx ON conciliaciones(cuenta_bancaria_id)`,
+  // Movimientos importados del extracto bancario
+  // monto: positivo=ingreso al banco (crédito extracto), negativo=salida (débito extracto)
+  `CREATE TABLE IF NOT EXISTS movimientos_banco (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    conciliacion_id uuid NOT NULL REFERENCES conciliaciones(id) ON DELETE CASCADE,
+    fecha date NOT NULL,
+    descripcion text NOT NULL,
+    monto numeric(14,2) NOT NULL,
+    referencia varchar(100),
+    estado varchar(20) NOT NULL DEFAULT 'pendiente',
+    linea_asiento_id uuid REFERENCES lineas_asiento(id),
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS mov_banco_conciliacion_idx ON movimientos_banco(conciliacion_id)`,
+  `CREATE INDEX IF NOT EXISTS mov_banco_estado_idx ON movimientos_banco(conciliacion_id, estado)`,
+  // Columna en lineas_asiento para rastrear qué movimiento bancario cubre esta línea
+  `ALTER TABLE lineas_asiento ADD COLUMN IF NOT EXISTS movimiento_banco_id uuid REFERENCES movimientos_banco(id)`,
+  `CREATE INDEX IF NOT EXISTS lineas_asiento_mov_banco_idx ON lineas_asiento(movimiento_banco_id) WHERE movimiento_banco_id IS NOT NULL`,
 ];
 
 for (const migration of migrations) {

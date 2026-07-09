@@ -26,6 +26,8 @@ export const PLAN_FEATURES = [
   // POS
   "pos",
   "pos_multi_caja",
+  // Agenda de servicios (citas + ciclo + sujeto)
+  "agenda_servicios",
   // Conciliación bancaria
   "conciliacion_bancaria",
 ] as const;
@@ -53,6 +55,7 @@ export const FEATURE_MIN_PLAN: Partial<Record<PlanFeature, string>> = {
   flujo_caja:             "Cosecha",
   pos:                    "Punto",
   pos_multi_caja:         "Punto Plus",
+  agenda_servicios:       "Punto Plus",
   conciliacion_bancaria:  "Semilla",
 };
 
@@ -76,6 +79,7 @@ export const FEATURE_LABELS: Record<PlanFeature, string> = {
   ia_asistente:            "Asistente con IA",
   pos:                     "Punto de venta (POS)",
   pos_multi_caja:          "POS multi-caja",
+  agenda_servicios:        "Agenda de servicios y citas",
   conciliacion_bancaria:   "Conciliación bancaria",
 };
 

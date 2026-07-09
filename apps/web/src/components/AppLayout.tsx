@@ -33,6 +33,7 @@ import {
   Users,
   Warehouse,
   Calendar,
+  CalendarCheck,
   X,
   Zap,
   Landmark,
@@ -394,6 +395,16 @@ export function AppLayout() {
               </span>
             );
           })()}
+
+          {/* Agenda de servicios — solo si tiene feature agenda_servicios */}
+          {(plan?.features as Record<string, boolean> | undefined)?.agenda_servicios === true && (
+            <NavItem
+              to="/agenda-servicios"
+              label="Agenda de servicios"
+              icon={CalendarCheck}
+              isActive={active("/agenda-servicios")}
+            />
+          )}
 
           <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 

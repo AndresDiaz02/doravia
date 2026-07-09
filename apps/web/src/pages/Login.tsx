@@ -104,7 +104,7 @@ export function Login() {
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Doravia</h1>
+            <svg style={{height:'48px',width:'auto',display:'block',margin:'0 auto'}} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 140" role="img" aria-label="Doravia" fontFamily="Sora, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"><title>Doravia</title><defs><linearGradient id="g-erp-login" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#7B2FF7"/><stop offset="55%" stopColor="#4A6FF5"/><stop offset="100%" stopColor="#2E9BF5"/></linearGradient></defs><path fill="url(#g-erp-login)" transform="translate(20,20) scale(1.05)" d="M 30,6 C 72,6 94,26 94,50 C 94,74 72,94 30,94 L 58,50 Z"/><text x="160" y="98" fontSize="92" fontWeight="800" fill="#241A5E">Doravia</text></svg>
             <p className="mt-1 text-sm text-gray-500">
               Selecciona la empresa con la que deseas trabajar
             </p>

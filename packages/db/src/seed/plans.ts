@@ -21,6 +21,7 @@ const noFeatures: PlanFeatures = {
   programacion_pagos:     false,
   flujo_caja:             false,
   ia_asistente:           false,
+  agenda_servicios:       false,
   conciliacion_bancaria:  false,
 };
 
@@ -194,6 +195,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       programacion_pagos:     true,
       flujo_caja:             true,
       ia_asistente:           true,
+      agenda_servicios:       false,
       conciliacion_bancaria:  true,
       pos:                    false,
       pos_multi_caja:         false,
@@ -236,6 +238,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       conciliacion_bancaria: true,
       pos:                   true,
       pos_multi_caja:        true,
+      agenda_servicios:      true,
     },
     precio_anual_cop: 790_000,
   },

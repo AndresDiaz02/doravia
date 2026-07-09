@@ -128,7 +128,7 @@ function AppInner() {
       <div className="flex-1 overflow-hidden">
         {vista === "venta"    && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} cajaConfig={turno.cajaConfig} />}
         {vista === "cartera"  && <Fiados cajaId={turno.cajaId} />}
-        {vista === "citas"    && <Citas cajaId={turno.cajaId} />}
+        {vista === "citas"    && <Citas cajaId={turno.cajaId} onIrAVenta={() => setVista("venta")} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
         {vista === "gastos"    && <GastosCaja turnoId={turno.turnoId} cajaId={turno.cajaId} />}
         {vista === "reportes"  && <Reportes />}

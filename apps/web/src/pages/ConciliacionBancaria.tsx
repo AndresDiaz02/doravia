@@ -794,6 +794,7 @@ function DetalleConciliacion({
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-600" />
               Sugerencias de match
+              <HelpTooltip text="El sistema detecta automáticamente movimientos del banco que coinciden con asientos contables. 'Match fuerte' = mismo monto, misma fecha (±3 días). 'Match débil' = mismo monto pero fecha más distante. Tú decides si confirmar cada pareja." side="bottom" />
               <span className="text-sm font-normal text-gray-500">— confirma cada pareja para conciliar</span>
             </CardTitle>
           </CardHeader>

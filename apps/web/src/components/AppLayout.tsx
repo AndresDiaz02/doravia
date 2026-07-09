@@ -33,6 +33,7 @@ import {
   Users,
   Warehouse,
   Calendar,
+  CalendarCheck,
   X,
   Zap,
   Landmark,
@@ -45,6 +46,7 @@ import { Dialog } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
+import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
 
 const NAV_BASE = [
   { to: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
@@ -301,6 +303,9 @@ export function AppLayout() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          <div className="mb-1.5">
+            <SearchTrigger />
+          </div>
           {NAV_BASE.map(({ to, label, icon: Icon, feature }) => {
             if (to.startsWith("/contabilidad") && isVendedor) return null;
             if (feature) {
@@ -394,6 +399,16 @@ export function AppLayout() {
               </span>
             );
           })()}
+
+          {/* Agenda de servicios — solo si tiene feature agenda_servicios */}
+          {(plan?.features as Record<string, boolean> | undefined)?.agenda_servicios === true && (
+            <NavItem
+              to="/agenda-servicios"
+              label="Agenda de servicios"
+              icon={CalendarCheck}
+              isActive={active("/agenda-servicios")}
+            />
+          )}
 
           <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
@@ -527,6 +542,9 @@ export function AppLayout() {
 
       {/* Chat de soporte flotante */}
       <SoporteChat />
+
+      {/* Búsqueda global */}
+      <GlobalSearch />
 
       {/* Dialog cambio de contraseña */}
       <Dialog open={showPassword} onClose={() => setShowPassword(false)} title="Cambiar contraseña">

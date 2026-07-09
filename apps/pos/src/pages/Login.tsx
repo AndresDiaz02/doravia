@@ -40,9 +40,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#0B0E1A] flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-900/50">
-            <span className="text-white text-2xl font-black">D</span>
-          </div>
+          <svg style={{height:'56px',width:'56px',display:'block',margin:'0 auto 12px'}} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Doravia"><title>Doravia</title><defs><linearGradient id="g-pos-login" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#7B2FF7"/><stop offset="55%" stopColor="#4A6FF5"/><stop offset="100%" stopColor="#2E9BF5"/></linearGradient></defs><rect width="100" height="100" rx="18" fill="#241A5E"/><path fill="url(#g-pos-login)" transform="translate(5,5) scale(0.95)" d="M 30,6 C 72,6 94,26 94,50 C 94,74 72,94 30,94 L 58,50 Z"/></svg>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">Doravia POS</p>
           <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">Punto de venta</p>
         </div>

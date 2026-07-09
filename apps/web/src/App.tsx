@@ -62,6 +62,7 @@ import Checkout from "./pages/Checkout";
 import RegistroPostPago from "./pages/RegistroPostPago";
 import ActivosFijos from "./pages/ActivosFijos";
 import DocumentosSoporte from "./pages/DocumentosSoporte";
+import AgendaServicios from "./pages/AgendaServicios";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -147,6 +148,7 @@ export default function App() {
               <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
               <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />
               <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
+              <Route path="/agenda-servicios" element={<AgendaServicios />} />
             </Route>
 
             {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}

@@ -158,24 +158,52 @@ export const abonos_fiado = pgTable("abonos_fiado", {
 export type Fiado = typeof fiados.$inferSelect;
 export type AbonoFiado = typeof abonos_fiado.$inferSelect;
 
-// ── Citas / Agenda POS ──────────────────────────────────────────────────────
-export const ESTADOS_CITA = ["programada", "en_proceso", "completada", "cancelada"] as const;
+// ── Agenda de servicios ──────────────────────────────────────────────────────
+export const ESTADOS_CITA = [
+  "agendada", "confirmada", "en_atencion", "lista_entrega", "entregada_cobrada",
+  "no_show", "cancelada",
+  // estados heredados (compatibilidad backward)
+  "programada", "en_proceso", "completada",
+] as const;
 export type EstadoCita = (typeof ESTADOS_CITA)[number];
 
+// Sujetos del servicio: mascota, vehículo, prenda, etc. (configurable por tenant)
+export const sujetos_servicio = pgTable("sujetos_servicio", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  tenant_id:   uuid("tenant_id").notNull().references(() => tenants.id),
+  cliente_id:  uuid("cliente_id").references(() => clientes.id),
+  nombre:      varchar("nombre", { length: 200 }).notNull(),
+  tipo_notas:  text("tipo_notas"),
+  activo:      boolean("activo").notNull().default(true),
+  created_at:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type SujetoServicio = typeof sujetos_servicio.$inferSelect;
+
 export const citas_pos = pgTable("citas_pos", {
-  id:                uuid("id").primaryKey().defaultRandom(),
-  tenant_id:         uuid("tenant_id").notNull().references(() => tenants.id),
-  caja_id:           uuid("caja_id").references(() => cajas_pos.id),
-  cliente_nombre:    varchar("cliente_nombre", { length: 200 }).notNull(),
-  cliente_telefono:  varchar("cliente_telefono", { length: 30 }),
-  fecha_hora:        timestamp("fecha_hora", { withTimezone: true }).notNull(),
-  servicio:          varchar("servicio", { length: 200 }).notNull(),
-  profesional:       varchar("profesional", { length: 200 }),
-  duracion_min:      integer("duracion_min").default(30),
-  notas:             text("notas"),
-  estado:            varchar("estado", { length: 20 }).$type<EstadoCita>().notNull().default("programada"),
-  created_at:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  id:                    uuid("id").primaryKey().defaultRandom(),
+  tenant_id:             uuid("tenant_id").notNull().references(() => tenants.id),
+  caja_id:               uuid("caja_id").references(() => cajas_pos.id),
+  // cliente: FK opcional (backward compat: nombre libre si cliente_id es null)
+  cliente_id:            uuid("cliente_id").references(() => clientes.id),
+  cliente_nombre:        varchar("cliente_nombre", { length: 200 }).notNull(),
+  cliente_telefono:      varchar("cliente_telefono", { length: 30 }),
+  // sujeto del servicio (mascota, vehículo, etc.) — null si tenant sin sujeto
+  sujeto_id:             uuid("sujeto_id").references(() => sujetos_servicio.id),
+  fecha_hora:            timestamp("fecha_hora", { withTimezone: true }).notNull(),
+  servicio:              varchar("servicio", { length: 200 }).notNull(),
+  profesional:           varchar("profesional", { length: 200 }),
+  duracion_min:          integer("duracion_min").default(30),
+  notas:                 text("notas"),
+  estado:                varchar("estado", { length: 20 }).$type<EstadoCita>().notNull().default("agendada"),
+  // timestamps del ciclo de vida
+  llegada_at:            timestamp("llegada_at", { withTimezone: true }),
+  listo_at:              timestamp("listo_at", { withTimezone: true }),
+  recordatorio_enviado_at: timestamp("recordatorio_enviado_at", { withTimezone: true }),
+  // referencia a la venta POS al cobrar
+  venta_pos_id:          uuid("venta_pos_id").references(() => ventas_pos.id),
+  created_at:            timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at:            timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type CitaPos = typeof citas_pos.$inferSelect;

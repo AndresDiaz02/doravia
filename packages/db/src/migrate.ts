@@ -410,6 +410,38 @@ const migrations = [
   // Columna en lineas_asiento para rastrear qué movimiento bancario cubre esta línea
   `ALTER TABLE lineas_asiento ADD COLUMN IF NOT EXISTS movimiento_banco_id uuid REFERENCES movimientos_banco(id)`,
   `CREATE INDEX IF NOT EXISTS lineas_asiento_mov_banco_idx ON lineas_asiento(movimiento_banco_id) WHERE movimiento_banco_id IS NOT NULL`,
+
+  // ── Agenda de servicios — FASE 7 ────────────────────────────────────────────
+  // Tabla sujetos del servicio (mascota, vehículo, prenda, etc.)
+  `CREATE TABLE IF NOT EXISTS sujetos_servicio (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    cliente_id uuid REFERENCES clientes(id),
+    nombre varchar(200) NOT NULL,
+    tipo_notas text,
+    activo boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS sujetos_servicio_tenant_idx ON sujetos_servicio(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS sujetos_servicio_cliente_idx ON sujetos_servicio(cliente_id) WHERE cliente_id IS NOT NULL`,
+
+  // Migración de estados viejos → nuevos en citas_pos
+  `UPDATE citas_pos SET estado = 'agendada'          WHERE estado = 'programada'`,
+  `UPDATE citas_pos SET estado = 'en_atencion'       WHERE estado = 'en_proceso'`,
+  `UPDATE citas_pos SET estado = 'entregada_cobrada' WHERE estado = 'completada'`,
+
+  // Nuevas columnas en citas_pos
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS cliente_id uuid REFERENCES clientes(id)`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS sujeto_id uuid REFERENCES sujetos_servicio(id)`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS llegada_at timestamptz`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS listo_at timestamptz`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS recordatorio_enviado_at timestamptz`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS venta_pos_id uuid REFERENCES ventas_pos(id)`,
+
+  // Índices para consultas frecuentes
+  `CREATE INDEX IF NOT EXISTS citas_pos_tenant_fecha_idx ON citas_pos(tenant_id, fecha_hora)`,
+  `CREATE INDEX IF NOT EXISTS citas_pos_cliente_idx ON citas_pos(cliente_id) WHERE cliente_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS citas_pos_sujeto_idx ON citas_pos(sujeto_id) WHERE sujeto_id IS NOT NULL`,
 ];
 
 for (const migration of migrations) {

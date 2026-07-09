@@ -447,6 +447,12 @@ const migrations = [
   `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS descripcion_plan text`,
   `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS condiciones_pago varchar(150)`,
   `ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS metodo_pago varchar(30)`,
+
+  // ── Cuenta interna Doravia (andres@doravia.com) — sin renovación ─────────────
+  // Plan_ends_at a 100 años para que nunca aparezca en renovaciones ni alertas
+  `UPDATE tenants SET plan_ends_at = now() + interval '100 years'
+   WHERE id IN (SELECT tenant_id FROM users WHERE email = 'andres@doravia.com' AND tenant_id IS NOT NULL)
+     AND (plan_ends_at IS NULL OR plan_ends_at < now() + interval '99 years')`,
 ];
 
 for (const migration of migrations) {

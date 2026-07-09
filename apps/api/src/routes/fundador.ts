@@ -334,6 +334,7 @@ router.get("/renovaciones", async (req, res, next) => {
     const dias = Number((req.query as { dias?: string }).dias ?? 90);
     const hasta = new Date(Date.now() + dias * 86400000);
     const ahora = new Date();
+    const excluir = await getSistemaTenantIds();
 
     const rows = await db
       .select({
@@ -344,7 +345,12 @@ router.get("/renovaciones", async (req, res, next) => {
       })
       .from(tenants)
       .innerJoin(plans, eq(plans.id, tenants.plan_id))
-      .where(and(eq(tenants.activo, true), gte(tenants.plan_ends_at, ahora), lte(tenants.plan_ends_at, hasta)))
+      .where(and(
+        eq(tenants.activo, true),
+        gte(tenants.plan_ends_at, ahora),
+        lte(tenants.plan_ends_at, hasta),
+        excluir.length > 0 ? notInArray(tenants.id, excluir) : undefined,
+      ))
       .orderBy(tenants.plan_ends_at);
 
     res.json(

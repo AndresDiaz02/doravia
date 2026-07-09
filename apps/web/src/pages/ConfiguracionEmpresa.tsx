@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; plemsi_api_key?: string; }
+interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; }
 
 interface EmpresaConfig {
   id: string;
@@ -39,8 +39,13 @@ export default function ConfiguracionEmpresa() {
   const [guardandoFe, setGuardandoFe] = useState(false);
   const [feError, setFeError] = useState<string | null>(null);
   const [aceptaResponsabilidad, setAceptaResponsabilidad] = useState(false);
-  // Plemsi API Key
+  // Plemsi config
   const [plemsiKey, setPlemsiKey] = useState("");
+  const [plemsiEmpresaId, setPlemsiEmpresaId] = useState("");
+  const [plemsiAmbiente, setPlemsiAmbiente] = useState<"pruebas" | "produccion">("pruebas");
+  const [plemsiProveedorAnterior, setPlemsiProveedorAnterior] = useState("");
+  const [plemsiKeyConfigurada, setPlemsiKeyConfigurada] = useState(false);
+  const [plemsiKeyUltimos4, setPlemsiKeyUltimos4] = useState<string | null>(null);
   const [guardandoPlemsi, setGuardandoPlemsi] = useState(false);
   const [probandoPlemsi, setProbandoPlemsi] = useState(false);
   const [plemsiTestResult, setPlemsiTestResult] = useState<{ ok: boolean; folios_restantes?: number | null; error?: string } | null>(null);
@@ -50,24 +55,44 @@ export default function ConfiguracionEmpresa() {
       .then(setConfig)
       .finally(() => setLoading(false));
     void apiFetch<{ pos_config: PosConfig }>("/api/empresa/pos-config-get")
+      .then((r) => { setPosConfig(r.pos_config ?? {}); })
+      .catch(() => null);
+    void apiFetch<{
+      empresa_id: string | null;
+      ambiente: string;
+      habilitado: boolean;
+      api_key_configurada: boolean;
+      api_key_ultimos_4: string | null;
+      proveedor_anterior: string | null;
+    }>("/api/empresa/plemsi-config")
       .then((r) => {
-        const pc = r.pos_config ?? {};
-        setPosConfig(pc);
-        // Si ya hay API key guardada, precargar (solo mostramos indicador, no el valor real por seguridad)
-        if (pc.plemsi_api_key) setPlemsiKey("••••••••••••••••••••••••");
+        setPlemsiEmpresaId(r.empresa_id ?? "");
+        setPlemsiAmbiente((r.ambiente ?? "pruebas") as "pruebas" | "produccion");
+        setPlemsiProveedorAnterior(r.proveedor_anterior ?? "");
+        setPlemsiKeyConfigurada(r.api_key_configurada);
+        setPlemsiKeyUltimos4(r.api_key_ultimos_4);
       })
       .catch(() => null);
   }, []);
 
-  async function handleGuardarPlemsiKey() {
-    if (!plemsiKey.trim() || plemsiKey.startsWith("•")) return;
+  async function handleGuardarPlemsi() {
+    if (!plemsiKey.trim() && !plemsiEmpresaId && !plemsiAmbiente && !plemsiProveedorAnterior) return;
     setGuardandoPlemsi(true);
     setPlemsiTestResult(null);
     try {
-      await apiFetch("/api/empresa", {
+      const body: Record<string, string> = {
+        ambiente: plemsiAmbiente,
+      };
+      if (plemsiKey.trim()) body.api_key = plemsiKey.trim();
+      if (plemsiEmpresaId) body.empresa_id = plemsiEmpresaId;
+      if (plemsiProveedorAnterior) body.proveedor_anterior = plemsiProveedorAnterior;
+      const r = await apiFetch<{ api_key_ultimos_4: string | null; api_key_configurada: boolean }>("/api/empresa/plemsi", {
         method: "PATCH",
-        body: JSON.stringify({ plemsi_api_key: plemsiKey.trim() }),
+        body: JSON.stringify(body),
       });
+      setPlemsiKeyConfigurada(r.api_key_configurada);
+      setPlemsiKeyUltimos4(r.api_key_ultimos_4);
+      setPlemsiKey("");
       setPlemsiTestResult({ ok: true });
     } catch (err) {
       setPlemsiTestResult({ ok: false, error: err instanceof ApiError ? err.message : "Error al guardar." });
@@ -438,42 +463,126 @@ export default function ConfiguracionEmpresa() {
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{feError}</p>
             )}
 
-            {/* ── API Key Plemsi ── */}
-            <div className="border-t border-gray-200 pt-4 space-y-3">
+            {/* ── Configuración Plemsi ── */}
+            <div className="border-t border-gray-200 pt-4 space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-900">API Key Plemsi</p>
+                <p className="text-sm font-medium text-gray-900">Configuración Plemsi (proveedor DIAN)</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Tu API Key de Plemsi es única por empresa. La recibirás de Plemsi al contratar el servicio.
+                  La API Key la genera tu instalador de Doravia después de crear tu empresa en Plemsi.
+                  Si no tienes esto, contacta a soporte.
                 </p>
               </div>
-              <div className="flex gap-2">
+
+              {/* Estado actual */}
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  !plemsiKeyConfigurada
+                    ? "bg-gray-100 text-gray-700"
+                    : plemsiAmbiente === "produccion"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800"
+                }`}>
+                  {!plemsiKeyConfigurada ? "No configurada" : plemsiAmbiente === "produccion" ? "En producción" : "En pruebas"}
+                </span>
+                {plemsiKeyConfigurada && plemsiKeyUltimos4 && (
+                  <span className="text-xs text-gray-400">API Key: ••••{plemsiKeyUltimos4}</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="plemsi_empresa_id">Empresa ID Plemsi</Label>
+                  <Input
+                    id="plemsi_empresa_id"
+                    type="text"
+                    placeholder="ID de empresa en Plemsi"
+                    value={plemsiEmpresaId}
+                    onChange={(e) => setPlemsiEmpresaId(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="plemsi_proveedor_anterior">Proveedor anterior</Label>
+                  <select
+                    id="plemsi_proveedor_anterior"
+                    value={plemsiProveedorAnterior}
+                    onChange={(e) => setPlemsiProveedorAnterior(e.target.value)}
+                    className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Ninguno (primera vez)</option>
+                    <option value="siigo">Siigo</option>
+                    <option value="alegra">Alegra</option>
+                    <option value="loggro">Loggro</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Ambiente */}
+              <div className="space-y-1.5">
+                <Label>Ambiente</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="plemsi_ambiente"
+                      value="pruebas"
+                      checked={plemsiAmbiente === "pruebas"}
+                      onChange={() => setPlemsiAmbiente("pruebas")}
+                      className="h-4 w-4 text-amber-600"
+                    />
+                    <span className="text-sm text-gray-700">Pruebas (habilitación DIAN)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="plemsi_ambiente"
+                      value="produccion"
+                      checked={plemsiAmbiente === "produccion"}
+                      onChange={() => setPlemsiAmbiente("produccion")}
+                      className="h-4 w-4 text-emerald-600"
+                    />
+                    <span className="text-sm text-gray-700">Producción</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* API Key */}
+              <div className="space-y-1.5">
+                <Label htmlFor="plemsi_api_key">API Key Plemsi</Label>
                 <Input
+                  id="plemsi_api_key"
                   type="password"
-                  placeholder="Pega aquí tu API Key de Plemsi"
+                  placeholder={plemsiKeyConfigurada ? "Deja en blanco para no cambiar la key actual" : "Pega aquí tu API Key de Plemsi"}
                   value={plemsiKey}
                   onChange={(e) => { setPlemsiKey(e.target.value); setPlemsiTestResult(null); }}
-                  className="flex-1 font-mono text-xs"
+                  className="font-mono text-xs"
                 />
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => void handleProbarPlemsi()}
-                  disabled={probandoPlemsi}
+                  disabled={probandoPlemsi || !plemsiKeyConfigurada}
                 >
                   {probandoPlemsi ? "Probando..." : "Probar conexión"}
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => void handleGuardarPlemsiKey()}
-                  disabled={guardandoPlemsi || !plemsiKey.trim() || plemsiKey.startsWith("•")}
+                  onClick={() => void handleGuardarPlemsi()}
+                  disabled={guardandoPlemsi}
                 >
-                  {guardandoPlemsi ? "Guardando..." : "Guardar API Key"}
+                  {guardandoPlemsi ? "Guardando..." : "Guardar configuración Plemsi"}
                 </Button>
               </div>
+
               {plemsiTestResult !== null && (
                 <p className={`text-sm rounded-md px-3 py-2 ${plemsiTestResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                   {plemsiTestResult.ok
-                    ? `Conexion exitosa.${plemsiTestResult.folios_restantes != null ? ` ${plemsiTestResult.folios_restantes} folios disponibles.` : ""}`
+                    ? plemsiTestResult.folios_restantes != null
+                      ? `Configuración guardada. Conexión exitosa — ${plemsiTestResult.folios_restantes} folios disponibles.`
+                      : "Configuración guardada correctamente."
                     : `Error: ${plemsiTestResult.error ?? "No se pudo conectar con Plemsi."}`}
                 </p>
               )}

@@ -9,6 +9,7 @@ import {
   buildPersona, buildItems, calcularTotalesPlemsi, emitirNotaDebito as plemsiEmitirNotaDebito,
 } from "../services/plemsi.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
+import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 
 const router = Router();
 
@@ -201,87 +202,85 @@ router.post("/factura/:facturaId", async (req, res) => {
 
     // Enviar a Plemsi si FE habilitada y la factura tiene CUFE
     if (req.tenant.facturacion_electronica && factura.cufe) {
-      const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
-      const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
-        process.env.PLEMSI_API_KEY_DEFAULT ?? "";
+      void (async () => {
+        try {
+          const plemsiCreds = await getPlemsiCredentials(req.tenantId);
+          const [clienteND] = await db.select().from(clientes).where(eq(clientes.id, factura.cliente_id)).limit(1);
 
-      if (apiKey) {
-        const [clienteND] = await db.select().from(clientes).where(eq(clientes.id, factura.cliente_id)).limit(1);
+          if (clienteND) {
+            const customerData = buildPersona({
+              nit: clienteND.numero_documento,
+              dv: clienteND.digito_verificacion,
+              nombre: clienteND.nombre,
+              email: clienteND.correo,
+              telefono: clienteND.telefono,
+              direccion: clienteND.direccion,
+              ciudad: clienteND.municipio,
+              tipo_persona: clienteND.tipo_persona,
+            });
 
-        if (clienteND) {
-          void (async () => {
-            try {
-              const customerData = buildPersona({
-                nit: clienteND.numero_documento,
-                dv: clienteND.digito_verificacion,
-                nombre: clienteND.nombre,
-                email: clienteND.correo,
-                telefono: clienteND.telefono,
-                direccion: clienteND.direccion,
-                ciudad: clienteND.municipio,
-                tipo_persona: clienteND.tipo_persona,
-              });
+            const itemsPlemsi = buildItems(itemsCalculados.map((i) => ({
+              descripcion: i.descripcion,
+              cantidad: i.cantidad,
+              precio_unitario: i.precio_unitario,
+              iva_porcentaje: i.iva_pct,
+            })));
 
-              const itemsPlemsi = buildItems(itemsCalculados.map((i) => ({
-                descripcion: i.descripcion,
-                cantidad: i.cantidad,
-                precio_unitario: i.precio_unitario,
-                iva_porcentaje: i.iva_pct,
-              })));
+            const totales = calcularTotalesPlemsi(itemsPlemsi);
 
-              const totales = calcularTotalesPlemsi(itemsPlemsi);
+            // DIAN: 1=Intereses, 2=Gastos, 3=Cambio del valor (ajuste)
+            const discrepancyCodes: Record<string, number> = {
+              interes: 1,
+              gastos: 2,
+              ajuste: 3,
+            };
+            const discrepancy_code = discrepancyCodes[tipo] ?? 3;
 
-              // DIAN: 1=Intereses, 2=Gastos, 3=Cambio del valor (ajuste)
-              const discrepancyCodes: Record<string, number> = {
-                interes: 1,
-                gastos: 2,
-                ajuste: 3,
-              };
-              const discrepancy_code = discrepancyCodes[tipo] ?? 3;
+            const [resolucionFact] = factura.resolucion_id
+              ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
+              : [null];
+            const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
 
-              const [resolucionFact] = factura.resolucion_id
-                ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
-                : [null];
-              const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+            const resultado = await plemsiEmitirNotaDebito({
+              apiKey: plemsiCreds.apiKey,
+              ambiente: plemsiCreds.ambiente,
+              prefix: "ND",
+              number: consecutivo,
+              resolution: resolucionNumero,
+              discrepancy_code,
+              discrepancy_description: motivo,
+              customer: customerData,
+              items: itemsPlemsi,
+              invoice_reference: {
+                cufe: factura.cufe!,
+                number: factura.numero,
+                date: new Date(factura.fecha_emision).toISOString().slice(0, 10),
+              },
+              ...totales,
+            });
 
-              const resultado = await plemsiEmitirNotaDebito({
-                apiKey,
-                prefix: "ND",
-                number: consecutivo,
-                resolution: resolucionNumero,
-                discrepancy_code,
-                discrepancy_description: motivo,
-                customer: customerData,
-                items: itemsPlemsi,
-                invoice_reference: {
-                  cufe: factura.cufe!,
-                  number: factura.numero,
-                  date: new Date(factura.fecha_emision).toISOString().slice(0, 10),
-                },
-                ...totales,
-              });
+            await db
+              .update(notas_debito)
+              .set({
+                cude: resultado.cufe ?? null,
+                plemsi_id: resultado.plemsi_id ?? null,
+                estado_dian: resultado.ok ? "emitida" : "error",
+                error_dian: resultado.ok ? null : (resultado.error ?? null),
+              })
+              .where(eq(notas_debito.id, nota.id));
 
-              await db
-                .update(notas_debito)
-                .set({
-                  cude: resultado.cufe ?? null,
-                  plemsi_id: resultado.plemsi_id ?? null,
-                  estado_dian: resultado.ok ? "emitida" : "error",
-                  error_dian: resultado.ok ? null : (resultado.error ?? null),
-                })
-                .where(eq(notas_debito.id, nota.id));
-
-              if (resultado.ok) {
-                console.log(`[PLEMSI] Nota débito ${nota.numero} emitida. CUDE: ${resultado.cufe}`);
-              } else {
-                console.error(`[PLEMSI] Error ND ${nota.numero}: ${resultado.error}`);
-              }
-            } catch (e) {
-              console.error(`[PLEMSI] Error inesperado ND ${nota.numero}:`, e);
+            if (resultado.ok) {
+              console.log(`[PLEMSI] Nota débito ${nota.numero} emitida. CUDE: ${resultado.cufe}`);
+            } else {
+              console.error(`[PLEMSI] Error ND ${nota.numero}: ${resultado.error}`);
             }
-          })();
+          }
+        } catch (e) {
+          if (!(e instanceof PlemsiNotConfiguredError)) {
+            console.error(`[PLEMSI] Error inesperado ND ${nota.numero}:`, e);
+          }
         }
-      }
+      })();
     }
 
     res.status(201).json(nota);
@@ -311,9 +310,15 @@ router.post("/:id/reenviar-dian", async (req, res) => {
       return res.status(422).json({ error: "La factura original no tiene CUFE. No se puede reenviar." });
     }
 
-    const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
-    const apiKey = (posConfig?.plemsi_api_key as string | undefined) ?? process.env.PLEMSI_API_KEY_DEFAULT ?? "";
-    if (!apiKey) return res.status(422).json({ error: "API key de Plemsi no configurada." });
+    let plemsiCreds: { apiKey: string; ambiente: string };
+    try {
+      plemsiCreds = await getPlemsiCredentials(req.tenantId);
+    } catch (err) {
+      if (err instanceof PlemsiNotConfiguredError) {
+        return res.status(400).json({ error: err.message, code: err.code });
+      }
+      throw err;
+    }
 
     const [clienteND] = await db.select().from(clientes).where(eq(clientes.id, nota.cliente_id)).limit(1);
     if (!clienteND) return res.status(404).json({ error: "Cliente no encontrado." });
@@ -349,7 +354,8 @@ router.post("/:id/reenviar-dian", async (req, res) => {
     const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
 
     const resultado = await plemsiEmitirNotaDebito({
-      apiKey,
+      apiKey: plemsiCreds.apiKey,
+      ambiente: plemsiCreds.ambiente,
       prefix: "ND",
       number: nota.consecutivo,
       resolution: resolucionNumero,

@@ -5,9 +5,15 @@
  * Auth: Authorization: Bearer {api_key} — el token es estático, lo da Plemsi por empresa
  */
 
-const PLEMSI_BASE = process.env.PLEMSI_URL ?? "https://pruebas.plemsi.com";
+const PLEMSI_URL_PRUEBAS = "https://pruebas.plemsi.com";
+const PLEMSI_URL_PRODUCCION = process.env.PLEMSI_URL_PRODUCCION ?? "https://app.plemsi.com"; // confirmar URL exacta con Plemsi
+
+function getPlemsiBase(ambiente?: string): string {
+  return ambiente === "produccion" ? PLEMSI_URL_PRODUCCION : PLEMSI_URL_PRUEBAS;
+}
 
 function headersParaTenant(apiKey: string): Record<string, string> {
+  // NUNCA loguear la API Key — se redacta en todos los console.log de este módulo
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
@@ -218,6 +224,7 @@ export function calcularTotalesPlemsi(items: PlemsiItems): TotalesPlemsi {
 /** Emite factura electrónica de venta */
 export async function emitirFactura(params: {
   apiKey: string;
+  ambiente?: string;
   prefix: string;
   number: number;
   resolution: string;
@@ -286,7 +293,7 @@ export async function emitirFactura(params: {
       })),
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/invoice`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/billing/invoice`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -323,6 +330,7 @@ export async function emitirFactura(params: {
 /** Emite nota crédito */
 export async function emitirNotaCredito(params: {
   apiKey: string;
+  ambiente?: string;
   prefix: string;
   number: number;
   resolution: string;
@@ -359,7 +367,7 @@ export async function emitirNotaCredito(params: {
       allTaxTotals: params.allTaxTotals,
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/credit`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/billing/credit`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -386,6 +394,7 @@ export async function emitirNotaCredito(params: {
 /** Emite nota débito (aumenta valor de una factura previa) */
 export async function emitirNotaDebito(params: {
   apiKey: string;
+  ambiente?: string;
   prefix: string;
   number: number;
   resolution: string;
@@ -438,7 +447,7 @@ export async function emitirNotaDebito(params: {
       })),
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/debit`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/billing/debit`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -466,6 +475,7 @@ export async function emitirNotaDebito(params: {
 /** Emite documento equivalente POS */
 export async function emitirDocumentoPOS(params: {
   apiKey: string;
+  ambiente?: string;
   prefix: string;
   number: number;
   resolution: string;
@@ -507,7 +517,7 @@ export async function emitirDocumentoPOS(params: {
       allTaxTotals: params.allTaxTotals,
     };
 
-    const res = await fetch(`${PLEMSI_BASE}/api/equivalent/pos`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/equivalent/pos`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -529,6 +539,7 @@ export async function emitirDocumentoPOS(params: {
 /** Registra resolución en Plemsi */
 export async function registrarResolucion(params: {
   apiKey: string;
+  ambiente?: string;
   prefix: string;
   resolution: string;
   resolution_date: string;
@@ -550,7 +561,7 @@ export async function registrarResolucion(params: {
       type_resolution: 1,
       type_document_id: params.type_document_id ?? 1,
     };
-    const res = await fetch(`${PLEMSI_BASE}/api/billing/resolution`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/billing/resolution`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -565,11 +576,12 @@ export async function registrarResolucion(params: {
 }
 
 /** Consulta folios restantes */
-export async function obtenerFoliosRestantes(apiKey: string, resolution?: string): Promise<number | null> {
+export async function obtenerFoliosRestantes(apiKey: string, resolution?: string, ambiente?: string): Promise<number | null> {
   try {
+    const base = getPlemsiBase(ambiente);
     const url = resolution
-      ? `${PLEMSI_BASE}/api/billing/resolution/remaining-numbers/${resolution}`
-      : `${PLEMSI_BASE}/api/billing/resolution/remaining-numbers`;
+      ? `${base}/api/billing/resolution/remaining-numbers/${resolution}`
+      : `${base}/api/billing/resolution/remaining-numbers`;
     const res = await fetch(url, { headers: headersParaTenant(apiKey), signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
     const json = await res.json() as Record<string, unknown>;

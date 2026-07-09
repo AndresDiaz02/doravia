@@ -34,8 +34,14 @@ export const tenants = pgTable("tenants", {
     cartera_visible?: boolean;
     citas_visible?: boolean;
     fe_deshabilitada_en?: string;
-    plemsi_api_key?: string;
   }>().default({}),
+  // ── Plemsi multi-tenant ──────────────────────────────────────────────────────
+  plemsi_empresa_id: varchar("plemsi_empresa_id", { length: 100 }),
+  plemsi_api_key_encrypted: text("plemsi_api_key_encrypted"),
+  plemsi_ambiente: varchar("plemsi_ambiente", { length: 20 }).default("pruebas"),
+  plemsi_habilitado: boolean("plemsi_habilitado").notNull().default(false),
+  dian_proveedor_anterior: varchar("dian_proveedor_anterior", { length: 50 }),
+  facturas_mes_actual: integer("facturas_mes_actual").notNull().default(0),
   // ── Trial ────────────────────────────────────────────────────────────────────
   trial_ends_at: timestamp("trial_ends_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

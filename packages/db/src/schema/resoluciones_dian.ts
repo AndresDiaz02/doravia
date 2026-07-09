@@ -12,6 +12,7 @@ export const resoluciones_dian = pgTable("resoluciones_dian", {
   consecutivo_desde: integer("consecutivo_desde").notNull(),
   consecutivo_hasta: integer("consecutivo_hasta").notNull(),
   consecutivo_actual: integer("consecutivo_actual").notNull(),
+  consecutivo_inicial: integer("consecutivo_inicial").notNull().default(1),
   fecha_desde: date("fecha_desde").notNull(),
   fecha_hasta: date("fecha_hasta").notNull(),
   activa: boolean("activa").notNull().default(true),

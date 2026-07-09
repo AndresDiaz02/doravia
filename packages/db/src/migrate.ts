@@ -453,6 +453,36 @@ const migrations = [
   `UPDATE tenants SET plan_ends_at = now() + interval '100 years'
    WHERE id IN (SELECT tenant_id FROM users WHERE email = 'andres@doravia.com' AND tenant_id IS NOT NULL)
      AND (plan_ends_at IS NULL OR plan_ends_at < now() + interval '99 years')`,
+
+  // ── FASE 8 — Plemsi multi-tenant ───────────────────────────────────────────
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plemsi_empresa_id varchar(100)`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plemsi_api_key_encrypted text`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plemsi_ambiente varchar(20) NOT NULL DEFAULT 'pruebas'`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plemsi_habilitado boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS dian_proveedor_anterior varchar(50)`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS facturas_mes_actual integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE resoluciones_dian ADD COLUMN IF NOT EXISTS consecutivo_inicial integer NOT NULL DEFAULT 1`,
+  `CREATE TABLE IF NOT EXISTS consumo_dian_mensual (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  ano integer NOT NULL,
+  mes integer NOT NULL,
+  cantidad integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS consumo_dian_tenant_ano_mes_unique ON consumo_dian_mensual(tenant_id, ano, mes)`,
+  `CREATE INDEX IF NOT EXISTS consumo_dian_ano_mes_idx ON consumo_dian_mensual(ano, mes)`,
+  // Migración one-shot: copiar API key existente (en texto plano en pos_config) a columna dedicada,
+  // marcando ambiente pruebas y habilitado=true para tenants que ya tenían key configurada.
+  // La encriptación se aplica manualmente después; esta migración solo mueve el valor.
+  // La primera vez que el admin guarde la config desde el panel, el valor se reemplaza por el cifrado con AES-256-GCM.
+  `UPDATE tenants
+ SET plemsi_api_key_encrypted = (pos_config->>'plemsi_api_key'),
+     plemsi_ambiente = 'pruebas',
+     plemsi_habilitado = true
+ WHERE pos_config->>'plemsi_api_key' IS NOT NULL
+   AND pos_config->>'plemsi_api_key' <> ''
+   AND plemsi_api_key_encrypted IS NULL`,
 ];
 
 for (const migration of migrations) {

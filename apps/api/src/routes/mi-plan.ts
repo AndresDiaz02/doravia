@@ -59,6 +59,9 @@ router.get("/", async (req, res) => {
       uso: {
         facturas_usadas_ano: facturasUsadasAno,
         max_facturas_ano: plan.max_facturas_ano,
+        facturas_mes_actual: tenant.facturas_mes_actual ?? 0,
+        limite_mes: null, // sin límite por ahora, extensible
+        porcentaje_uso: null,
       },
     });
   } catch (err) {

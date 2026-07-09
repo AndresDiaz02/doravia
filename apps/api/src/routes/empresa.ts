@@ -5,6 +5,8 @@ import multer from "multer";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
 import { isDianEnProduccion } from "../services/dian.service.js";
 import { obtenerFoliosRestantes } from "../services/plemsi.service.js";
+import { encrypt } from "../services/encryption.js";
+import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -60,15 +62,8 @@ router.patch("/", requireNotContador, async (req, res) => {
     const {
       nombre, direccion, ciudad, telefono, correo,
       sitio_web, regimen, representante_legal, actividad_economica, pie_factura,
-      facturacion_electronica, plemsi_api_key,
+      facturacion_electronica,
     } = req.body;
-
-    // Si se recibe plemsi_api_key, guardarlo en pos_config (JSONB)
-    let posConfigUpdate: Record<string, unknown> | undefined;
-    if (plemsi_api_key !== undefined) {
-      const actual = (req.tenant.pos_config ?? {}) as Record<string, unknown>;
-      posConfigUpdate = { ...actual, plemsi_api_key: plemsi_api_key || null };
-    }
 
     const [actualizado] = await db
       .update(tenants)
@@ -84,7 +79,6 @@ router.patch("/", requireNotContador, async (req, res) => {
         ...(actividad_economica !== undefined && { actividad_economica }),
         ...(pie_factura !== undefined && { pie_factura }),
         ...(facturacion_electronica !== undefined && { facturacion_electronica }),
-        ...(posConfigUpdate !== undefined && { pos_config: posConfigUpdate }),
       })
       .where(eq(tenants.id, req.tenantId))
       .returning();
@@ -99,15 +93,17 @@ router.patch("/", requireNotContador, async (req, res) => {
 // POST /api/empresa/plemsi-test — prueba la conexión con Plemsi
 router.post("/plemsi-test", requireNotContador, async (req, res) => {
   try {
-    const posConfig = req.tenant.pos_config as Record<string, unknown> | null;
-    const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
-      process.env.PLEMSI_API_KEY_DEFAULT ?? "";
-
-    if (!apiKey) {
-      return res.status(400).json({ error: "No hay API key de Plemsi configurada." });
+    let plemsiCreds: { apiKey: string; ambiente: string };
+    try {
+      plemsiCreds = await getPlemsiCredentials(req.tenantId);
+    } catch (err) {
+      if (err instanceof PlemsiNotConfiguredError) {
+        return res.status(400).json({ error: err.message, code: err.code });
+      }
+      throw err;
     }
 
-    const folios = await obtenerFoliosRestantes(apiKey);
+    const folios = await obtenerFoliosRestantes(plemsiCreds.apiKey, undefined, plemsiCreds.ambiente);
     return res.json({ ok: folios !== null, folios_restantes: folios });
   } catch (err) {
     console.error("Error en POST /empresa/plemsi-test:", err);
@@ -271,6 +267,87 @@ router.patch("/pos-config", requireNotContador, async (req, res) => {
   } catch (err) {
     console.error("Error en PATCH /empresa/pos-config:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/empresa/plemsi-config — devuelve configuración Plemsi sin exponer la key completa
+router.get("/plemsi-config", requireNotContador, async (req, res) => {
+  try {
+    const [row] = await db
+      .select({
+        plemsi_empresa_id: tenants.plemsi_empresa_id,
+        plemsi_ambiente: tenants.plemsi_ambiente,
+        plemsi_habilitado: tenants.plemsi_habilitado,
+        plemsi_api_key_encrypted: tenants.plemsi_api_key_encrypted,
+        dian_proveedor_anterior: tenants.dian_proveedor_anterior,
+      })
+      .from(tenants)
+      .where(eq(tenants.id, req.tenantId))
+      .limit(1);
+
+    if (!row) return res.status(404).json({ error: "Empresa no encontrada." });
+
+    const enc = row.plemsi_api_key_encrypted;
+    return res.json({
+      empresa_id: row.plemsi_empresa_id,
+      ambiente: row.plemsi_ambiente,
+      habilitado: row.plemsi_habilitado,
+      api_key_configurada: !!enc,
+      api_key_ultimos_4: enc ? enc.slice(-4) : null,
+      proveedor_anterior: row.dian_proveedor_anterior,
+    });
+  } catch (err) {
+    console.error("Error en GET /empresa/plemsi-config:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/empresa/plemsi — guarda configuración Plemsi cifrada (solo admin)
+router.patch("/plemsi", requireNotContador, async (req, res) => {
+  try {
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ error: "Solo el administrador puede modificar la configuración DIAN." });
+    }
+    const { api_key, empresa_id, ambiente, proveedor_anterior } = req.body as {
+      api_key?: string; empresa_id?: string; ambiente?: string; proveedor_anterior?: string;
+    };
+
+    const updateSet: Record<string, unknown> = {};
+    if (api_key !== undefined && api_key !== "") {
+      updateSet.plemsi_api_key_encrypted = encrypt(api_key);
+    }
+    if (empresa_id !== undefined) updateSet.plemsi_empresa_id = empresa_id || null;
+    if (ambiente !== undefined) updateSet.plemsi_ambiente = ambiente;
+    if (proveedor_anterior !== undefined) updateSet.dian_proveedor_anterior = proveedor_anterior || null;
+
+    // Marca como habilitado si tiene key (ya existente o recién guardada)
+    const [current] = await db
+      .select({ plemsi_api_key_encrypted: tenants.plemsi_api_key_encrypted })
+      .from(tenants)
+      .where(eq(tenants.id, req.tenantId))
+      .limit(1);
+    const tieneKey = updateSet.plemsi_api_key_encrypted !== undefined || !!current?.plemsi_api_key_encrypted;
+    if (tieneKey) updateSet.plemsi_habilitado = true;
+
+    const [actualizado] = await db
+      .update(tenants)
+      .set(updateSet)
+      .where(eq(tenants.id, req.tenantId))
+      .returning();
+
+    // Devuelve sin la key completa — nunca se expone la key descifrada en respuestas HTTP
+    const enc = actualizado.plemsi_api_key_encrypted;
+    return res.json({
+      empresa_id: actualizado.plemsi_empresa_id,
+      ambiente: actualizado.plemsi_ambiente,
+      habilitado: actualizado.plemsi_habilitado,
+      api_key_configurada: !!enc,
+      api_key_ultimos_4: enc ? enc.slice(-4) : null,
+      proveedor_anterior: actualizado.dian_proveedor_anterior,
+    });
+  } catch (err) {
+    console.error("Error en PATCH /empresa/plemsi:", err);
+    res.status(500).json({ error: "Error interno." });
   }
 });
 

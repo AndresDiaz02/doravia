@@ -9,6 +9,7 @@ import { registrarSalidaFactura } from "../services/inventario.service.js";
 import { audit } from "../services/audit.service.js";
 import { PlanLimitError } from "@workspace/shared";
 import { generarPdfFactura } from "../services/pdf.service.js";
+import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 import { enviarFacturaAceptada } from "../services/email.service.js";
 
 const router = Router();
@@ -355,9 +356,19 @@ router.post("/", async (req, res) => {
 // POST /api/facturas/sync-cude-plemsi — consulta Plemsi y actualiza CUDEs reales en BD
 // Solo actualiza facturas con CUFE stub (emitidas en modo habilitación sin guardar CUDE)
 router.post("/sync-cude-plemsi", async (req, res) => {
-  const apiKey = process.env.PLEMSI_API_KEY_DEFAULT ?? "";
-  const plemsiBase = process.env.PLEMSI_URL ?? "https://pruebas.plemsi.com";
-  if (!apiKey) return res.status(422).json({ error: "PLEMSI_API_KEY_DEFAULT no configurada." });
+  let plemsiCreds: { apiKey: string; ambiente: string };
+  try {
+    plemsiCreds = await getPlemsiCredentials(req.tenantId);
+  } catch (err) {
+    if (err instanceof PlemsiNotConfiguredError) {
+      return res.status(400).json({ error: err.message, code: err.code });
+    }
+    throw err;
+  }
+  const { apiKey, ambiente } = plemsiCreds;
+  const plemsiBase = ambiente === "produccion"
+    ? (process.env.PLEMSI_URL_PRODUCCION ?? "https://app.plemsi.com")
+    : "https://pruebas.plemsi.com";
 
   const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
   const cudeMap = new Map<string, string>(); // consecutive → cude

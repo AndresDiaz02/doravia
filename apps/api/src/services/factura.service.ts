@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
-import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura } from "@workspace/db";
+import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura, tenants } from "@workspace/db";
 import type { ResolucionDian } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
 import { assertCanEmitirFactura } from "../guards/plan-limits.js";
 import { crearAsientoFactura } from "./contabilidad.service.js";
@@ -311,6 +312,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
 }
 
 import type { Factura, Cliente, ItemFactura } from "@workspace/db";
+import { getPlemsiCredentials, PlemsiNotConfiguredError } from "./get-plemsi-credentials.js";
 
 /**
  * Envía la factura a Plemsi si el tenant tiene configurada una API key.
@@ -323,12 +325,15 @@ export async function enviarAPlemsiSiAplica(
   itemsDB: ItemFactura[],
   resolucion: ResolucionDian,
 ): Promise<void> {
-  const posConfig = tenant.pos_config as Record<string, unknown> | null;
-  const apiKey = (posConfig?.plemsi_api_key as string | undefined) ??
-    process.env.PLEMSI_API_KEY_DEFAULT ??
-    "";
+  let plemsiCreds: { apiKey: string; ambiente: string };
+  try {
+    plemsiCreds = await getPlemsiCredentials(tenant.id);
+  } catch (e) {
+    if (e instanceof PlemsiNotConfiguredError) return; // sin credenciales, no hacemos nada
+    throw e;
+  }
 
-  if (!apiKey) return; // sin API key, no hacemos nada
+  const { apiKey, ambiente } = plemsiCreds;
 
   const buyerData = buildPersona({
     nit: cliente.numero_documento,
@@ -360,6 +365,7 @@ export async function enviarAPlemsiSiAplica(
 
   const resultado = await plemsiEmitirFactura({
     apiKey,
+    ambiente,
     prefix: resolucion.prefijo,
     number: factura.consecutivo,
     resolution: resolucion.numero_resolucion,
@@ -390,6 +396,10 @@ export async function enviarAPlemsiSiAplica(
     .where(eq(facturas.id, factura.id));
 
   if (resultado.ok) {
+    // Incrementar contador mensual de facturas emitidas a la DIAN
+    await db.update(tenants).set({
+      facturas_mes_actual: sql`facturas_mes_actual + 1`,
+    }).where(eq(tenants.id, factura.tenant_id));
     console.log(`[PLEMSI] Factura ${factura.numero} emitida. CUFE: ${resultado.cufe}`);
   } else {
     console.error(`[PLEMSI] Error factura ${factura.numero}: ${resultado.error}`);

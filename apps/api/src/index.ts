@@ -62,6 +62,7 @@ import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
 import { iniciarCronTrialExpiry } from "./jobs/trial-expiry.js";
+import { iniciarCronResetConsumoDian } from "./jobs/reset-consumo-dian.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { isDianEnProduccion } from "./services/dian.service.js";
@@ -247,4 +248,5 @@ app.listen(PORT, () => {
   iniciarCronRecurrentes();
   iniciarCronAlertasCobro();
   iniciarCronTrialExpiry();
+  iniciarCronResetConsumoDian();
 });

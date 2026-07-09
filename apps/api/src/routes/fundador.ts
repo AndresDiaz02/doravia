@@ -741,4 +741,27 @@ router.post("/activar-registro/:id", async (req, res) => {
   });
 });
 
+// ── GET /api/fundador/consumo-dian ────────────────────────────────────────────
+router.get("/consumo-dian", async (_req, res, next) => {
+  try {
+    const { loginMap } = await getActividadMaps();
+    void loginMap; // usado en otros endpoints, aquí solo para consistencia del helper
+    const rows = await db
+      .select({
+        id: tenants.id,
+        nombre: tenants.nombre,
+        nit: tenants.nit,
+        facturas_mes_actual: tenants.facturas_mes_actual,
+        plemsi_ambiente: tenants.plemsi_ambiente,
+        plemsi_habilitado: tenants.plemsi_habilitado,
+      })
+      .from(tenants)
+      .where(eq(tenants.activo, true))
+      .orderBy(desc(tenants.facturas_mes_actual));
+
+    const totalMes = rows.reduce((s, r) => s + (r.facturas_mes_actual ?? 0), 0);
+    res.json({ total_mes: totalMes, tenants: rows });
+  } catch (err) { next(err); }
+});
+
 export default router;

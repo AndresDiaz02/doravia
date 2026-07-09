@@ -55,6 +55,7 @@ import notificacionesRouter from "./routes/notificaciones.js";
 import activosFijosRouter from "./routes/activos-fijos.js";
 import documentosSoporteRouter from "./routes/documentos-soporte.js";
 import retencionesProveedorRouter from "./routes/retenciones-proveedor.js";
+import conciliacionRouter from "./routes/conciliacion.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
@@ -211,6 +212,7 @@ app.use("/api/notificaciones", authenticate, notificacionesRouter);
 app.use("/api/activos-fijos", authenticate, activosFijosRouter);
 app.use("/api/documentos-soporte", authenticate, documentosSoporteRouter);
 app.use("/api/retenciones-proveedor", authenticate, retencionesProveedorRouter);
+app.use("/api/conciliacion", authenticate, requirePlanFeature("conciliacion_bancaria"), conciliacionRouter);
 
 // ── Manejo de errores ────────────────────────────────────────────────────────
 // El handler de Sentry debe ir ANTES del handler personalizado

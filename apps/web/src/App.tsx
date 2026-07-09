@@ -55,6 +55,7 @@ import CajerosPOS from "./pages/CajerosPOS";
 import Remisiones from "./pages/Remisiones";
 import Proveedores from "./pages/Proveedores";
 import ProveedorDetalle from "./pages/ProveedorDetalle";
+import ConciliacionBancaria from "./pages/ConciliacionBancaria";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
 import Checkout from "./pages/Checkout";
@@ -141,6 +142,7 @@ export default function App() {
               <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
               <Route path="/contabilidad/iva" element={<><RequiereRol allow={["admin", "contador"]} /><ReporteIVA /></>} />
               <Route path="/contabilidad/plan-cuentas" element={<><RequiereRol allow={["admin", "contador"]} /><PlanCuentas /></>} />
+              <Route path="/conciliacion-bancaria" element={<><RequiereRol allow={["admin", "contador"]} /><ConciliacionBancaria /></>} />
               <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
               <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
               <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />

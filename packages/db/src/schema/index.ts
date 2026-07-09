@@ -33,4 +33,5 @@ export * from "./bold_payments.ts";
 export * from "./retenciones_proveedor.ts";
 export * from "./activos_fijos.ts";
 export * from "./documentos_soporte.ts";
+export * from "./conciliacion_bancaria.ts";
 

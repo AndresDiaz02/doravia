@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, numeric, date, smallint, boolean } from "drizzle-orm/pg-core";
+﻿import { pgTable, uuid, varchar, timestamp, numeric, date, smallint, boolean } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 
@@ -11,7 +11,7 @@ export type NaturalezaCuenta = (typeof NATURALEZA_CUENTA)[number];
 export const ORIGENES_ASIENTO = ["factura", "compra", "pago", "ajuste", "manual"] as const;
 export type OrigenAsiento = (typeof ORIGENES_ASIENTO)[number];
 
-// PUC simplificado â€” cuentas del sistema (tenant_id null) + cuentas del tenant
+// PUC simplificado â€" cuentas del sistema (tenant_id null) + cuentas del tenant
 export const cuentas_contables = pgTable("cuentas_contables", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenant_id: uuid("tenant_id").references(() => tenants.id), // null = cuenta del sistema
@@ -25,7 +25,7 @@ export const cuentas_contables = pgTable("cuentas_contables", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Libro diario â€” cada asiento agrupa sus lineas
+// Libro diario â€" cada asiento agrupa sus lineas
 export const asientos_contables = pgTable("asientos_contables", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
@@ -37,7 +37,7 @@ export const asientos_contables = pgTable("asientos_contables", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Lineas del asiento â€” partida doble: sum(debito) = sum(credito)
+// Lineas del asiento â€" partida doble: sum(debito) = sum(credito)
 export const lineas_asiento = pgTable("lineas_asiento", {
   id: uuid("id").primaryKey().defaultRandom(),
   asiento_id: uuid("asiento_id").notNull().references(() => asientos_contables.id),
@@ -45,8 +45,10 @@ export const lineas_asiento = pgTable("lineas_asiento", {
   descripcion: varchar("descripcion", { length: 200 }),
   debito: numeric("debito", { precision: 14, scale: 2 }).notNull().default("0"),
   credito: numeric("credito", { precision: 14, scale: 2 }).notNull().default("0"),
-  // Centro de costos â€” opcional, solo en tenants con feature centros_costos
+  // Centro de costos â€" opcional, solo en tenants con feature centros_costos
   centro_costo_id: uuid("centro_costo_id"),
+  // Conciliación bancaria â€" referencia al movimiento del extracto que cubre esta línea
+  movimiento_banco_id: uuid("movimiento_banco_id"),
 });
 
 // Períodos contables — cierre de período para proteger asientos

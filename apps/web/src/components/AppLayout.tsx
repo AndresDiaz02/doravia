@@ -35,6 +35,7 @@ import {
   Calendar,
   X,
   Zap,
+  Landmark,
 } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
@@ -57,6 +58,7 @@ const NAV_BASE = [
   { to: "/contabilidad/auxiliares",     label: "Auxiliares",        icon: BookOpen },
   { to: "/contabilidad/iva",            label: "Reporte de IVA",    icon: Receipt },
   { to: "/contabilidad/plan-cuentas",   label: "Plan de cuentas",   icon: BookOpen },
+  { to: "/conciliacion-bancaria",       label: "Conciliación bancaria", icon: Landmark, feature: "conciliacion_bancaria" as const },
 ];
 
 const NAV_VENTAS = [
@@ -299,8 +301,13 @@ export function AppLayout() {
 
         {/* Navegación */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {NAV_BASE.map(({ to, label, icon: Icon }) => {
+          {NAV_BASE.map(({ to, label, icon: Icon, feature }) => {
             if (to.startsWith("/contabilidad") && isVendedor) return null;
+            if (feature) {
+              const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
+              if (!hasFeature && isContador) return null;
+              return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
+            }
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />;
           })}
 

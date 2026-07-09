@@ -29,8 +29,8 @@ section{position:relative;}
 header{position:fixed;top:0;left:0;width:100%;z-index:100;background:rgba(248,245,254,0.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);}
 .header-inner{max-width:1200px;margin:0 auto;padding:15px 32px;display:flex;align-items:center;justify-content:space-between;}
 .logo{display:flex;align-items:center;}
-.logo-img{height:36px;width:auto;display:block;}
-@media(max-width:500px){.logo-img{height:28px;}}
+.logo-img{height:44px;width:auto;display:block;}
+@media(max-width:500px){.logo-img{height:32px;}}
 nav{display:flex;gap:28px;align-items:center;}
 nav a{font-size:14px;font-weight:500;color:var(--navy);opacity:0.72;transition:opacity 0.2s;}
 nav a:hover,nav a.active{opacity:1;color:var(--action);}

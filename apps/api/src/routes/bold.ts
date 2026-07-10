@@ -4,13 +4,20 @@ import { eq, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 import { verifyAccessToken } from "../services/auth.service.js";
 import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
+import { reactivarPorPago } from "../services/subscription.service.js";
 
 const router = Router();
 
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
 
-// ── Lógica de activar plan ────────────────────────────────────────────────────
-async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
+// ── Activación de plan via pago Bold ─────────────────────────────────────────
+// Delega en reactivarPorPago (idempotente, registra transición de estado).
+// Planes POS activan un addon sobre el tenant ERP del cliente.
+async function activarPlan(
+  tenantId: string,
+  planSlug: string,
+  boldReference: string,
+): Promise<void> {
   const [plan] = await db.select().from(plans).where(eq(plans.slug, planSlug)).limit(1);
   if (!plan) {
     console.error(`[Bold] Plan "${planSlug}" no encontrado para activar en tenant ${tenantId}`);
@@ -30,30 +37,9 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
     return;
   }
 
-  const [tenant] = await db
-    .select({ id: tenants.id, plan_ends_at: tenants.plan_ends_at })
-    .from(tenants)
-    .where(eq(tenants.id, tenantId))
-    .limit(1);
-
-  if (!tenant) return;
-
-  const hoy = new Date();
-  const inicioActual = new Date(tenant.plan_ends_at ?? hoy);
-  const inicio = inicioActual > hoy ? inicioActual : hoy;
-  const fin = new Date(inicio);
-  fin.setFullYear(fin.getFullYear() + 1);
-
-  await db.update(tenants).set({
-    plan_id: plan.id,
-    plan_starts_at: inicio,
-    plan_ends_at: fin,
-    activo: true,
-    ultimo_pago_confirmado_at: hoy,
-    trial_ends_at: null,
-  }).where(eq(tenants.id, tenantId));
-
-  console.log(`[Bold] Plan ${planSlug} activado para tenant ${tenantId} → ${fin.toISOString()}`);
+  // reactivarPorPago es idempotente: no hace nada si ya está active con plan vigente
+  await reactivarPorPago(tenantId, planSlug, boldReference);
+  console.log(`[Bold] Plan ${planSlug} reactivado para tenant ${tenantId}`);
 
   void generarComisionContador(tenantId, plan.precio_anual_cop, "renovacion").catch((e) =>
     console.error("[Bold] Error generando comisión contador:", e),
@@ -170,7 +156,7 @@ router.get("/status/:reference_id", async (req, res) => {
         .set({ estado: "APPROVED", bold_response: boldData, updated_at: new Date() })
         .where(eq(bold_payments.reference_id, reference_id));
       if (registro.plan_id) {
-        await activarPlan(tenantId, registro.plan_id);
+        await activarPlan(tenantId, registro.plan_id, reference_id);
       }
     } else if (boldStatus !== registro.estado && boldStatus !== "NO_TRANSACTION_FOUND") {
       await db.update(bold_payments)
@@ -299,7 +285,7 @@ router.post("/webhook", async (req, res) => {
 
     // Activar plan solo si está aprobado y tiene tenant asociado (pagos pre-registro no tienen tenant)
     if (status === "APPROVED" && registro.estado !== "APPROVED" && registro.plan_id && registro.tenant_id) {
-      await activarPlan(registro.tenant_id, registro.plan_id);
+      await activarPlan(registro.tenant_id, registro.plan_id, reference_id ?? "webhook");
     }
 
     return res.sendStatus(200);

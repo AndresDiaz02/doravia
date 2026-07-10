@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 
 export default function ResultadoPago() {
   const [params] = useSearchParams();
-  const { login } = useAuth();
+  const { login, plan: authPlan } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "approved" | "declined" | "pending">("loading");
   const [isRegistro, setIsRegistro] = useState(false);
@@ -27,7 +27,8 @@ export default function ResultadoPago() {
     const parts = ref.split("-");
     return parts.length >= 3 ? parts[2] : "";
   })();
-  const esPOS = ["punto", "punto_plus"].includes(planSlug);
+  // Usa product del auth context (disponible para usuarios logueados); fallback a slug para registros nuevos
+  const esPOS = authPlan ? authPlan.product === "pos" : ["punto", "punto_plus"].includes(planSlug);
 
   useEffect(() => {
     // Flujo Bold: ?ref=DORAVIA-xxx

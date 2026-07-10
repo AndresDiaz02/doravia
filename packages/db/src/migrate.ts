@@ -552,6 +552,56 @@ const migrations = [
    FROM plans p
    CROSS JOIN LATERAL jsonb_each(p.features) AS kv
    ON CONFLICT (plan_id, feature_key) DO NOTHING`,
+
+  // ── Pendientes Fase 0 — cierre de deuda técnica ───────────────────────────
+  // Tabla de audit trail de cambios a plan_features
+  `CREATE TABLE IF NOT EXISTS plan_feature_changes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    plan_id uuid NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    feature_key varchar(50) NOT NULL,
+    old_value boolean,
+    new_value boolean NOT NULL,
+    changed_by varchar(200) NOT NULL,
+    changed_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_plan_feature_changes_plan_id ON plan_feature_changes(plan_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_plan_feature_changes_at ON plan_feature_changes(changed_at DESC)`,
+  // Modalidades de precio en plans (sin lógica de cobro — FASE 5)
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_mensual_cop integer`,
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_3cuotas_total_cop integer`,
+
+  // ── feat/regulatory-parameters — parámetros tributarios con vigencias (R7) ─
+  // Cada fila es inmutable: nunca se sobreescribe, se agrega una nueva por período.
+  `CREATE TABLE IF NOT EXISTS tax_parameters (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    parametro varchar(80) NOT NULL,
+    descripcion varchar(300) NOT NULL,
+    valor numeric(18,4) NOT NULL,
+    unidad varchar(20) NOT NULL DEFAULT 'cop',
+    valido_desde date NOT NULL,
+    valido_hasta date NOT NULL,
+    fuente_normativa varchar(300),
+    creado_por varchar(200),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_tax_fechas CHECK (valido_hasta >= valido_desde),
+    CONSTRAINT uq_tax_param_inicio UNIQUE (parametro, valido_desde)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_tax_parameters_parametro ON tax_parameters(parametro)`,
+  `CREATE INDEX IF NOT EXISTS idx_tax_parameters_vigencia ON tax_parameters(parametro, valido_desde, valido_hasta)`,
+  // Seed inicial: UVT 2026 y parámetros tributarios principales
+  // ON CONFLICT en (parametro, valido_desde) → idempotente
+  `INSERT INTO tax_parameters (parametro, descripcion, valor, unidad, valido_desde, valido_hasta, fuente_normativa, creado_por)
+   VALUES
+     ('uvt',                          'Unidad de Valor Tributario',                      52374.00, 'cop', '2026-01-01', '2026-12-31', 'Resolución DIAN 000238 de 2025', 'seed'),
+     ('iva_general_pct',              'Tarifa general IVA',                              19.00,    'pct', '2026-01-01', '9999-12-31', 'Art. 468 ET', 'seed'),
+     ('impoconsumo_pct',              'Impoconsumo licores/comidas rápidas',             8.00,     'pct', '2026-01-01', '9999-12-31', 'Art. 512-1 ET', 'seed'),
+     ('retefuente_compras_base_uvt',  'Base mínima ReteFuente compras (27 UVT)',         27.00,    'uvt', '2026-01-01', '9999-12-31', 'Art. 868-1 ET', 'seed'),
+     ('retefuente_compras_pct',       'Tarifa ReteFuente compras generales',             2.50,     'pct', '2026-01-01', '9999-12-31', 'Art. 868-1 ET', 'seed'),
+     ('retefuente_servicios_base_uvt','Base mínima ReteFuente servicios (4 UVT)',        4.00,     'uvt', '2026-01-01', '9999-12-31', 'Art. 868-1 ET', 'seed'),
+     ('retefuente_servicios_pct',     'Tarifa ReteFuente servicios generales',           4.00,     'pct', '2026-01-01', '9999-12-31', 'Art. 868-1 ET', 'seed'),
+     ('retefuente_honorarios_pct',    'Tarifa ReteFuente honorarios/comisiones',         10.00,    'pct', '2026-01-01', '9999-12-31', 'Art. 392 ET',   'seed'),
+     ('retefuente_arrendamiento_pct', 'Tarifa ReteFuente arrendamiento inmuebles',       3.50,     'pct', '2026-01-01', '9999-12-31', 'Art. 401 ET',   'seed')
+   ON CONFLICT (parametro, valido_desde) DO NOTHING`,
 ];
 
 for (const migration of migrations) {

@@ -8,25 +8,25 @@ import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.
 const router = Router();
 
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
-const POS_PLANS = ["punto", "punto_plus"];
 
 // ── Lógica de activar plan ────────────────────────────────────────────────────
 async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
-  if (POS_PLANS.includes(planSlug)) {
-    const [t] = await db.select({ addons: tenants.addons }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
-    const addons: Record<string, boolean> = {
-      ...((t?.addons ?? {}) as Record<string, boolean>),
-      pos: true,
-      ...(planSlug === "punto_plus" ? { pos_multi_caja: true } : {}),
-    };
-    await db.update(tenants).set({ addons }).where(eq(tenants.id, tenantId));
-    console.log(`[Bold] POS addon activado (${planSlug}) para tenant ${tenantId}`);
-    return;
-  }
-
   const [plan] = await db.select().from(plans).where(eq(plans.slug, planSlug)).limit(1);
   if (!plan) {
     console.error(`[Bold] Plan "${planSlug}" no encontrado para activar en tenant ${tenantId}`);
+    return;
+  }
+
+  if (plan.product === "pos") {
+    const [t] = await db.select({ addons: tenants.addons }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+    const planFeatures = plan.features as Record<string, boolean>;
+    const addons: Record<string, boolean> = {
+      ...((t?.addons ?? {}) as Record<string, boolean>),
+      pos: true,
+      ...(planFeatures.pos_multi_caja ? { pos_multi_caja: true } : {}),
+    };
+    await db.update(tenants).set({ addons }).where(eq(tenants.id, tenantId));
+    console.log(`[Bold] POS addon activado (${planSlug}) para tenant ${tenantId}`);
     return;
   }
 
@@ -50,7 +50,7 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
     plan_ends_at: fin,
     activo: true,
     ultimo_pago_confirmado_at: hoy,
-    trial_ends_at: null, // convertido a cliente pago — ya no es trial
+    trial_ends_at: null,
   }).where(eq(tenants.id, tenantId));
 
   console.log(`[Bold] Plan ${planSlug} activado para tenant ${tenantId} → ${fin.toISOString()}`);

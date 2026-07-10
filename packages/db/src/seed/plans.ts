@@ -1,6 +1,14 @@
 import type { NewPlan } from "../schema/plans.js";
 import type { PlanFeatures } from "@workspace/shared";
 
+// Calcula precios de modalidades (spec: mensual = anual÷10, 3cuotas = anual×1.10)
+function precios(anual: number): { precio_mensual_cop: number; precio_3cuotas_total_cop: number } {
+  if (anual === 0) return { precio_mensual_cop: 0, precio_3cuotas_total_cop: 0 };
+  const mensual = Math.round(anual / 10);
+  const tresCuotas = Math.round(anual * 1.10);
+  return { precio_mensual_cop: mensual, precio_3cuotas_total_cop: tresCuotas };
+}
+
 const noFeatures: PlanFeatures = {
   pos:                    false,
   pos_multi_caja:         false,
@@ -42,6 +50,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 0,
+    ...precios(0),
   },
   {
     slug: "origen_24",
@@ -55,6 +64,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 99_900,
+    ...precios(99_900),
   },
   {
     slug: "origen_60",
@@ -68,6 +78,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 169_900,
+    ...precios(169_900),
   },
   {
     slug: "origen_120",
@@ -81,6 +92,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 249_900,
+    ...precios(249_900),
   },
   {
     slug: "origen_300",
@@ -94,6 +106,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 329_900,
+    ...precios(329_900),
   },
 
   // ── ERP: escalera principal ───────────────────────────────────────────────
@@ -120,6 +133,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       conciliacion_bancaria: true,
     },
     precio_anual_cop: 730_000,
+    ...precios(730_000),
   },
   {
     slug: "raiz",
@@ -146,6 +160,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       conciliacion_bancaria: true,
     },
     precio_anual_cop: 990_000,
+    ...precios(990_000),
   },
   {
     slug: "brote",
@@ -175,6 +190,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       conciliacion_bancaria:  true,
     },
     precio_anual_cop: 1_450_000,
+    ...precios(1_450_000),
   },
   {
     slug: "cosecha",
@@ -210,6 +226,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos_multi_caja:         false,
     },
     precio_anual_cop: 1_990_000,
+    ...precios(1_990_000),
   },
 
   // ── Punto de venta (POS) ─────────────────────────────────────────────────
@@ -230,6 +247,7 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos:        true,
     },
     precio_anual_cop: 450_000,
+    ...precios(450_000),
   },
   {
     slug: "punto_plus",
@@ -252,5 +270,6 @@ export const PLAN_SEEDS: NewPlan[] = [
       agenda_servicios:      true,
     },
     precio_anual_cop: 790_000,
+    ...precios(790_000),
   },
 ];

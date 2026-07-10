@@ -21,6 +21,7 @@ export interface AuthUser {
 export interface PlanInfo {
   slug: string;
   nombre: string;
+  product: "erp" | "pos" | "origen";
   features: Record<string, boolean>;
   max_usuarios: number | null;
   max_bodegas: number | null;

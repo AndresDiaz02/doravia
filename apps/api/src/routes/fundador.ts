@@ -2,7 +2,7 @@ import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import {
   db, tenants, users, plans, plan_features, plan_feature_changes,
-  tax_parameters,
+  tax_parameters, notification_queue, notifications,
   refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
@@ -885,6 +885,60 @@ router.post("/tax-parameters", async (req, res, next) => {
     if (err instanceof TaxParamValidationError) {
       return res.status(422).json({ error: err.message, code: err.code });
     }
+    next(err);
+  }
+});
+
+// ── FASE 6 — Log de notificaciones enviadas ───────────────────────────────────
+
+// GET /api/fundador/notifications?tenant_id=&limit=&status=
+// Log consultable de la cola de notificaciones: filtra por tenant, estado, etc.
+router.get("/notifications", async (req, res, next) => {
+  try {
+    const { tenant_id, status, limit: limitStr } = req.query as Record<string, string>;
+    const limit = Math.min(Number(limitStr) || 50, 200);
+
+    const filters: ReturnType<typeof and>[] = [];
+    if (tenant_id) filters.push(eq(notification_queue.tenant_id, tenant_id));
+    if (status)    filters.push(eq(notification_queue.status, status));
+
+    const rows = await db
+      .select({
+        id:           notification_queue.id,
+        tenant_id:    notification_queue.tenant_id,
+        template:     notification_queue.template,
+        channel:      notification_queue.channel,
+        status:       notification_queue.status,
+        scheduled_at: notification_queue.scheduled_at,
+        sent_at:      notification_queue.sent_at,
+        retry_count:  notification_queue.retry_count,
+        error:        notification_queue.error,
+        fecha_local:  notification_queue.fecha_local,
+        ref_id:       notification_queue.ref_id,
+        created_at:   notification_queue.created_at,
+      })
+      .from(notification_queue)
+      .where(filters.length > 0 ? and(...(filters as [ReturnType<typeof and>])) : undefined)
+      .orderBy(desc(notification_queue.created_at))
+      .limit(limit);
+
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/fundador/notifications/in-app?limit= — alertas in-app del fundador (R7)
+router.get("/notifications/in-app", async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    const rows = await db
+      .select()
+      .from(notifications)
+      .orderBy(desc(notifications.created_at))
+      .limit(limit);
+    res.json(rows);
+  } catch (err) {
     next(err);
   }
 });

@@ -23,7 +23,7 @@ export const tax_parameters = pgTable("tax_parameters", {
   fuente_normativa: varchar("fuente_normativa", { length: 300 }),
   creado_por: varchar("creado_por", { length: 200 }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-, (t) => ({
+}, (t) => ({
   // No puede arrancar dos vigencias del mismo parámetro en la misma fecha → garantiza unicidad mínima
   uq_param_inicio: unique("uq_tax_param_inicio").on(t.parametro, t.valido_desde),
   chk_fechas: check("chk_tax_fechas", sql`${t.valido_hasta} >= ${t.valido_desde}`),

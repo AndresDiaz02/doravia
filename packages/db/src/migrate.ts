@@ -611,6 +611,44 @@ const migrations = [
   `UPDATE plans SET document_limit = 60  WHERE slug = 'origen_60'`,
   `UPDATE plans SET document_limit = 120 WHERE slug = 'origen_120'`,
   `UPDATE plans SET document_limit = 300 WHERE slug = 'origen_300'`,
+
+  // ── FASE 6 — Motor de notificaciones ────────────────────────────────────────
+  // Cola de notificaciones salientes (WhatsApp, Email, In-App).
+  // Ventana activa 08:00-17:00 Bogotá para canales externos; in_app siempre inmediato.
+  `CREATE TABLE IF NOT EXISTS notification_queue (
+    id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id    uuid        NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    template     varchar(50) NOT NULL,
+    ref_id       varchar(100) NOT NULL,
+    fecha_local  varchar(10)  NOT NULL,
+    channel      varchar(20)  NOT NULL,
+    status       varchar(20)  NOT NULL DEFAULT 'pending',
+    scheduled_at timestamptz  NOT NULL,
+    sent_at      timestamptz,
+    error        text,
+    retry_count  integer      NOT NULL DEFAULT 0,
+    payload      jsonb,
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_notif_dedup UNIQUE (tenant_id, template, ref_id, fecha_local, channel)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_notif_queue_tenant    ON notification_queue(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_notif_queue_scheduled ON notification_queue(scheduled_at) WHERE status = 'pending'`,
+  `CREATE INDEX IF NOT EXISTS idx_notif_queue_status    ON notification_queue(status, scheduled_at)`,
+
+  // Notificaciones in-app persistentes (campana + centro de notificaciones).
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id         uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id  uuid         NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id    uuid         REFERENCES users(id) ON DELETE CASCADE,
+    type       varchar(50)  NOT NULL,
+    title      varchar(200) NOT NULL,
+    body       text         NOT NULL,
+    link       varchar(500),
+    is_read    boolean      NOT NULL DEFAULT false,
+    created_at timestamptz  NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_notifications_tenant_unread ON notifications(tenant_id, is_read) WHERE is_read = false`,
+  `CREATE INDEX IF NOT EXISTS idx_notifications_user_id       ON notifications(user_id) WHERE user_id IS NOT NULL`,
 ];
 
 for (const migration of migrations) {

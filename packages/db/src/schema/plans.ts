@@ -14,6 +14,8 @@ export const plans = pgTable("plans", {
   max_facturas_mes: integer("max_facturas_mes"),
   max_facturas_ano: integer("max_facturas_ano"),
   max_ia_docs_mes:  integer("max_ia_docs_mes"),
+  // Cupo anual de documentos electrónicos (solo planes Origen). NULL = sin límite (ERP/POS). Prerrequisito FASE 3.
+  document_limit:   integer("document_limit"),
 
   // Nivel contable ordinal: 0=ninguno, 1=diario_mayor, 2=balance, 3=comparativo, 4=centros_costos
   accounting_level: smallint("accounting_level").notNull(),

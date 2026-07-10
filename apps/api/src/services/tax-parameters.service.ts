@@ -1,5 +1,6 @@
+import * as Sentry from "@sentry/node";
 import { db, tax_parameters } from "@workspace/db";
-import { eq, and, lte, gte, ne } from "drizzle-orm";
+import { eq, and, lte, gte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 export class TaxParamValidationError extends Error {
@@ -12,14 +13,22 @@ export class TaxParamValidationError extends Error {
   }
 }
 
+export class TaxParamNotFoundError extends Error {
+  constructor(parametro: string, fecha: string) {
+    super(`No existe vigencia para el parámetro "${parametro}" en la fecha ${fecha}.`);
+    this.name = "TaxParamNotFoundError";
+  }
+}
+
 /**
  * Busca el valor vigente de un parámetro tributario a una fecha dada.
  * fecha: 'YYYY-MM-DD' (default: hoy en Bogotá)
+ * Lanza TaxParamNotFoundError si ninguna vigencia cubre la fecha — nunca devuelve null.
  */
 export async function getTaxParameter(
   parametro: string,
   fecha?: string,
-): Promise<{ valor: string; unidad: string; fuente_normativa: string | null } | null> {
+): Promise<{ valor: string; unidad: string; fuente_normativa: string | null }> {
   const fechaQuery = fecha ?? new Date().toISOString().slice(0, 10);
   const [row] = await db
     .select({
@@ -36,7 +45,14 @@ export async function getTaxParameter(
       ),
     )
     .limit(1);
-  return row ?? null;
+
+  if (!row) {
+    const err = new TaxParamNotFoundError(parametro, fechaQuery);
+    Sentry.captureException(err, { level: "error", tags: { parametro, fecha: fechaQuery } });
+    throw err;
+  }
+
+  return row;
 }
 
 /**

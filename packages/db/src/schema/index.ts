@@ -38,4 +38,6 @@ export * from "./consumo_dian_mensual.ts";
 export * from "./plan_features.ts";
 export * from "./plan_feature_changes.ts";
 export * from "./tax_parameters.ts";
+export * from "./notification_queue.ts";
+export * from "./notifications.ts";
 

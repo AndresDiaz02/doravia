@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { db, tenants, plans, plan_features } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { Plan } from "@workspace/db";
@@ -36,10 +37,12 @@ export async function getTenantWithPlan(tenantId: string): Promise<TenantWithPla
   } else {
     // Fallback al JSONB mientras plan_features se propaga (solo debería ocurrir en dev / primeros segundos del deploy).
     // TODO(2026-07): eliminar este fallback y la columna plans.features (~3 ramas, después de feat/accounting-hardening).
-    // En prod: loguear como warning porque indica que la migración no corrió o el seed no se aplicó.
+    // En prod: indica que la migración no corrió o el seed no se aplicó → alerta Sentry nivel warning.
     if (process.env.NODE_ENV === "production") {
-      console.warn(`[tenant] plan_features vacío para tenant ${tenantId} (plan: ${plan.slug}); usando JSONB fallback — verificar migración`);
-      // Sentry.captureMessage si está configurado — se conecta en feat/notifications
+      Sentry.captureMessage(
+        `[tenant] plan_features vacío para tenant ${tenantId} (plan: ${plan.slug}); usando JSONB fallback — verificar migración`,
+        "warning",
+      );
     }
   }
 

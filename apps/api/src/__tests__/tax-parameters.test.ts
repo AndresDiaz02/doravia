@@ -8,6 +8,7 @@
  *   - Sin hueco: vigencia que empieza el día siguiente al fin de la anterior
  *   - Fechas incoherentes (hasta < desde)
  *   - Vigencias consecutivas válidas (sin traslape ni hueco entre ellas)
+ *   - Sin vigencia cubriendo la fecha → debe lanzar error (no null, no silencio)
  */
 
 import { describe, it, expect } from "vitest";
@@ -17,6 +18,19 @@ import { describe, it, expect } from "vitest";
 interface Vigencia {
   valido_desde: string; // YYYY-MM-DD
   valido_hasta: string; // YYYY-MM-DD
+}
+
+/**
+ * Simula la resolución de parámetro a una fecha: busca la vigencia que cubre la fecha.
+ * Equivalente a la cláusula WHERE del servicio real (sin BD).
+ * Lanza error si ninguna vigencia cubre la fecha — nunca devuelve null.
+ */
+function resolverParametro(vigencias: Vigencia[], fecha: string): Vigencia {
+  const found = vigencias.find((v) => v.valido_desde <= fecha && v.valido_hasta >= fecha);
+  if (!found) {
+    throw new Error(`No existe vigencia para la fecha ${fecha}`);
+  }
+  return found;
 }
 
 /**
@@ -133,6 +147,54 @@ describe("tax-parameters: validación de vigencias", () => {
     expect(detectarTraslape([], nuevaUVT)).toBeNull();
     // Para el mismo parámetro (IVA) sí hay traslape
     expect(detectarTraslape(existentesIVA, nuevaUVT)).not.toBeNull();
+  });
+
+  // ── Sin vigencia cubriendo la fecha — debe lanzar, nunca null ───────────
+  describe("resolución de parámetro sin vigencia vigente", () => {
+    it("lanza error cuando no hay ninguna vigencia registrada", () => {
+      expect(() => resolverParametro([], "2026-07-10")).toThrow("No existe vigencia para la fecha 2026-07-10");
+    });
+
+    it("lanza error cuando la fecha es anterior a todas las vigencias", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2026-01-01", valido_hasta: "2026-12-31" }];
+      expect(() => resolverParametro(vigencias, "2025-12-31")).toThrow("No existe vigencia");
+    });
+
+    it("lanza error cuando la fecha es posterior a todas las vigencias (hueco de año)", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2025-01-01", valido_hasta: "2025-12-31" }];
+      // Fecha en 2026 — ninguna vigencia activa
+      expect(() => resolverParametro(vigencias, "2026-01-01")).toThrow("No existe vigencia");
+    });
+
+    it("lanza error cuando hay un hueco entre dos vigencias y la fecha cae en el hueco", () => {
+      const vigencias: Vigencia[] = [
+        { valido_desde: "2025-01-01", valido_hasta: "2025-12-31" },
+        { valido_desde: "2027-01-01", valido_hasta: "2027-12-31" },
+      ];
+      // 2026 no tiene vigencia
+      expect(() => resolverParametro(vigencias, "2026-06-15")).toThrow("No existe vigencia");
+    });
+
+    it("resuelve correctamente cuando la fecha cae dentro de una vigencia", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2026-01-01", valido_hasta: "2026-12-31" }];
+      const result = resolverParametro(vigencias, "2026-07-10");
+      expect(result.valido_desde).toBe("2026-01-01");
+    });
+
+    it("resuelve en el primer día de la vigencia (límite inferior inclusivo)", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2026-01-01", valido_hasta: "2026-12-31" }];
+      expect(() => resolverParametro(vigencias, "2026-01-01")).not.toThrow();
+    });
+
+    it("resuelve en el último día de la vigencia (límite superior inclusivo)", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2026-01-01", valido_hasta: "2026-12-31" }];
+      expect(() => resolverParametro(vigencias, "2026-12-31")).not.toThrow();
+    });
+
+    it("lanza el día siguiente al fin de la vigencia (31-dic → 1-ene sin siguiente vigencia)", () => {
+      const vigencias: Vigencia[] = [{ valido_desde: "2026-01-01", valido_hasta: "2026-12-31" }];
+      expect(() => resolverParametro(vigencias, "2027-01-01")).toThrow("No existe vigencia");
+    });
   });
 
   // ── Caso de uso real: cambio de UVT 2026 → 2027 ─────────────────────────

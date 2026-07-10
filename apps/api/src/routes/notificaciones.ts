@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, facturas, productos, turnos_pos } from "@workspace/db";
 import { eq, and, lt, lte, gte, isNull, count, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { getInAppNotifications, markNotificationRead } from "../services/notification.service.js";
 
 const router = Router();
 
@@ -163,6 +164,33 @@ router.get("/", async (req, res) => {
     res.json(notificaciones);
   } catch (err) {
     console.error("Error en GET /notificaciones:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── Centro de notificaciones in-app (campana) ─────────────────────────────────
+
+// GET /api/notificaciones/in-app
+// Lista de notificaciones persistentes del tenant (más recientes primero).
+router.get("/in-app", async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    const items = await getInAppNotifications(req.tenantId, req.userId, limit);
+    res.json(items);
+  } catch (err) {
+    console.error("Error en GET /notificaciones/in-app:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// PATCH /api/notificaciones/:id/read — marca como leída
+router.patch("/:id/read", async (req, res) => {
+  try {
+    const ok = await markNotificationRead(req.params.id, req.tenantId);
+    if (!ok) return res.status(404).json({ error: "Notificación no encontrada." });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en PATCH /notificaciones/:id/read:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });

@@ -1,7 +1,19 @@
+// ⚠️  ARCHIVO DE SEGURIDAD — requiere revisión manual antes de merge.
+// Cambios en este archivo afectan el acceso de TODOS los tenants.
+// Cambios en FASE 2 (2026-07-10):
+//   - Reemplaza chequeo `activo` + `plan_ends_at` por `subscription_status`
+//   - 'archived'   → bloquea toda request (incluso contador)
+//   - 'suspended'  → read-only para admin/vendedor/operario;
+//                    contador y cajero conservan su acceso actual sin bloqueo adicional
+//   - 'grace'      → pasa + header X-Doravia-Grace: true
+//   - 'trial'/'active' → flujo normal sin cambio
+
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../services/auth.service.js";
+import { debeBloquearRequest } from "../services/subscription.service.js";
 import type { TenantWithPlan } from "../lib/tenant.js";
 import { getTenantWithPlan } from "../lib/tenant.js";
+import type { SubscriptionStatus } from "../services/subscription.service.js";
 
 declare global {
   namespace Express {
@@ -19,6 +31,15 @@ declare global {
 const CONTABLE_WRITE_OK: RegExp[] = [
   /^\/api\/contabilidad(\/|$)/,
   /^\/api\/gastos\//,
+];
+
+// Rutas que nunca se bloquean por subscription_status (admin, onboarding, salud)
+const RUTAS_LIBRES_SUSPENSION: RegExp[] = [
+  /^\/api\/auth\//,
+  /^\/api\/empresa(\/|$)/,
+  /^\/api\/onboarding(\/|$)/,
+  /^\/api\/notificaciones(\/|$)/,
+  /^\/health/,
 ];
 
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
@@ -40,23 +61,39 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ error: "Token inválido o expirado." });
   }
 
-  if (!req.tenant.activo) {
+  // ── Enforcement por subscription_status ──────────────────────────────────────
+  const status = (req.tenant.subscription_status ?? "active") as SubscriptionStatus;
+
+  // archived: bloqueo total — ningún rol accede
+  if (status === "archived") {
     return res.status(403).json({
-      error: "La empresa está inactiva. Contacta a soporte.",
-      code: "TENANT_INACTIVE",
+      error: "Esta empresa ha sido archivada y ya no está disponible.",
+      code: "TENANT_ARCHIVED",
     });
   }
 
-  if (new Date(req.tenant.plan_ends_at) < new Date()) {
-    return res.status(403).json({
-      error: "Tu suscripción ha vencido. Renueva tu plan para continuar usando Doravia.",
-      code: "SUBSCRIPTION_EXPIRED",
-    });
+  // suspended: read-only para roles que no son contador ni cajero
+  // contador y cajero tienen su propio perímetro (ver bloques más abajo) — no añadir restricción aquí
+  if (status === "suspended") {
+    const esRutaLibre = RUTAS_LIBRES_SUSPENSION.some((re) => re.test(req.originalUrl));
+    if (!esRutaLibre && debeBloquearRequest(status, req.userRole, req.method)) {
+      return res.status(403).json({
+        error:
+          "Tu empresa está suspendida. Solo tienes acceso de lectura hasta regularizar el pago.",
+        code: "TENANT_SUSPENDED",
+      });
+    }
+  }
+
+  // grace: permitir todo, informar al cliente vía header
+  if (status === "grace") {
+    res.setHeader("X-Doravia-Grace", "true");
   }
 
   // Bloqueo por onboarding incompleto después de 2 días de activación
   // Excluye rutas de onboarding y auth para no crear un loop
-  const esRutaOnboarding = req.originalUrl.startsWith("/api/empresa") ||
+  const esRutaOnboarding =
+    req.originalUrl.startsWith("/api/empresa") ||
     req.originalUrl.startsWith("/api/auth") ||
     req.originalUrl.startsWith("/api/onboarding") ||
     req.originalUrl.startsWith("/api/fundador") ||
@@ -118,7 +155,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
       req.method !== "GET"
     ) {
-      return res.status(403).json({ error: "No tienes permisos para modificar esta información.", code: "FORBIDDEN" });
+      return res.status(403).json({
+        error: "No tienes permisos para modificar esta información.",
+        code: "FORBIDDEN",
+      });
     }
   }
 
@@ -126,15 +166,19 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   // /api/clientes  — GET para cargar lista de clientes al registrar fiados (Venta.tsx)
   // /api/bodegas   — GET para cargar bodegas al seleccionar caja (SeleccionCaja.tsx)
   // /api/tutoriales — GET/POST para estado y completar/saltar el tutorial de onboarding
+  // /api/notificaciones — GET/PATCH para campana in-app POS
   if (req.userRole === "cajero") {
     const url = req.originalUrl;
-    const esPOS           = url.startsWith("/api/pos");
-    const esAuth          = url.startsWith("/api/auth");
-    const esTutorial      = url.startsWith("/api/tutoriales");
-    const esClientesGet   = url.startsWith("/api/clientes") && req.method === "GET";
-    const esBodegasGet    = url.startsWith("/api/bodegas")  && req.method === "GET";
+    const esPOS = url.startsWith("/api/pos");
+    const esAuth = url.startsWith("/api/auth");
+    const esTutorial = url.startsWith("/api/tutoriales");
+    const esClientesGet = url.startsWith("/api/clientes") && req.method === "GET";
+    const esBodegasGet = url.startsWith("/api/bodegas") && req.method === "GET";
+    const esNotifCajero =
+      url.startsWith("/api/notificaciones") &&
+      (req.method === "GET" || req.method === "PATCH");
 
-    if (!esPOS && !esAuth && !esTutorial && !esClientesGet && !esBodegasGet) {
+    if (!esPOS && !esAuth && !esTutorial && !esClientesGet && !esBodegasGet && !esNotifCajero) {
       return res.status(403).json({
         error: "El rol Cajero solo tiene acceso al módulo POS.",
         code: "FORBIDDEN",
@@ -165,7 +209,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       (url.startsWith("/api/empresa") || url.startsWith("/api/resoluciones-dian")) &&
       req.method !== "GET"
     ) {
-      return res.status(403).json({ error: "No tienes permisos para modificar esta información.", code: "FORBIDDEN" });
+      return res.status(403).json({
+        error: "No tienes permisos para modificar esta información.",
+        code: "FORBIDDEN",
+      });
     }
   }
 

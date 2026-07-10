@@ -63,6 +63,8 @@ import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
 import { iniciarCronAlertasCobro } from "./jobs/alertas-cobro.js";
 import { iniciarCronTrialExpiry } from "./jobs/trial-expiry.js";
 import { iniciarCronResetConsumoDian } from "./jobs/reset-consumo-dian.js";
+import { iniciarDrainNotificaciones } from "./jobs/notification-drain.js";
+import { iniciarCronSuscripciones } from "./jobs/suscripcion-cron.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { isDianEnProduccion } from "./services/dian.service.js";
@@ -249,4 +251,6 @@ app.listen(PORT, () => {
   iniciarCronAlertasCobro();
   iniciarCronTrialExpiry();
   iniciarCronResetConsumoDian();
+  iniciarDrainNotificaciones();
+  iniciarCronSuscripciones();
 });

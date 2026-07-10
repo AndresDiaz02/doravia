@@ -44,6 +44,10 @@ export const tenants = pgTable("tenants", {
   facturas_mes_actual: integer("facturas_mes_actual").notNull().default(0),
   // ── Trial ────────────────────────────────────────────────────────────────────
   trial_ends_at: timestamp("trial_ends_at", { withTimezone: true }),
+  // ── Ciclo de vida / máquina de estados (FASE 2) ───────────────────────────
+  // 'trial' | 'active' | 'grace' | 'suspended' | 'archived'
+  // trial_starts_at = plan_starts_at (reutilizado, no se reinicia al cambiar plan)
+  subscription_status: varchar("subscription_status", { length: 20 }).notNull().default("active"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

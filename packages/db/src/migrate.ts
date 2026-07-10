@@ -649,6 +649,37 @@ const migrations = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_tenant_unread ON notifications(tenant_id, is_read) WHERE is_read = false`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_user_id       ON notifications(user_id) WHERE user_id IS NOT NULL`,
+
+  // ── FASE 2 — Ciclo de vida / máquina de estados de suscripción ──────────────
+  // Columna subscription_status: 'trial' | 'active' | 'grace' | 'suspended' | 'archived'
+  // trial_starts_at = plan_starts_at (campo existente). No se reinicia al cambiar plan.
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status varchar(20) NOT NULL DEFAULT 'active'`,
+  // Backfill: tenants en trial activo (sin pago, con trial_ends_at futuro)
+  `UPDATE tenants
+   SET subscription_status = 'trial'
+   WHERE trial_ends_at IS NOT NULL
+     AND trial_ends_at > NOW()
+     AND ultimo_pago_confirmado_at IS NULL
+     AND subscription_status = 'active'`,
+  // Backfill: tenants suspendidos (activo=false) que no sean el hub de contadores
+  `UPDATE tenants
+   SET subscription_status = 'suspended'
+   WHERE activo = false
+     AND nit <> '0000000001'
+     AND subscription_status = 'active'`,
+
+  // Log inmutable de transiciones — auditoría del ciclo de vida
+  `CREATE TABLE IF NOT EXISTS tenant_state_transitions (
+    id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   uuid        NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    from_state  varchar(20),
+    to_state    varchar(20) NOT NULL,
+    reason      varchar(100) NOT NULL,
+    actor_id    uuid        REFERENCES users(id) ON DELETE SET NULL,
+    metadata    jsonb,
+    created_at  timestamptz NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_tst_tenant ON tenant_state_transitions(tenant_id, created_at DESC)`,
 ];
 
 for (const migration of migrations) {

@@ -40,4 +40,5 @@ export * from "./plan_feature_changes.ts";
 export * from "./tax_parameters.ts";
 export * from "./notification_queue.ts";
 export * from "./notifications.ts";
+export * from "./tenant_state_transitions.ts";
 

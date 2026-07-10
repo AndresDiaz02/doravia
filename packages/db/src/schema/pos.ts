@@ -193,6 +193,8 @@ export const citas_pos = pgTable("citas_pos", {
   fecha_hora:            timestamp("fecha_hora", { withTimezone: true }).notNull(),
   servicio:              varchar("servicio", { length: 200 }).notNull(),
   profesional:           varchar("profesional", { length: 200 }),
+  // FK al profesional estructurado — null = texto libre (backward compat)
+  profesional_id:        uuid("profesional_id").references(() => profesionales_pos.id),
   duracion_min:          integer("duracion_min").default(30),
   notas:                 text("notas"),
   estado:                varchar("estado", { length: 20 }).$type<EstadoCita>().notNull().default("agendada"),
@@ -208,6 +210,43 @@ export const citas_pos = pgTable("citas_pos", {
 
 export type CitaPos = typeof citas_pos.$inferSelect;
 export type NewCitaPos = typeof citas_pos.$inferInsert;
+
+// ── Profesionales con horarios — agenda de citas ──────────────────────────────
+
+export const profesionales_pos = pgTable("profesionales_pos", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  tenant_id:    uuid("tenant_id").notNull().references(() => tenants.id),
+  nombre:       varchar("nombre", { length: 200 }).notNull(),
+  especialidad: varchar("especialidad", { length: 100 }),
+  telefono:     varchar("telefono", { length: 30 }),
+  color:        varchar("color", { length: 7 }).notNull().default("#6366F1"),
+  activo:       boolean("activo").notNull().default(true),
+  created_at:   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// 0=domingo … 6=sábado
+export const horarios_profesional = pgTable("horarios_profesional", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  profesional_id: uuid("profesional_id").notNull().references(() => profesionales_pos.id, { onDelete: "cascade" }),
+  dia_semana:     integer("dia_semana").notNull(), // 0–6
+  activo:         boolean("activo").notNull().default(true),
+  hora_inicio:    varchar("hora_inicio", { length: 5 }).notNull().default("08:00"),
+  hora_fin:       varchar("hora_fin", { length: 5 }).notNull().default("18:00"),
+});
+
+export const bloqueos_profesional = pgTable("bloqueos_profesional", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  profesional_id: uuid("profesional_id").notNull().references(() => profesionales_pos.id, { onDelete: "cascade" }),
+  fecha:          varchar("fecha", { length: 10 }).notNull(), // "YYYY-MM-DD"
+  hora_inicio:    varchar("hora_inicio", { length: 5 }), // null = día completo bloqueado
+  hora_fin:       varchar("hora_fin", { length: 5 }),
+  motivo:         varchar("motivo", { length: 200 }),
+  created_at:     timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Profesional = typeof profesionales_pos.$inferSelect;
+export type HorarioProfesional = typeof horarios_profesional.$inferSelect;
+export type BloqueoProfesional = typeof bloqueos_profesional.$inferSelect;
 
 // ── Gastos de caja chica (POS) ───────────────────────────────────────────────
 export const CONCEPTOS_GASTO_CAJA = [

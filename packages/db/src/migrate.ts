@@ -493,6 +493,40 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_citas_pos_tenant_fecha ON citas_pos(tenant_id, fecha_hora)`,
   `CREATE INDEX IF NOT EXISTS idx_fiados_tenant ON fiados(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS idx_abonos_fiado_fiado_id ON abonos_fiado(fiado_id)`,
+
+  // ── Profesionales con horarios — agenda de citas ──────────────────────────────
+  `CREATE TABLE IF NOT EXISTS profesionales_pos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    nombre varchar(200) NOT NULL,
+    especialidad varchar(100),
+    telefono varchar(30),
+    color varchar(7) NOT NULL DEFAULT '#6366F1',
+    activo boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS horarios_profesional (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    profesional_id uuid NOT NULL REFERENCES profesionales_pos(id) ON DELETE CASCADE,
+    dia_semana integer NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
+    activo boolean NOT NULL DEFAULT true,
+    hora_inicio varchar(5) NOT NULL DEFAULT '08:00',
+    hora_fin varchar(5) NOT NULL DEFAULT '18:00',
+    UNIQUE (profesional_id, dia_semana)
+  )`,
+  `CREATE TABLE IF NOT EXISTS bloqueos_profesional (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    profesional_id uuid NOT NULL REFERENCES profesionales_pos(id) ON DELETE CASCADE,
+    fecha varchar(10) NOT NULL,
+    hora_inicio varchar(5),
+    hora_fin varchar(5),
+    motivo varchar(200),
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE citas_pos ADD COLUMN IF NOT EXISTS profesional_id uuid REFERENCES profesionales_pos(id)`,
+  `CREATE INDEX IF NOT EXISTS idx_profesionales_pos_tenant ON profesionales_pos(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_horarios_profesional ON horarios_profesional(profesional_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_bloqueos_profesional_fecha ON bloqueos_profesional(profesional_id, fecha)`,
 ];
 
 for (const migration of migrations) {

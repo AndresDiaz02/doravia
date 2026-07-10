@@ -1,8 +1,9 @@
 import { Router } from "express";
 import {
   db, citas_pos, sujetos_servicio, clientes, ventas_pos, tenants,
+  profesionales_pos, horarios_profesional, bloqueos_profesional,
 } from "@workspace/db";
-import { eq, and, between, sql, desc, gte, lte, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, between, sql, desc, gte, lte, isNull, isNotNull, inArray } from "drizzle-orm";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
 
 const router = Router();
@@ -236,11 +237,11 @@ router.post("/citas", requireNotContador, async (req, res) => {
   try {
     const {
       cliente_nombre, cliente_telefono, cliente_id,
-      sujeto_id, fecha_hora, servicio, profesional, duracion_min, notas, caja_id,
+      sujeto_id, fecha_hora, servicio, profesional, profesional_id, duracion_min, notas, caja_id,
     } = req.body as {
       cliente_nombre: string; cliente_telefono?: string; cliente_id?: string;
       sujeto_id?: string; fecha_hora: string; servicio: string;
-      profesional?: string; duracion_min?: number; notas?: string; caja_id?: string;
+      profesional?: string; profesional_id?: string; duracion_min?: number; notas?: string; caja_id?: string;
     };
     if (!cliente_nombre?.trim()) return res.status(400).json({ error: "Nombre del cliente requerido." });
     if (!servicio?.trim()) return res.status(400).json({ error: "Servicio requerido." });
@@ -256,6 +257,7 @@ router.post("/citas", requireNotContador, async (req, res) => {
       fecha_hora: new Date(fecha_hora),
       servicio: servicio.trim(),
       profesional: profesional?.trim() || null,
+      profesional_id: profesional_id || null,
       duracion_min: duracion_min ?? 30,
       notas: notas?.trim() || null,
       estado: "agendada",
@@ -272,11 +274,11 @@ router.patch("/citas/:id", requireNotContador, async (req, res) => {
   try {
     const {
       cliente_nombre, cliente_telefono, cliente_id, sujeto_id,
-      fecha_hora, servicio, profesional, duracion_min, notas,
+      fecha_hora, servicio, profesional, profesional_id, duracion_min, notas,
     } = req.body as {
       cliente_nombre?: string; cliente_telefono?: string; cliente_id?: string | null;
       sujeto_id?: string | null; fecha_hora?: string; servicio?: string;
-      profesional?: string; duracion_min?: number; notas?: string;
+      profesional?: string; profesional_id?: string | null; duracion_min?: number; notas?: string;
     };
     const set: Record<string, unknown> = { updated_at: new Date() };
     if (cliente_nombre !== undefined) set.cliente_nombre = cliente_nombre.trim();
@@ -286,6 +288,7 @@ router.patch("/citas/:id", requireNotContador, async (req, res) => {
     if (fecha_hora !== undefined) set.fecha_hora = new Date(fecha_hora);
     if (servicio !== undefined) set.servicio = servicio.trim();
     if (profesional !== undefined) set.profesional = profesional?.trim() || null;
+    if (profesional_id !== undefined) set.profesional_id = profesional_id || null;
     if (duracion_min !== undefined) set.duracion_min = duracion_min;
     if (notas !== undefined) set.notas = notas?.trim() || null;
 
@@ -511,6 +514,276 @@ router.get("/reportes", async (req, res) => {
     });
   } catch (err) {
     console.error("GET /agenda/reportes:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// ── Profesionales ─────────────────────────────────────────────────────────────
+
+// GET /api/agenda/profesionales — lista activos del tenant
+router.get("/profesionales", async (req, res) => {
+  try {
+    const rows = await db.select().from(profesionales_pos)
+      .where(and(eq(profesionales_pos.tenant_id, req.tenantId), eq(profesionales_pos.activo, true)))
+      .orderBy(profesionales_pos.nombre);
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /agenda/profesionales:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// POST /api/agenda/profesionales — crear
+router.post("/profesionales", requireNotContador, async (req, res) => {
+  try {
+    const { nombre, especialidad, telefono, color } = req.body as {
+      nombre: string; especialidad?: string; telefono?: string; color?: string;
+    };
+    if (!nombre?.trim()) return res.status(400).json({ error: "Nombre requerido." });
+    const [prof] = await db.insert(profesionales_pos).values({
+      tenant_id: req.tenantId,
+      nombre: nombre.trim(),
+      especialidad: especialidad?.trim() || null,
+      telefono: telefono?.trim() || null,
+      color: color ?? "#6366F1",
+    }).returning();
+    // Crear horario por defecto: lun–sab 08:00–18:00, domingo libre
+    const diasDefecto = [0, 1, 2, 3, 4, 5, 6].map((dia) => ({
+      profesional_id: prof.id,
+      dia_semana: dia,
+      activo: dia !== 0, // domingo libre por defecto
+      hora_inicio: "08:00",
+      hora_fin: "18:00",
+    }));
+    await db.insert(horarios_profesional).values(diasDefecto);
+    res.status(201).json(prof);
+  } catch (err) {
+    console.error("POST /agenda/profesionales:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// PATCH /api/agenda/profesionales/:id — editar/desactivar
+router.patch("/profesionales/:id", requireNotContador, async (req, res) => {
+  try {
+    const { nombre, especialidad, telefono, color, activo } = req.body as {
+      nombre?: string; especialidad?: string; telefono?: string; color?: string; activo?: boolean;
+    };
+    const [updated] = await db.update(profesionales_pos)
+      .set({
+        ...(nombre !== undefined && { nombre: nombre.trim() }),
+        ...(especialidad !== undefined && { especialidad: especialidad.trim() || null }),
+        ...(telefono !== undefined && { telefono: telefono.trim() || null }),
+        ...(color !== undefined && { color }),
+        ...(activo !== undefined && { activo }),
+      })
+      .where(and(eq(profesionales_pos.id, req.params.id), eq(profesionales_pos.tenant_id, req.tenantId)))
+      .returning();
+    if (!updated) return res.status(404).json({ error: "Profesional no encontrado." });
+    res.json(updated);
+  } catch (err) {
+    console.error("PATCH /agenda/profesionales/:id:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// GET /api/agenda/profesionales/:id/horario — obtener horario semanal
+router.get("/profesionales/:id/horario", async (req, res) => {
+  try {
+    const [prof] = await db.select({ id: profesionales_pos.id })
+      .from(profesionales_pos)
+      .where(and(eq(profesionales_pos.id, req.params.id), eq(profesionales_pos.tenant_id, req.tenantId)));
+    if (!prof) return res.status(404).json({ error: "Profesional no encontrado." });
+    const horarios = await db.select().from(horarios_profesional)
+      .where(eq(horarios_profesional.profesional_id, req.params.id))
+      .orderBy(horarios_profesional.dia_semana);
+    res.json(horarios);
+  } catch (err) {
+    console.error("GET /agenda/profesionales/:id/horario:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// PUT /api/agenda/profesionales/:id/horario — guardar horario completo (7 días)
+router.put("/profesionales/:id/horario", requireNotContador, async (req, res) => {
+  try {
+    const [prof] = await db.select({ id: profesionales_pos.id })
+      .from(profesionales_pos)
+      .where(and(eq(profesionales_pos.id, req.params.id), eq(profesionales_pos.tenant_id, req.tenantId)));
+    if (!prof) return res.status(404).json({ error: "Profesional no encontrado." });
+    const dias = req.body as Array<{ dia_semana: number; activo: boolean; hora_inicio: string; hora_fin: string }>;
+    for (const dia of dias) {
+      await db.insert(horarios_profesional)
+        .values({ profesional_id: req.params.id, ...dia })
+        .onConflictDoUpdate({
+          target: [horarios_profesional.profesional_id, horarios_profesional.dia_semana],
+          set: { activo: dia.activo, hora_inicio: dia.hora_inicio, hora_fin: dia.hora_fin },
+        });
+    }
+    const horarios = await db.select().from(horarios_profesional)
+      .where(eq(horarios_profesional.profesional_id, req.params.id))
+      .orderBy(horarios_profesional.dia_semana);
+    res.json(horarios);
+  } catch (err) {
+    console.error("PUT /agenda/profesionales/:id/horario:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// GET /api/agenda/profesionales/:id/bloqueos?mes=2026-07 — bloqueos del mes
+router.get("/profesionales/:id/bloqueos", async (req, res) => {
+  try {
+    const [prof] = await db.select({ id: profesionales_pos.id })
+      .from(profesionales_pos)
+      .where(and(eq(profesionales_pos.id, req.params.id), eq(profesionales_pos.tenant_id, req.tenantId)));
+    if (!prof) return res.status(404).json({ error: "Profesional no encontrado." });
+    const mes = (req.query.mes as string | undefined) ?? new Date().toISOString().slice(0, 7);
+    const rows = await db.select().from(bloqueos_profesional)
+      .where(and(
+        eq(bloqueos_profesional.profesional_id, req.params.id),
+        sql`${bloqueos_profesional.fecha} LIKE ${mes + "%"}`,
+      ))
+      .orderBy(bloqueos_profesional.fecha);
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /agenda/profesionales/:id/bloqueos:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// POST /api/agenda/profesionales/:id/bloqueos — crear bloqueo
+router.post("/profesionales/:id/bloqueos", requireNotContador, async (req, res) => {
+  try {
+    const [prof] = await db.select({ id: profesionales_pos.id })
+      .from(profesionales_pos)
+      .where(and(eq(profesionales_pos.id, req.params.id), eq(profesionales_pos.tenant_id, req.tenantId)));
+    if (!prof) return res.status(404).json({ error: "Profesional no encontrado." });
+    const { fecha, hora_inicio, hora_fin, motivo } = req.body as {
+      fecha: string; hora_inicio?: string; hora_fin?: string; motivo?: string;
+    };
+    if (!fecha) return res.status(400).json({ error: "fecha requerida (YYYY-MM-DD)." });
+    const [bloqueo] = await db.insert(bloqueos_profesional).values({
+      profesional_id: req.params.id,
+      fecha,
+      hora_inicio: hora_inicio || null,
+      hora_fin: hora_fin || null,
+      motivo: motivo?.trim() || null,
+    }).returning();
+    res.status(201).json(bloqueo);
+  } catch (err) {
+    console.error("POST /agenda/profesionales/:id/bloqueos:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// DELETE /api/agenda/profesionales/:id/bloqueos/:bloqueoId
+router.delete("/profesionales/:id/bloqueos/:bloqueoId", requireNotContador, async (req, res) => {
+  try {
+    await db.delete(bloqueos_profesional)
+      .where(and(
+        eq(bloqueos_profesional.id, req.params.bloqueoId),
+        eq(bloqueos_profesional.profesional_id, req.params.id),
+      ));
+    res.status(204).end();
+  } catch (err) {
+    console.error("DELETE /agenda/profesionales/:id/bloqueos/:bloqueoId:", err);
+    res.status(500).json({ error: "Error interno." });
+  }
+});
+
+// GET /api/agenda/disponibilidad?fecha=2026-07-15&duracion=30
+// Retorna disponibilidad de todos los profesionales activos para la fecha dada
+router.get("/disponibilidad", async (req, res) => {
+  try {
+    const fecha = (req.query.fecha as string) ?? new Date().toISOString().slice(0, 10);
+    const duracion = Number(req.query.duracion ?? 30);
+    const diaSemana = new Date(fecha + "T12:00:00").getDay(); // TZ-safe
+
+    // Profesionales activos del tenant
+    const profs = await db.select().from(profesionales_pos)
+      .where(and(eq(profesionales_pos.tenant_id, req.tenantId), eq(profesionales_pos.activo, true)))
+      .orderBy(profesionales_pos.nombre);
+
+    if (profs.length === 0) return res.json([]);
+
+    const profIds = profs.map((p) => p.id);
+
+    // Horarios del día
+    const horarios = await db.select().from(horarios_profesional)
+      .where(and(
+        inArray(horarios_profesional.profesional_id, profIds),
+        eq(horarios_profesional.dia_semana, diaSemana),
+      ));
+
+    // Bloqueos del día
+    const bloqueos = await db.select().from(bloqueos_profesional)
+      .where(and(
+        inArray(bloqueos_profesional.profesional_id, profIds),
+        eq(bloqueos_profesional.fecha, fecha),
+      ));
+
+    // Citas existentes del día (agendadas o en progreso)
+    const citasDelDia = await db.select({
+      profesional_id: citas_pos.profesional_id,
+      fecha_hora: citas_pos.fecha_hora,
+      duracion_min: citas_pos.duracion_min,
+    }).from(citas_pos).where(and(
+      eq(citas_pos.tenant_id, req.tenantId),
+      sql`DATE(${citas_pos.fecha_hora} AT TIME ZONE 'America/Bogota') = ${fecha}::date`,
+      inArray(citas_pos.estado, ["agendada", "confirmada", "en_atencion"] as string[]),
+    ));
+
+    function minutosDesde(hora: string): number {
+      const [h, m] = hora.split(":").map(Number);
+      return h * 60 + m;
+    }
+    function minutosAHora(mins: number): string {
+      return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+    }
+
+    const resultado = profs.map((prof) => {
+      const horario = horarios.find((h) => h.profesional_id === prof.id);
+      if (!horario || !horario.activo) {
+        return { profesional: prof, libre: false, slots: [], motivo: "No trabaja este día" };
+      }
+
+      const inicio = minutosDesde(horario.hora_inicio);
+      const fin = minutosDesde(horario.hora_fin);
+      const slots: Array<{ hora: string; disponible: boolean }> = [];
+
+      for (let t = inicio; t + duracion <= fin; t += duracion) {
+        const horaFinSlot = minutosAHora(t + duracion);
+
+        // Verificar bloqueos
+        const bloqueado = bloqueos.some((b) => {
+          if (b.profesional_id !== prof.id) return false;
+          if (!b.hora_inicio) return true; // día completo bloqueado
+          const bInicio = minutosDesde(b.hora_inicio);
+          const bFin = minutosDesde(b.hora_fin!);
+          return t < bFin && t + duracion > bInicio;
+        });
+
+        // Verificar citas existentes
+        const ocupado = citasDelDia.some((c) => {
+          if (c.profesional_id !== prof.id) return false;
+          const citaHora = new Date(c.fecha_hora).toLocaleTimeString("en-US", {
+            hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota",
+          });
+          const cInicio = minutosDesde(citaHora);
+          const cFin = cInicio + (c.duracion_min ?? 30);
+          return t < cFin && t + duracion > cInicio;
+        });
+
+        slots.push({ hora: minutosAHora(t), disponible: !bloqueado && !ocupado });
+      }
+
+      const hayDisponible = slots.some((s) => s.disponible);
+      return { profesional: prof, libre: hayDisponible, slots };
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error("GET /agenda/disponibilidad:", err);
     res.status(500).json({ error: "Error interno." });
   }
 });

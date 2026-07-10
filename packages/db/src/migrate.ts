@@ -490,7 +490,7 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_ventas_pos_tenant_estado ON ventas_pos(tenant_id, estado)`,
   `CREATE INDEX IF NOT EXISTS idx_gastos_caja_pos_turno_id ON gastos_caja_pos(turno_id)`,
   `CREATE INDEX IF NOT EXISTS idx_devoluciones_pos_turno_id ON devoluciones_pos(turno_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_citas_pos_tenant_fecha ON citas_pos(tenant_id, fecha)`,
+  `CREATE INDEX IF NOT EXISTS idx_citas_pos_tenant_fecha ON citas_pos(tenant_id, fecha_hora)`,
   `CREATE INDEX IF NOT EXISTS idx_fiados_tenant ON fiados(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS idx_abonos_fiado_fiado_id ON abonos_fiado(fiado_id)`,
 ];

@@ -20,6 +20,7 @@ async function seed() {
         max_facturas_mes: sql`excluded.max_facturas_mes`,
         max_facturas_ano: sql`excluded.max_facturas_ano`,
         max_ia_docs_mes: sql`excluded.max_ia_docs_mes`,
+        document_limit: sql`excluded.document_limit`,
         accounting_level: sql`excluded.accounting_level`,
         features: sql`excluded.features`,
         precio_anual_cop: sql`excluded.precio_anual_cop`,

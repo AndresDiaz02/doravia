@@ -602,6 +602,15 @@ const migrations = [
      ('retefuente_honorarios_pct',    'Tarifa ReteFuente honorarios/comisiones',         10.00,    'pct', '2026-01-01', '9999-12-31', 'Art. 392 ET',   'seed'),
      ('retefuente_arrendamiento_pct', 'Tarifa ReteFuente arrendamiento inmuebles',       3.50,     'pct', '2026-01-01', '9999-12-31', 'Art. 401 ET',   'seed')
    ON CONFLICT (parametro, valido_desde) DO NOTHING`,
+
+  // ── feat/notifications — pre-flight fix 1: document_limit en planes Origen ──
+  // Cupo anual de documentos electrónicos. NULL = sin límite (ERP/POS). Prerrequisito FASE 3.
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS document_limit integer`,
+  `UPDATE plans SET document_limit = 10  WHERE slug = 'origen'`,
+  `UPDATE plans SET document_limit = 24  WHERE slug = 'origen_24'`,
+  `UPDATE plans SET document_limit = 60  WHERE slug = 'origen_60'`,
+  `UPDATE plans SET document_limit = 120 WHERE slug = 'origen_120'`,
+  `UPDATE plans SET document_limit = 300 WHERE slug = 'origen_300'`,
 ];
 
 for (const migration of migrations) {

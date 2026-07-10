@@ -5,9 +5,47 @@ import { enqueueNotification } from "./notification.service.js";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 export type SubscriptionStatus = "trial" | "active" | "grace" | "suspended" | "archived";
+export type Modalidad = "anual" | "mensual" | "3cuotas";
 
 export const GRACE_DAYS = Number(process.env.GRACE_DAYS ?? 7);
 export const TRIAL_DAYS = 15;
+
+// ── Funciones puras de modalidades (sin DB) ───────────────────────────────────
+
+/**
+ * Días que cubre cada pago según la modalidad.
+ * 3 cuotas: 122 + 122 + 121 = 365 días totales.
+ */
+export function calcularDuracion(modalidad: Modalidad, cuotaNumero: number = 1): number {
+  if (modalidad === "mensual") return 30;
+  if (modalidad === "3cuotas") return cuotaNumero <= 2 ? 122 : 121;
+  return 365; // anual
+}
+
+/**
+ * Monto (COP) a cobrar para la cuota indicada según la modalidad.
+ *
+ * Fórmulas (spec §precios):
+ *   mensual     = round(anual / 10)
+ *   3cuotas     = total × 1.10; cuota 1 y 2 = ceil(total/3, 100 superior); cuota 3 = residuo
+ *   anual       = precio_anual_cop
+ *
+ * `precio3CuotasTotal` ya viene de la DB (anual × 1.10, redondeado).
+ */
+export function calcularMontoCuota(
+  precioAnual: number,
+  precio3CuotasTotal: number,
+  modalidad: Modalidad,
+  cuotaNumero: number = 1,
+): number {
+  if (modalidad === "mensual") return Math.round(precioAnual / 10);
+  if (modalidad === "3cuotas") {
+    const cuotaBase = Math.ceil(precio3CuotasTotal / 3 / 100) * 100;
+    if (cuotaNumero <= 2) return cuotaBase;
+    return precio3CuotasTotal - cuotaBase * 2;
+  }
+  return precioAnual;
+}
 
 // ── Funciones puras (sin DB) — testeables con clock mockeado ─────────────────
 
@@ -142,13 +180,15 @@ export async function suspenderPorGraciaVencida(tenantId: string): Promise<void>
 /**
  * Reactivación por pago confirmado — idempotente.
  * Si el tenant ya está active con plan vigente, retorna sin hacer nada.
- * Actualiza plan_id, plan_starts_at, plan_ends_at, ultimo_pago_confirmado_at,
- * trial_ends_at=null y subscription_status='active' en una sola transacción.
+ * Extiende plan_ends_at según la modalidad y cuota pagada.
+ * Para 'anual' = +365 días; 'mensual' = +30 días; '3cuotas' = +122/121 días.
  */
 export async function reactivarPorPago(
   tenantId: string,
   planSlug: string,
   boldReference: string,
+  modalidad: Modalidad = "anual",
+  cuotaNumero: number = 1,
 ): Promise<void> {
   const [plan] = await db
     .select({ id: plans.id, precio_anual_cop: plans.precio_anual_cop })
@@ -163,6 +203,7 @@ export async function reactivarPorPago(
       .select({
         subscription_status: tenants.subscription_status,
         plan_ends_at: tenants.plan_ends_at,
+        modalidad_suscripcion: tenants.modalidad_suscripcion,
       })
       .from(tenants)
       .where(eq(tenants.id, tenantId))
@@ -174,15 +215,14 @@ export async function reactivarPorPago(
     const fromState = tenant.subscription_status as SubscriptionStatus;
     const hoy = new Date();
 
-    // Idempotencia: ya activo con plan vigente → nada que hacer
+    // Idempotencia: ya activo con plan vigente y misma modalidad → no hacer nada
     if (fromState === "active" && new Date(tenant.plan_ends_at) > hoy) return;
 
-    // El nuevo período arranca desde el fin del período actual si aún no venció,
-    // o desde hoy si ya venció (incluyendo suspended/grace).
+    // El período arranca donde terminó el anterior (si aún no venció) o desde hoy
     const inicioActual = new Date(tenant.plan_ends_at);
     const inicio = inicioActual > hoy ? inicioActual : hoy;
     const fin = new Date(inicio);
-    fin.setFullYear(fin.getFullYear() + 1);
+    fin.setDate(fin.getDate() + calcularDuracion(modalidad, cuotaNumero));
 
     await tx.update(tenants).set({
       plan_id: plan.id,
@@ -192,6 +232,7 @@ export async function reactivarPorPago(
       ultimo_pago_confirmado_at: hoy,
       trial_ends_at: null,
       subscription_status: "active",
+      modalidad_suscripcion: modalidad,
     }).where(eq(tenants.id, tenantId));
 
     await tx.insert(tenant_state_transitions).values({
@@ -200,7 +241,7 @@ export async function reactivarPorPago(
       to_state: "active",
       reason: "payment_confirmed",
       actor_id: null,
-      metadata: { bold_reference: boldReference, plan_slug: planSlug },
+      metadata: { bold_reference: boldReference, plan_slug: planSlug, modalidad, cuota_numero: cuotaNumero },
     });
   });
 }

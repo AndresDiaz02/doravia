@@ -9,6 +9,7 @@ interface MiPlanData {
   plan: {
     slug: string;
     nombre: string;
+    product: "erp" | "pos" | "origen";
     precio_anual_cop: number;
     features: Record<string, boolean>;
     max_usuarios: number | null;
@@ -72,7 +73,7 @@ export default function MiPlan() {
   const porcentajeUso = uso.max_facturas_ano
     ? Math.min(100, (uso.facturas_usadas_ano / uso.max_facturas_ano) * 100)
     : null;
-  const TRIAL_SLUGS = ["semilla", "raiz", "brote", "cosecha"];
+  const esProductoERP = plan.product === "erp";
 
   return (
     <div className="flex-1 space-y-6 p-6 max-w-2xl">
@@ -170,7 +171,7 @@ export default function MiPlan() {
           {porcentajeUso! >= 80 && (
             <p className="text-xs text-amber-600">
               Llevas el {Math.round(porcentajeUso!)}% del límite anual.{" "}
-              {TRIAL_SLUGS.includes(plan.slug)
+              {esProductoERP
                 ? "Considera actualizar tu plan."
                 : "Considera actualizar a un plan con documentos ilimitados."}
             </p>

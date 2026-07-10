@@ -397,6 +397,7 @@ router.get("/me", authenticate, async (req, res) => {
     plan: {
       slug: plan.slug,
       nombre: plan.nombre,
+      product: plan.product,
       features: plan.features,
       max_usuarios: plan.max_usuarios,
       max_bodegas: plan.max_bodegas,

@@ -22,6 +22,10 @@ export const plans = pgTable("plans", {
   features: jsonb("features").$type<PlanFeatures>().notNull(),
 
   precio_anual_cop: integer("precio_anual_cop").notNull(),
+  // Modalidades de pago (calculados del anual; sin lógica de cobro aún — FASE 5)
+  // mensual = anual / 10 ; 3 cuotas = anual * 1.10
+  precio_mensual_cop: integer("precio_mensual_cop"),
+  precio_3cuotas_total_cop: integer("precio_3cuotas_total_cop"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

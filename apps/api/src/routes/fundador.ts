@@ -1,10 +1,13 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  db, tenants, users, plans, plan_features, refresh_tokens, facturas,
+  db, tenants, users, plans, plan_features, plan_feature_changes,
+  tax_parameters,
+  refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
 } from "@workspace/db";
+import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
 
 const router = Router();
@@ -770,23 +773,41 @@ router.get("/plan-features", async (_req, res, next) => {
 router.patch("/plan-features/:planId/:featureKey", async (req, res, next) => {
   try {
     const { planId, featureKey } = req.params;
-    const { enabled } = req.body as { enabled?: boolean };
+    const { enabled, changed_by } = req.body as { enabled?: boolean; changed_by?: string };
     if (typeof enabled !== "boolean") {
       return res.status(400).json({ error: "Campo requerido: enabled (boolean)." });
     }
 
-    const plan = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
-    if (!plan[0]) return res.status(404).json({ error: "Plan no encontrado." });
+    const [plan] = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
+    if (!plan) return res.status(404).json({ error: "Plan no encontrado." });
 
-    await db
+    // Leer valor anterior para el audit
+    const [existing] = await db
+      .select({ enabled: plan_features.enabled })
+      .from(plan_features)
+      .where(and(eq(plan_features.plan_id, planId), eq(plan_features.feature_key, featureKey)))
+      .limit(1);
+
+    const [upserted] = await db
       .insert(plan_features)
       .values({ plan_id: planId, feature_key: featureKey, enabled })
       .onConflictDoUpdate({
         target: [plan_features.plan_id, plan_features.feature_key],
         set: { enabled, updated_at: sql`now()` },
-      });
+      })
+      .returning();
 
-    res.json({ ok: true, plan_id: planId, feature_key: featureKey, enabled });
+    // Audit trail: escribe siempre, incluso cuando old_value === new_value (permite detectar toques)
+    await db.insert(plan_feature_changes).values({
+      plan_id: planId,
+      feature_key: featureKey,
+      old_value: existing?.enabled ?? null,
+      new_value: enabled,
+      changed_by: changed_by ?? "fundador",
+    });
+
+    res.json({ ok: true, plan_id: planId, feature_key: featureKey, enabled, old_value: existing?.enabled ?? null });
+    void upserted;
   } catch (err) { next(err); }
 });
 
@@ -811,6 +832,61 @@ router.get("/consumo-dian", async (_req, res, next) => {
     const totalMes = rows.reduce((s, r) => s + (r.facturas_mes_actual ?? 0), 0);
     res.json({ total_mes: totalMes, tenants: rows });
   } catch (err) { next(err); }
+});
+
+// ── GET /api/fundador/tax-parameters — todos los vigentes a una fecha ─────────
+// ?fecha=YYYY-MM-DD opcional; por defecto hoy
+router.get("/tax-parameters", async (req, res, next) => {
+  try {
+    const fecha = (req.query.fecha as string | undefined);
+    const rows = await getAllTaxParameters(fecha);
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/fundador/tax-parameters/:parametro — historial completo ──────────
+router.get("/tax-parameters/:parametro", async (req, res, next) => {
+  try {
+    const historial = await getHistorialParametro(req.params.parametro);
+    res.json(historial);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/fundador/tax-parameters — insertar nueva vigencia ───────────────
+// Rechaza si se traslapa con vigencia existente del mismo parámetro.
+router.post("/tax-parameters", async (req, res, next) => {
+  try {
+    const body = req.body as {
+      parametro?: string;
+      descripcion?: string;
+      valor?: string;
+      unidad?: string;
+      valido_desde?: string;
+      valido_hasta?: string;
+      fuente_normativa?: string;
+      creado_por?: string;
+    };
+    const { parametro, descripcion, valor, unidad, valido_desde, valido_hasta, fuente_normativa, creado_por } = body;
+    if (!parametro || !descripcion || !valor || !valido_desde || !valido_hasta) {
+      return res.status(400).json({ error: "Campos requeridos: parametro, descripcion, valor, valido_desde, valido_hasta." });
+    }
+    const inserted = await insertTaxParameter({
+      parametro,
+      descripcion,
+      valor,
+      unidad: unidad ?? "cop",
+      valido_desde,
+      valido_hasta,
+      fuente_normativa,
+      creado_por,
+    });
+    res.status(201).json(inserted);
+  } catch (err) {
+    if (err instanceof TaxParamValidationError) {
+      return res.status(422).json({ error: err.message, code: err.code });
+    }
+    next(err);
+  }
 });
 
 export default router;

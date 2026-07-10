@@ -36,4 +36,6 @@ export * from "./documentos_soporte.ts";
 export * from "./conciliacion_bancaria.ts";
 export * from "./consumo_dian_mensual.ts";
 export * from "./plan_features.ts";
+export * from "./plan_feature_changes.ts";
+export * from "./tax_parameters.ts";
 

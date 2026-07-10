@@ -28,12 +28,19 @@ export async function getTenantWithPlan(tenantId: string): Promise<TenantWithPla
 
   const plan = rows[0].plans;
 
-  // Si plan_features tiene filas, usarlas como fuente de verdad; si no, usar JSONB
   if (featureRows.length > 0) {
     const featuresFromDb = Object.fromEntries(
       featureRows.map((r) => [r.feature_key, r.enabled]),
     ) as PlanFeatures;
     plan.features = featuresFromDb;
+  } else {
+    // Fallback al JSONB mientras plan_features se propaga (solo debería ocurrir en dev / primeros segundos del deploy).
+    // TODO(2026-07): eliminar este fallback y la columna plans.features (~3 ramas, después de feat/accounting-hardening).
+    // En prod: loguear como warning porque indica que la migración no corrió o el seed no se aplicó.
+    if (process.env.NODE_ENV === "production") {
+      console.warn(`[tenant] plan_features vacío para tenant ${tenantId} (plan: ${plan.slug}); usando JSONB fallback — verificar migración`);
+      // Sentry.captureMessage si está configurado — se conecta en feat/notifications
+    }
   }
 
   return { ...rows[0].tenants, plan };

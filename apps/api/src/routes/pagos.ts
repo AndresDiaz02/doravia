@@ -26,8 +26,7 @@ router.post("/checkout", authenticate, async (req, res) => {
     }
 
     // Protección de downgrade: solo se permiten upgrades o renovaciones del mismo plan
-    const POS_PLANS = ["punto", "punto_plus"];
-    if (!POS_PLANS.includes(plan_slug)) {
+    if (plan.product !== "pos") {
       const precioActual = req.tenant.plan.precio_anual_cop;
       if (plan.precio_anual_cop < precioActual) {
         return res.status(403).json({
@@ -156,13 +155,13 @@ router.post("/webhook", async (req, res) => {
     }
 
     const hoy = new Date();
-    const POS_PLANS = ["punto", "punto_plus"];
+    const planFeatures = plan.features as Record<string, boolean>;
 
-    if (POS_PLANS.includes(planSlug)) {
+    if (plan.product === "pos") {
       const addons: Record<string, boolean> = {
         ...((tenant.addons ?? {}) as Record<string, boolean>),
         pos: true,
-        ...(planSlug === "punto_plus" ? { pos_multi_caja: true } : {}),
+        ...(planFeatures.pos_multi_caja ? { pos_multi_caja: true } : {}),
       };
       await db.update(tenants).set({ addons }).where(eq(tenants.id, tenant.id));
       console.log(`POS addon activado (${planSlug}) para tenant ${tenant.id}`);

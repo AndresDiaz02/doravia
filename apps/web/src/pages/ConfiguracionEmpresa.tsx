@@ -28,7 +28,7 @@ interface EmpresaConfig {
 
 export default function ConfiguracionEmpresa() {
   const { plan } = useAuth();
-  const esPuntoPlus = plan?.slug === "punto_plus";
+  const tieneAgendaServicios = plan?.features?.agenda_servicios === true;
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [config, setConfig] = useState<EmpresaConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -375,7 +375,7 @@ export default function ConfiguracionEmpresa() {
               },
             ].map(({ key, label, desc, default: def, requiresPuntoPlus }) => {
               const activo = posConfig[key] !== undefined ? posConfig[key]! : def;
-              const bloqueado = requiresPuntoPlus && !esPuntoPlus;
+              const bloqueado = requiresPuntoPlus && !tieneAgendaServicios;
               return (
                 <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50">
                   <div className="flex-1 min-w-0 mr-4">

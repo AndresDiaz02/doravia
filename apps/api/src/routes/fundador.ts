@@ -1,7 +1,7 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  db, tenants, users, plans, refresh_tokens, facturas,
+  db, tenants, users, plans, plan_features, refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
 } from "@workspace/db";
@@ -739,6 +739,55 @@ router.post("/activar-registro/:id", async (req, res) => {
     email: user.email,
     plan_ends_at: planFin.toISOString(),
   });
+});
+
+// ── GET /api/fundador/plan-features — lista todos los planes con sus features ──
+router.get("/plan-features", async (_req, res, next) => {
+  try {
+    const allPlans = await db.select().from(plans).orderBy(plans.product, plans.precio_anual_cop);
+    const allFeatures = await db.select().from(plan_features);
+
+    const featuresByPlan = new Map<string, Record<string, boolean>>();
+    for (const f of allFeatures) {
+      if (!featuresByPlan.has(f.plan_id)) featuresByPlan.set(f.plan_id, {});
+      featuresByPlan.get(f.plan_id)![f.feature_key] = f.enabled;
+    }
+
+    const result = allPlans.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      nombre: p.nombre,
+      product: p.product,
+      precio_anual_cop: p.precio_anual_cop,
+      features: featuresByPlan.get(p.id) ?? {},
+    }));
+
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/fundador/plan-features/:planId/:featureKey ─────────────────────
+router.patch("/plan-features/:planId/:featureKey", async (req, res, next) => {
+  try {
+    const { planId, featureKey } = req.params;
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ error: "Campo requerido: enabled (boolean)." });
+    }
+
+    const plan = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
+    if (!plan[0]) return res.status(404).json({ error: "Plan no encontrado." });
+
+    await db
+      .insert(plan_features)
+      .values({ plan_id: planId, feature_key: featureKey, enabled })
+      .onConflictDoUpdate({
+        target: [plan_features.plan_id, plan_features.feature_key],
+        set: { enabled, updated_at: sql`now()` },
+      });
+
+    res.json({ ok: true, plan_id: planId, feature_key: featureKey, enabled });
+  } catch (err) { next(err); }
 });
 
 // ── GET /api/fundador/consumo-dian ────────────────────────────────────────────

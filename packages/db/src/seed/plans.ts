@@ -33,6 +33,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "origen",
     nombre: "Origen 10",
+    product: "origen",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
@@ -45,6 +46,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "origen_24",
     nombre: "Origen 24",
+    product: "origen",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
@@ -57,6 +59,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "origen_60",
     nombre: "Origen 60",
+    product: "origen",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
@@ -69,6 +72,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "origen_120",
     nombre: "Origen 120",
+    product: "origen",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
@@ -81,6 +85,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "origen_300",
     nombre: "Origen 300",
+    product: "origen",
     max_usuarios: 1,
     max_bodegas: 0,
     max_facturas_mes: null,
@@ -95,6 +100,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "semilla",
     nombre: "Semilla",
+    product: "erp",
     max_usuarios: 3,
     max_bodegas: 2,
     max_facturas_mes: null,
@@ -118,6 +124,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "raiz",
     nombre: "Raíz",
+    product: "erp",
     max_usuarios: 5,
     max_bodegas: 3,
     max_facturas_mes: null,
@@ -143,6 +150,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "brote",
     nombre: "Brote",
+    product: "erp",
     max_usuarios: 10,
     max_bodegas: 5,
     max_facturas_mes: null,
@@ -171,6 +179,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "cosecha",
     nombre: "Cosecha",
+    product: "erp",
     max_usuarios: null,
     max_bodegas: null,
     max_facturas_mes: null,
@@ -207,6 +216,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "punto",
     nombre: "Punto",
+    product: "pos",
     max_usuarios: 2,
     max_bodegas: 1,
     max_facturas_mes: null,
@@ -224,6 +234,7 @@ export const PLAN_SEEDS: NewPlan[] = [
   {
     slug: "punto_plus",
     nombre: "Punto Plus",
+    product: "pos",
     max_usuarios: null,
     max_bodegas: 3,
     max_facturas_mes: null,

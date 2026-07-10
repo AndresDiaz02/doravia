@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, numeric, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, numeric, timestamp, jsonb, smallint } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 
 export const bold_payments = pgTable("bold_payments", {
@@ -11,6 +11,10 @@ export const bold_payments = pgTable("bold_payments", {
   moneda: varchar("moneda", { length: 10 }).notNull().default("COP"),
   metodo_pago: varchar("metodo_pago", { length: 30 }),
   estado: varchar("estado", { length: 30 }).notNull().default("PENDING"),
+  // Modalidad de pago: 'anual' | 'mensual' | '3cuotas'
+  modalidad: varchar("modalidad", { length: 20 }).notNull().default("anual"),
+  cuota_numero: smallint("cuota_numero").notNull().default(1),
+  total_cuotas: smallint("total_cuotas").notNull().default(1),
   descripcion: varchar("descripcion", { length: 200 }),
   callback_url: varchar("callback_url", { length: 500 }),
   bold_response: jsonb("bold_response").$type<Record<string, unknown>>(),

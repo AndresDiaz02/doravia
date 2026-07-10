@@ -680,6 +680,14 @@ const migrations = [
     created_at  timestamptz NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_tst_tenant ON tenant_state_transitions(tenant_id, created_at DESC)`,
+
+  // ── FASE 5 — Modalidades de pago (mensual, 3 cuotas, anual) ─────────────────
+  // bold_payments: registra qué modalidad y cuota corresponde a cada pago
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS modalidad    varchar(20) NOT NULL DEFAULT 'anual'`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS cuota_numero smallint    NOT NULL DEFAULT 1`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS total_cuotas smallint    NOT NULL DEFAULT 1`,
+  // tenants: modalidad vigente de la suscripción
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS modalidad_suscripcion varchar(20) NOT NULL DEFAULT 'anual'`,
 ];
 
 for (const migration of migrations) {

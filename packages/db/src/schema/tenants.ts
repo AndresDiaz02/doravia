@@ -48,6 +48,9 @@ export const tenants = pgTable("tenants", {
   // 'trial' | 'active' | 'grace' | 'suspended' | 'archived'
   // trial_starts_at = plan_starts_at (reutilizado, no se reinicia al cambiar plan)
   subscription_status: varchar("subscription_status", { length: 20 }).notNull().default("active"),
+  // ── Modalidad de pago (FASE 5) ───────────────────────────────────────────
+  // 'anual' | 'mensual' | '3cuotas'
+  modalidad_suscripcion: varchar("modalidad_suscripcion", { length: 20 }).notNull().default("anual"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

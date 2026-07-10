@@ -483,6 +483,16 @@ const migrations = [
  WHERE pos_config->>'plemsi_api_key' IS NOT NULL
    AND pos_config->>'plemsi_api_key' <> ''
    AND plemsi_api_key_encrypted IS NULL`,
+
+  // ── Índices de performance POS ────────────────────────────────────────────
+  `CREATE INDEX IF NOT EXISTS idx_items_venta_pos_venta_id ON items_venta_pos(venta_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_ventas_pos_turno_id ON ventas_pos(turno_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_ventas_pos_tenant_estado ON ventas_pos(tenant_id, estado)`,
+  `CREATE INDEX IF NOT EXISTS idx_gastos_caja_pos_turno_id ON gastos_caja_pos(turno_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_devoluciones_pos_turno_id ON devoluciones_pos(turno_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_citas_pos_tenant_fecha ON citas_pos(tenant_id, fecha)`,
+  `CREATE INDEX IF NOT EXISTS idx_fiados_tenant ON fiados(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_abonos_fiado_fiado_id ON abonos_fiado(fiado_id)`,
 ];
 
 for (const migration of migrations) {

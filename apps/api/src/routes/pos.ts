@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
-import { eq, and, desc, sql, count, ne, gte, lt, sum, between } from "drizzle-orm";
+import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray } from "drizzle-orm";
 import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
@@ -469,100 +469,90 @@ router.post("/ventas", async (req, res) => {
 // ── Resumen turno ─────────────────────────────────────────────────────────────
 
 router.get("/turnos/:id/resumen", async (req, res) => {
-  const [turno] = await db
-    .select()
-    .from(turnos_pos)
-    .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId)));
-  if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
+  try {
+    const [turno] = await db
+      .select()
+      .from(turnos_pos)
+      .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId)));
+    if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
 
-  const ventasTurno = await db
-    .select()
-    .from(ventas_pos)
-    .where(and(eq(ventas_pos.turno_id, turno.id), eq(ventas_pos.estado, "completada")));
+    // Ejecutar queries en paralelo donde no hay dependencia
+    const [ventasTurno, gastosCaja, devolucionesTurno] = await Promise.all([
+      db.select().from(ventas_pos)
+        .where(and(eq(ventas_pos.turno_id, turno.id), eq(ventas_pos.estado, "completada"))),
+      db.select().from(gastos_caja_pos)
+        .where(eq(gastos_caja_pos.turno_id, turno.id)),
+      db.select().from(devoluciones_pos)
+        .where(eq(devoluciones_pos.turno_id, turno.id)),
+    ]);
 
-  // Ítems de todas las ventas del turno (para top productos)
-  const ventaIds = ventasTurno.map((v) => v.id);
-  let itemsTurno: Array<{ descripcion: string; cantidad: string; total: string; iva_valor: string; descuento_pct: string; precio_unitario: string; cantidad_num: number; }> = [];
-  if (ventaIds.length > 0) {
-    const rawItems = await db
-      .select({
-        descripcion: items_venta_pos.descripcion,
-        cantidad: items_venta_pos.cantidad,
-        total: items_venta_pos.total,
-        iva_valor: items_venta_pos.iva_valor,
-        descuento_pct: items_venta_pos.descuento_pct,
-        precio_unitario: items_venta_pos.precio_unitario,
-      })
-      .from(items_venta_pos)
-      .where(sql`${items_venta_pos.venta_id} = ANY(ARRAY[${sql.join(ventaIds.map((id) => sql`${id}::uuid`), sql`, `)}])`);
-    itemsTurno = rawItems.map((i) => ({ ...i, cantidad_num: Number(i.cantidad) }));
+    // Ítems de todas las ventas del turno (para top productos)
+    const ventaIds = ventasTurno.map((v) => v.id);
+    let itemsTurno: Array<{ descripcion: string; cantidad: string; total: string; iva_valor: string; descuento_pct: string; precio_unitario: string; }> = [];
+    if (ventaIds.length > 0) {
+      itemsTurno = await db
+        .select({
+          descripcion: items_venta_pos.descripcion,
+          cantidad: items_venta_pos.cantidad,
+          total: items_venta_pos.total,
+          iva_valor: items_venta_pos.iva_valor,
+          descuento_pct: items_venta_pos.descuento_pct,
+          precio_unitario: items_venta_pos.precio_unitario,
+        })
+        .from(items_venta_pos)
+        .where(inArray(items_venta_pos.venta_id, ventaIds));
+    }
+
+    // Agregar por producto
+    const productosMap: Record<string, { descripcion: string; cantidad: number; total: number }> = {};
+    for (const it of itemsTurno) {
+      if (!productosMap[it.descripcion]) productosMap[it.descripcion] = { descripcion: it.descripcion, cantidad: 0, total: 0 };
+      productosMap[it.descripcion].cantidad += Number(it.cantidad);
+      productosMap[it.descripcion].total += Number(it.total);
+    }
+    const topProductos = Object.values(productosMap).sort((a, b) => b.cantidad - a.cantidad).slice(0, 8);
+
+    // Ventas por hora
+    const ventasPorHora: Record<number, { cantidad: number; total: number }> = {};
+    for (const v of ventasTurno) {
+      const hora = new Date(v.created_at).getHours();
+      if (!ventasPorHora[hora]) ventasPorHora[hora] = { cantidad: 0, total: 0 };
+      ventasPorHora[hora].cantidad += 1;
+      ventasPorHora[hora].total += Number(v.total);
+    }
+    const porHora = Object.entries(ventasPorHora).map(([h, d]) => ({ hora: Number(h), ...d })).sort((a, b) => a.hora - b.hora);
+
+    const porMetodo: Record<string, number> = {};
+    for (const v of ventasTurno) {
+      const m = v.metodo_pago;
+      porMetodo[m] = (porMetodo[m] ?? 0) + Number(v.total);
+    }
+
+    const totalVentas = ventasTurno.reduce((s, v) => s + Number(v.total), 0);
+    const ivaRecaudado = itemsTurno.reduce((s, i) => s + Number(i.iva_valor), 0);
+    const descuentoTotal = itemsTurno.reduce(
+      (s, i) => s + Number(i.cantidad) * Number(i.precio_unitario) * (Number(i.descuento_pct) / 100), 0
+    );
+
+    res.json({
+      turno,
+      total_ventas: totalVentas,
+      cantidad_ventas: ventasTurno.length,
+      ticket_promedio: ventasTurno.length > 0 ? totalVentas / ventasTurno.length : 0,
+      iva_recaudado: ivaRecaudado,
+      descuento_total: descuentoTotal,
+      por_metodo: porMetodo,
+      top_productos: topProductos,
+      por_hora: porHora,
+      gastos_caja: gastosCaja,
+      total_gastos_caja: gastosCaja.reduce((s, g) => s + Number(g.monto), 0),
+      devoluciones: devolucionesTurno,
+      total_devoluciones: devolucionesTurno.reduce((s, d) => s + Number(d.monto_devuelto), 0),
+    });
+  } catch (err) {
+    console.error("[resumen-turno] error:", err instanceof Error ? err.message : err);
+    res.status(500).json({ error: "Error al cargar el resumen del turno." });
   }
-
-  // Agregar por producto (descripción como key)
-  const productosMap: Record<string, { descripcion: string; cantidad: number; total: number }> = {};
-  for (const it of itemsTurno) {
-    const key = it.descripcion;
-    if (!productosMap[key]) productosMap[key] = { descripcion: key, cantidad: 0, total: 0 };
-    productosMap[key].cantidad += Number(it.cantidad);
-    productosMap[key].total += Number(it.total);
-  }
-  const topProductos = Object.values(productosMap)
-    .sort((a, b) => b.cantidad - a.cantidad)
-    .slice(0, 8);
-
-  // Ventas por hora
-  const ventasPorHora: Record<number, { cantidad: number; total: number }> = {};
-  for (const v of ventasTurno) {
-    const hora = new Date(v.created_at).getHours();
-    if (!ventasPorHora[hora]) ventasPorHora[hora] = { cantidad: 0, total: 0 };
-    ventasPorHora[hora].cantidad += 1;
-    ventasPorHora[hora].total += Number(v.total);
-  }
-  const porHora = Object.entries(ventasPorHora)
-    .map(([h, d]) => ({ hora: Number(h), ...d }))
-    .sort((a, b) => a.hora - b.hora);
-
-  const porMetodo: Record<string, number> = {};
-  for (const v of ventasTurno) {
-    const m = v.metodo_pago;
-    porMetodo[m] = (porMetodo[m] ?? 0) + Number(v.total);
-  }
-
-  const totalVentas = ventasTurno.reduce((s, v) => s + Number(v.total), 0);
-  const ivaRecaudado = itemsTurno.reduce((s, i) => s + Number(i.iva_valor), 0);
-  const descuentoTotal = itemsTurno.reduce(
-    (s, i) => s + Number(i.cantidad) * Number(i.precio_unitario) * (Number(i.descuento_pct) / 100), 0
-  );
-
-  // Gastos de caja chica del turno
-  const gastosCaja = await db
-    .select()
-    .from(gastos_caja_pos)
-    .where(eq(gastos_caja_pos.turno_id, turno.id));
-  const totalGastosCaja = gastosCaja.reduce((s, g) => s + Number(g.monto), 0);
-
-  // Devoluciones del turno
-  const devolucionesTurno = await db
-    .select()
-    .from(devoluciones_pos)
-    .where(eq(devoluciones_pos.turno_id, turno.id));
-  const totalDevoluciones = devolucionesTurno.reduce((s, d) => s + Number(d.monto_devuelto), 0);
-
-  res.json({
-    turno,
-    total_ventas: totalVentas,
-    cantidad_ventas: ventasTurno.length,
-    ticket_promedio: ventasTurno.length > 0 ? totalVentas / ventasTurno.length : 0,
-    iva_recaudado: ivaRecaudado,
-    descuento_total: descuentoTotal,
-    por_metodo: porMetodo,
-    top_productos: topProductos,
-    por_hora: porHora,
-    gastos_caja: gastosCaja,
-    total_gastos_caja: totalGastosCaja,
-    devoluciones: devolucionesTurno,
-    total_devoluciones: totalDevoluciones,
-  });
 });
 
 // ── Gastos de caja chica ──────────────────────────────────────────────────────

@@ -527,6 +527,31 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_profesionales_pos_tenant ON profesionales_pos(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS idx_horarios_profesional ON horarios_profesional(profesional_id)`,
   `CREATE INDEX IF NOT EXISTS idx_bloqueos_profesional_fecha ON bloqueos_profesional(profesional_id, fecha)`,
+
+  // ── FASE 0 — Config central de planes ─────────────────────────────────────
+  // product: identifica a qué suite pertenece el plan ('erp' | 'pos' | 'origen')
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS product varchar(20) NOT NULL DEFAULT 'erp'`,
+  `UPDATE plans SET product = 'origen' WHERE slug LIKE 'origen%'`,
+  `UPDATE plans SET product = 'pos' WHERE slug IN ('punto', 'punto_plus')`,
+  `UPDATE plans SET product = 'erp' WHERE slug IN ('semilla', 'raiz', 'brote', 'cosecha')`,
+  // Tabla relacional de features: permite que fundadores activen/desactiven features
+  // por plan desde backoffice sin necesidad de re-deploy.
+  `CREATE TABLE IF NOT EXISTS plan_features (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    plan_id uuid NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    feature_key varchar(50) NOT NULL,
+    enabled boolean NOT NULL DEFAULT false,
+    limit_value integer,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (plan_id, feature_key)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_plan_features_plan_id ON plan_features(plan_id)`,
+  // Seed one-shot: poblar plan_features desde el JSONB existente en plans.features
+  `INSERT INTO plan_features (plan_id, feature_key, enabled)
+   SELECT p.id, kv.key, (kv.value)::boolean
+   FROM plans p
+   CROSS JOIN LATERAL jsonb_each(p.features) AS kv
+   ON CONFLICT (plan_id, feature_key) DO NOTHING`,
 ];
 
 for (const migration of migrations) {

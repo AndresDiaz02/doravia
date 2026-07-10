@@ -35,4 +35,5 @@ export * from "./activos_fijos.ts";
 export * from "./documentos_soporte.ts";
 export * from "./conciliacion_bancaria.ts";
 export * from "./consumo_dian_mensual.ts";
+export * from "./plan_features.ts";
 

@@ -5,6 +5,8 @@ export const plans = pgTable("plans", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: varchar("slug", { length: 20 }).unique().notNull(),
   nombre: varchar("nombre", { length: 50 }).notNull(),
+  // 'erp' | 'pos' | 'origen'
+  product: varchar("product", { length: 20 }).notNull().default("erp"),
 
   // Limites numericos -- NULL = ilimitado
   max_usuarios:     smallint("max_usuarios"),

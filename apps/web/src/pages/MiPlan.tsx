@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Calendar, Zap, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle, Calendar, Zap, RefreshCw, CreditCard } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+
+type Modalidad = "anual" | "mensual" | "3cuotas";
 
 interface MiPlanData {
   plan: {
@@ -21,7 +23,12 @@ interface MiPlanData {
     dias_restantes: number;
     en_trial: boolean;
     activo: boolean;
+    subscription_status: string;
     ultimo_pago_confirmado_at: string | null;
+    modalidad: Modalidad;
+    cuota_actual: number | null;
+    total_cuotas: number | null;
+    proxima_cuota_monto: number | null;
   };
   uso: {
     facturas_usadas_ano: number;
@@ -125,7 +132,33 @@ export default function MiPlan() {
               <span>Último pago: <strong>{fmtDate(suscripcion.ultimo_pago_confirmado_at)}</strong></span>
             </div>
           )}
+          {!suscripcion.en_trial && suscripcion.modalidad && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CreditCard className="h-4 w-4 text-gray-400" />
+              <span>
+                Modalidad:{" "}
+                <strong>
+                  {suscripcion.modalidad === "anual"
+                    ? "Anual"
+                    : suscripcion.modalidad === "mensual"
+                    ? "Mensual"
+                    : `3 cuotas${suscripcion.cuota_actual != null ? ` (cuota ${suscripcion.cuota_actual}/${suscripcion.total_cuotas})` : ""}`}
+                </strong>
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Próxima cuota */}
+        {suscripcion.proxima_cuota_monto != null && !suscripcion.en_trial && (
+          <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+            <CreditCard className="h-4 w-4 flex-shrink-0" />
+            Próximo cobro: <strong className="ml-1">{cop(suscripcion.proxima_cuota_monto)}</strong>
+            {suscripcion.modalidad === "3cuotas" && suscripcion.cuota_actual != null && (
+              <span className="text-blue-500 ml-1">· cuota {suscripcion.cuota_actual + 1}/{suscripcion.total_cuotas}</span>
+            )}
+          </div>
+        )}
 
         {/* Días restantes */}
         {suscripcion.dias_restantes > 0 && suscripcion.dias_restantes <= 30 && (

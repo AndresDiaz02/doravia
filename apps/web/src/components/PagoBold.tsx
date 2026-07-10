@@ -7,10 +7,15 @@ interface IntentResponse {
   api_key: string;
 }
 
+type Modalidad = "anual" | "mensual" | "3cuotas";
+
 interface PagoBoldProps {
   planSlug: string;
-  monto: number;
-  descripcion: string;
+  /** Monto sugerido por el frontend (solo para visualización inicial). El monto real
+   *  lo calcula el servidor según la modalidad seleccionada. */
+  montoReferencia?: number;
+  descripcion?: string;
+  modalidad?: Modalidad;
   onCancelar?: () => void;
   /** Ruta base del API. Por defecto "/api/pagos/bold" (requiere auth).
    *  Usar "/api/pagos/bold/public" para clientes nuevos sin cuenta. */
@@ -19,8 +24,9 @@ interface PagoBoldProps {
 
 export default function PagoBold({
   planSlug,
-  monto,
+  montoReferencia,
   descripcion,
+  modalidad = "anual",
   onCancelar,
   apiBase = "/api/pagos/bold",
 }: PagoBoldProps) {
@@ -40,9 +46,10 @@ export default function PagoBold({
     setCargando(true);
     setError(null);
     try {
+      // El servidor calcula el monto real según la modalidad; montoReferencia es solo orientativo
       const data = await apiFetch<IntentResponse>(`${apiBase}/intent`, {
         method: "POST",
-        body: JSON.stringify({ plan_id: planSlug, monto, descripcion }),
+        body: JSON.stringify({ plan_id: planSlug, modalidad, descripcion }),
       });
       setIntent(data);
     } catch {
@@ -58,17 +65,19 @@ export default function PagoBold({
 
     contenedorRef.current.innerHTML = "";
 
+    const montoReal = (intent as IntentResponse & { monto?: number }).monto ?? montoReferencia ?? 0;
     const origin = window.location.origin;
     const redirectUrl = isPublic
-      ? `${origin}/registro-post-pago?ref=${intent.reference_id}&plan=${planSlug}&monto=${monto}`
+      ? `${origin}/registro-post-pago?ref=${intent.reference_id}&plan=${planSlug}&monto=${montoReal}`
       : `${origin}/pago/resultado?ref=${intent.reference_id}`;
 
+    const desc = descripcion ?? `Plan Doravia — ${modalidad}`;
     const script = document.createElement("script");
     script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
     script.setAttribute("data-bold-button", "");
     script.setAttribute("data-order-id", intent.reference_id);
-    script.setAttribute("data-description", descripcion);
-    script.setAttribute("data-amount", String(monto));
+    script.setAttribute("data-description", desc);
+    script.setAttribute("data-amount", String(montoReal));
     script.setAttribute("data-currency", "COP");
     script.setAttribute("data-api-key", intent.api_key);
     script.setAttribute("data-integrity-signature", intent.firma);

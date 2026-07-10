@@ -1,10 +1,12 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
 import { Check, Zap, FileText, BarChart3, X } from "lucide-react";
 import PagoBold from "../components/PagoBold";
+
+type Modalidad = "anual" | "mensual" | "3cuotas";
 
 interface OrigenCapacidad {
   slug: string;
@@ -24,7 +26,7 @@ const ORIGEN_CAPACIDADES: OrigenCapacidad[] = [
 interface PlanERP {
   slug: string;
   nombre: string;
-  precio: number;
+  precioAnual: number;
   descripcion: string;
   features: string[];
   destacado?: boolean;
@@ -34,7 +36,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "semilla",
     nombre: "Semilla",
-    precio: 730_000,
+    precioAnual: 730_000,
     descripcion: "ERP completo para empresas en operación",
     features: [
       "Facturación ilimitada",
@@ -50,7 +52,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "raiz",
     nombre: "Raíz",
-    precio: 990_000,
+    precioAnual: 990_000,
     descripcion: "Para negocios con operaciones más complejas",
     features: [
       "Todo Semilla +",
@@ -64,7 +66,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "brote",
     nombre: "Brote",
-    precio: 1_450_000,
+    precioAnual: 1_450_000,
     descripcion: "Facturación recurrente y reportes avanzados",
     features: [
       "Todo Raíz +",
@@ -78,7 +80,7 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "cosecha",
     nombre: "Cosecha",
-    precio: 1_990_000,
+    precioAnual: 1_990_000,
     descripcion: "Sin restricciones — el plan más completo",
     features: [
       "Todo Brote +",
@@ -95,34 +97,51 @@ const PLANES_ERP: PlanERP[] = [
 const ORDEN_ERP = ["semilla", "raiz", "brote", "cosecha"];
 const ORIGEN_SLUGS = ["origen", "origen_24", "origen_60", "origen_120", "origen_300"];
 
+/** Precio a mostrar en la tarjeta según modalidad (orientativo — servidor calcula el real). */
+function precioModalidad(anual: number, modalidad: Modalidad): { monto: number; etiqueta: string } {
+  if (modalidad === "mensual") {
+    return { monto: Math.round(anual / 10), etiqueta: "/ mes" };
+  }
+  if (modalidad === "3cuotas") {
+    const total = Math.round(anual * 1.1);
+    const cuota = Math.ceil(total / 3 / 100) * 100;
+    return { monto: cuota, etiqueta: "/ cuota (×3)" };
+  }
+  return { monto: anual, etiqueta: "/ año" };
+}
+
 export default function UpgradePlan() {
   const navigate = useNavigate();
   const { plan: planActual } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [modalidad, setModalidad] = useState<Modalidad>("anual");
 
-  // Estado para el modal de pago Bold
-  const [planBold, setPlanBold] = useState<{ slug: string; nombre: string; precio: number } | null>(null);
+  const [planBold, setPlanBold] = useState<{ slug: string; nombre: string; precioAnual: number } | null>(null);
 
   function abrirPagoBold(planSlug: string) {
     if (planSlug === "origen") return;
-    // Buscar precio del plan
     const planOrigen = ORIGEN_CAPACIDADES.find((c) => c.slug === planSlug);
     const planERP = PLANES_ERP.find((p) => p.slug === planSlug);
-    const precio = planOrigen?.precio ?? planERP?.precio ?? 0;
+    const precioAnual = planOrigen?.precio ?? planERP?.precioAnual ?? 0;
     const nombre = planERP?.nombre ?? planSlug;
-    if (precio === 0) return;
-    setPlanBold({ slug: planSlug, nombre, precio });
+    if (precioAnual === 0) return;
+    setPlanBold({ slug: planSlug, nombre, precioAnual });
     setError(null);
-  }
-
-  // Para compatibilidad, redirigir a Bold como pasarela primaria
-  function iniciarPago(planSlug: string) {
-    abrirPagoBold(planSlug);
   }
 
   const planSlugActual = (planActual as { slug?: string } | null)?.slug ?? "origen";
   const enOrigen = ORIGEN_SLUGS.includes(planSlugActual);
   const nivelActualERP = ORDEN_ERP.indexOf(planSlugActual);
+
+  const { monto: montoBoldActual, etiqueta } = planBold
+    ? precioModalidad(planBold.precioAnual, modalidad)
+    : { monto: 0, etiqueta: "" };
+
+  const MODALIDADES: { valor: Modalidad; label: string; nota: string }[] = [
+    { valor: "anual",   label: "Anual",      nota: "El mejor precio" },
+    { valor: "mensual", label: "Mensual",    nota: "×10 del anual" },
+    { valor: "3cuotas", label: "3 cuotas",   nota: "+10% del anual" },
+  ];
 
   return (
     <>
@@ -131,13 +150,47 @@ export default function UpgradePlan() {
 
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Elige tu plan</h1>
-          <p className="text-gray-500 mt-2">Precios en COP · facturación anual.</p>
+          <p className="text-gray-500 mt-2">Precios en COP · IVA no incluido.</p>
           {planActual && (
             <p className="mt-1 text-sm text-action font-medium">
               Plan actual: <strong>{planActual.nombre}</strong>
             </p>
           )}
         </div>
+
+        {/* ── Selector de modalidad de pago ───────────────────────────────── */}
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 gap-1 shadow-sm">
+            {MODALIDADES.map(({ valor, label, nota }) => (
+              <button
+                key={valor}
+                onClick={() => setModalidad(valor)}
+                className={`flex flex-col items-center px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                  modalidad === valor
+                    ? "bg-action text-white shadow"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+                <span className={`text-[11px] font-normal mt-0.5 ${modalidad === valor ? "text-white/80" : "text-gray-400"}`}>
+                  {nota}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Nota explicativa según modalidad */}
+        {modalidad === "mensual" && (
+          <p className="text-center text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 px-4 max-w-lg mx-auto">
+            Modalidad mensual: pagas cada mes y renuevas en ciclos de 30 días. Equivale a pagar el 10× el precio anual por año.
+          </p>
+        )}
+        {modalidad === "3cuotas" && (
+          <p className="text-center text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg py-2 px-4 max-w-lg mx-auto">
+            3 cuotas bimestrales con un recargo del 10%. Cuotas 1 y 2 iguales, cuota 3 ajustada al residuo.
+          </p>
+        )}
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
@@ -195,7 +248,7 @@ export default function UpgradePlan() {
                           </span>
                         ) : c.precio === 0 ? null : (
                           <button
-                            onClick={() => void iniciarPago(c.slug)}
+                            onClick={() => void abrirPagoBold(c.slug)}
                             disabled={!enOrigen}
                             className="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
@@ -226,6 +279,7 @@ export default function UpgradePlan() {
               const nivelPlan = ORDEN_ERP.indexOf(plan.slug);
               const esActual = plan.slug === planSlugActual;
               const esUpgrade = nivelPlan > nivelActualERP || enOrigen;
+              const { monto: montoMostrar, etiqueta: etiquetaMostrar } = precioModalidad(plan.precioAnual, modalidad);
 
               return (
                 <div
@@ -248,8 +302,13 @@ export default function UpgradePlan() {
                   </div>
 
                   <div>
-                    <span className="text-2xl font-bold text-gray-900">{cop(plan.precio)}</span>
-                    <span className="text-xs text-gray-500 ml-1">/ año</span>
+                    <span className="text-2xl font-bold text-gray-900">{cop(montoMostrar)}</span>
+                    <span className="text-xs text-gray-500 ml-1">{etiquetaMostrar}</span>
+                    {modalidad !== "anual" && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Anual: {cop(plan.precioAnual)}
+                      </p>
+                    )}
                   </div>
 
                   <ul className="flex-1 space-y-1.5">
@@ -267,7 +326,7 @@ export default function UpgradePlan() {
                     </div>
                   ) : (
                     <Button
-                      onClick={() => void iniciarPago(plan.slug)}
+                      onClick={() => void abrirPagoBold(plan.slug)}
                       variant={esUpgrade ? "primary" : "secondary"}
                     >
                       {esUpgrade ? `Activar ${plan.nombre}` : `Cambiar a ${plan.nombre}`}
@@ -309,7 +368,12 @@ export default function UpgradePlan() {
                 Pagar plan {planBold.nombre}
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(planBold.precio)} / año
+                {cop(montoBoldActual)} {etiqueta}
+                {modalidad === "3cuotas" && (
+                  <span className="ml-1 text-gray-400">
+                    · Total: {cop(Math.round(planBold.precioAnual * 1.1))}
+                  </span>
+                )}
               </p>
             </div>
             <button
@@ -322,8 +386,9 @@ export default function UpgradePlan() {
           <div className="px-6 py-5">
             <PagoBold
               planSlug={planBold.slug}
-              monto={planBold.precio}
-              descripcion={`Plan ${planBold.nombre} Doravia — Anual`}
+              montoReferencia={montoBoldActual}
+              modalidad={modalidad}
+              descripcion={`Plan ${planBold.nombre} Doravia — ${modalidad === "3cuotas" ? "cuota 1/3" : modalidad}`}
               onCancelar={() => setPlanBold(null)}
             />
           </div>

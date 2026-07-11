@@ -105,7 +105,7 @@ router.post("/", async (req, res) => {
       consecutivo,
       estado: "borrador",
       fecha_emision: new Date(),
-      fecha_vencimiento: fecha_vencimiento ?? null,
+      fecha_vencimiento: fecha_vencimiento ? new Date(fecha_vencimiento) : null,
       subtotal: String(subtotal),
       descuento_total: "0",
       iva_total: String(iva_total),
@@ -158,7 +158,7 @@ router.patch("/:id", async (req, res) => {
     .set({
       ...(estado !== undefined && { estado }),
       ...(observaciones !== undefined && { observaciones }),
-      ...(fecha_vencimiento !== undefined && { fecha_vencimiento }),
+      ...(fecha_vencimiento !== undefined && { fecha_vencimiento: fecha_vencimiento ? new Date(fecha_vencimiento) : null }),
       ...(descripcion_plan !== undefined && { descripcion_plan }),
       ...(condiciones_pago !== undefined && { condiciones_pago }),
       ...(metodo_pago !== undefined && { metodo_pago }),

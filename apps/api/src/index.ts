@@ -12,7 +12,7 @@ if (process.env.SENTRY_DSN) {
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { authenticate } from "./middleware/auth.js";
 import { requirePlanFeature, requireAccountingLevel } from "./middleware/require-plan-feature.js";
 import { PlanLimitError, PlanFeatureError } from "@workspace/shared";
@@ -134,7 +134,7 @@ const writeRateLimit = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: (req) => req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS",
-  keyGenerator: (req) => (req as { tenantId?: string }).tenantId ?? req.ip ?? "anon",
+  keyGenerator: (req) => (req as { tenantId?: string }).tenantId ?? ipKeyGenerator(req) ?? "anon",
   message: { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
 });
 

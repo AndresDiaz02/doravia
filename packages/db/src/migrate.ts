@@ -649,6 +649,40 @@ const migrations = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_tenant_unread ON notifications(tenant_id, is_read) WHERE is_read = false`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_user_id       ON notifications(user_id) WHERE user_id IS NOT NULL`,
+
+  // ── FASE 9 — Cotizaciones: impoconsumo en ítems ──────────────────────────
+  `ALTER TABLE items_cotizacion ADD COLUMN IF NOT EXISTS impoconsumo_pct   numeric(5,2)  NOT NULL DEFAULT 0`,
+  `ALTER TABLE items_cotizacion ADD COLUMN IF NOT EXISTS impoconsumo_valor numeric(14,2) NOT NULL DEFAULT 0`,
+
+  // ── FASE 9.1 — Pagos en cotizaciones ─────────────────────────────────────
+  // Configuración de proveedor de pagos por tenant (1:1)
+  `CREATE TABLE IF NOT EXISTS configuracion_pagos_tenant (
+    tenant_id              uuid        PRIMARY KEY REFERENCES tenants(id),
+    proveedor              varchar(30) NOT NULL,
+    credenciales_encriptadas text      NOT NULL,
+    habilitado             boolean     NOT NULL DEFAULT true,
+    actualizado_por        uuid        REFERENCES users(id),
+    actualizado_en         timestamptz NOT NULL DEFAULT now()
+  )`,
+  // Registro de cada link de pago generado por cotización
+  `CREATE TABLE IF NOT EXISTS pagos_cotizacion (
+    id                  uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id           uuid         NOT NULL REFERENCES tenants(id),
+    cotizacion_id       uuid         NOT NULL REFERENCES cotizaciones(id),
+    proveedor           varchar(30)  NOT NULL,
+    referencia_externa  varchar(200) NOT NULL UNIQUE,
+    monto               numeric(14,2) NOT NULL,
+    moneda              varchar(10)  NOT NULL DEFAULT 'COP',
+    estado              varchar(30)  NOT NULL DEFAULT 'pendiente',
+    url_link_pago       text         NOT NULL,
+    pagado_en           timestamptz,
+    expira_en           timestamptz,
+    metadata            jsonb,
+    created_at          timestamptz  NOT NULL DEFAULT now(),
+    updated_at          timestamptz  NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_pagos_cotizacion_tenant    ON pagos_cotizacion(tenant_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pagos_cotizacion_cotizacion ON pagos_cotizacion(cotizacion_id)`,
 ];
 
 for (const migration of migrations) {

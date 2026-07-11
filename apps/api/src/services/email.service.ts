@@ -1,5 +1,7 @@
 import { Resend } from "resend";
 import type { Factura, Cliente, Tenant } from "@workspace/db";
+import { db, tenants, users, cotizaciones } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 const FROM = process.env.RESEND_FROM ?? "Doravia <notificaciones@doraviasoft.com>";
 const APP_URL = process.env.APP_URL ?? "https://app.doraviasoft.com";
@@ -334,4 +336,34 @@ export async function enviarTrialSuspendido(params: {
     </p>
   `;
   await send({ to: params.destinatario, subject: "Tu prueba de Doravia ha terminado — activa tu plan", html: baseLayout("Prueba terminada", cuerpo) });
+}
+
+// Notifica al admin del tenant cuando una cotización es pagada en línea.
+// Lanzado de forma asíncrona (fire-and-forget) desde el webhook handler.
+export async function notificarAdminPago(tenantId: string, cotizacionId: string, monto: number): Promise<void> {
+  const [tenant] = await db.select({ nombre: tenants.nombre }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  const [cot] = await db.select({ numero: cotizaciones.numero }).from(cotizaciones).where(eq(cotizaciones.id, cotizacionId)).limit(1);
+  const [admin] = await db
+    .select({ correo: users.email })
+    .from(users)
+    .where(and(eq(users.tenant_id, tenantId), eq(users.role, "admin")))
+    .limit(1);
+
+  if (!admin?.correo) return;
+
+  const cuerpo = `
+    <h2 style="color:#16a34a;font-size:18px;margin:0 0 8px;">¡Cotización pagada!</h2>
+    <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+      La cotización <strong>${cot?.numero ?? cotizacionId}</strong> de <strong>${tenant?.nombre ?? tenantId}</strong>
+      ha sido pagada en línea por <strong>${COP.format(monto)}</strong>.
+    </p>
+    <p style="color:#6b7280;font-size:13px;margin:0;">
+      Puedes verla en el módulo de Cotizaciones de tu cuenta Doravia.
+    </p>
+  `;
+  await send({
+    to: admin.correo,
+    subject: `Cotización ${cot?.numero ?? ""} pagada — ${COP.format(monto)}`,
+    html: baseLayout("Cotización pagada", cuerpo),
+  });
 }

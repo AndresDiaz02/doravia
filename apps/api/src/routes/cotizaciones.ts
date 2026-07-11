@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { db, cotizaciones, items_cotizacion, clientes, facturas } from "@workspace/db";
+import { db, cotizaciones, items_cotizacion, clientes, facturas, pagos_cotizacion } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { crearFactura } from "../services/factura.service.js";
-import { requirePlanFeature } from "../middleware/require-plan-feature.js";
+import { requirePlanFeature, requireRole } from "../middleware/require-plan-feature.js";
 import { PlanLimitError } from "@workspace/shared";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
+import { getTenantPagosConfig, PagosNotConfiguredError } from "../services/pagos/index.js";
 
 const router = Router();
 
@@ -216,6 +217,121 @@ router.post("/:id/convertir", requirePlanFeature("cotizacion_a_factura"), async 
     }
     return res.status(422).json({ error: err instanceof Error ? err.message : "Error al convertir." });
   }
+});
+
+// ── POST /api/cotizaciones/:id/link-pago ─────────────────────────────────────
+// Genera link de pago para la cotización. Rol: admin, vendedor.
+router.post(
+  "/:id/link-pago",
+  requireRole(["admin", "vendedor"]),
+  async (req, res) => {
+    const [cot] = await db
+      .select()
+      .from(cotizaciones)
+      .where(and(eq(cotizaciones.id, req.params.id), eq(cotizaciones.tenant_id, req.tenantId)))
+      .limit(1);
+
+    if (!cot) return res.status(404).json({ error: "Cotización no encontrada." });
+
+    if (!["enviada", "aceptada"].includes(cot.estado)) {
+      return res.status(400).json({ error: "Solo se puede generar link de pago para cotizaciones en estado enviada o aceptada." });
+    }
+
+    // Verificar que no esté vencida
+    if (cot.fecha_vencimiento && new Date(cot.fecha_vencimiento) < new Date()) {
+      return res.status(400).json({
+        error: "No se puede generar link de pago: la cotización está vencida.",
+        code: "COTIZACION_VENCIDA",
+      });
+    }
+
+    // Verificar proveedor configurado
+    let config: Awaited<ReturnType<typeof getTenantPagosConfig>>;
+    try {
+      config = await getTenantPagosConfig(req.tenantId);
+    } catch (err) {
+      if (err instanceof PagosNotConfiguredError) {
+        return res.status(400).json({ error: err.message, code: err.code });
+      }
+      throw err;
+    }
+
+    const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
+    const referencia = `COT-${req.tenantId.slice(0, 8)}-${cot.id.slice(0, 8)}-${Date.now()}`;
+
+    let result: { url_link_pago: string; referencia_proveedor: string };
+    try {
+      result = await config.provider.crearLinkPago({
+        monto: Number(cot.total),
+        moneda: "COP",
+        referencia_externa: referencia,
+        descripcion: `Cotización ${cot.numero} — ${req.tenant.nombre}`,
+        url_redirect_exito: `${APP_URL}/pago-exito?ref=${referencia}`,
+        url_redirect_fallo: `${APP_URL}/pago-fallo?ref=${referencia}`,
+        credenciales: config.credenciales,
+      });
+    } catch (err) {
+      return res.status(502).json({ error: `Error al generar link con ${config.proveedor}: ${err instanceof Error ? err.message : "desconocido"}` });
+    }
+
+    // Guardar registro del pago
+    const [pago] = await db
+      .insert(pagos_cotizacion)
+      .values({
+        tenant_id: req.tenantId,
+        cotizacion_id: cot.id,
+        proveedor: config.proveedor as "bold" | "stub",
+        referencia_externa: referencia,
+        monto: String(cot.total),
+        moneda: "COP",
+        estado: "pendiente",
+        url_link_pago: result.url_link_pago,
+        expira_en: cot.fecha_vencimiento ? new Date(cot.fecha_vencimiento) : undefined,
+      })
+      .returning();
+
+    res.status(201).json({
+      pago_id: pago.id,
+      url_link_pago: result.url_link_pago,
+      referencia_externa: referencia,
+      proveedor: config.proveedor,
+      monto: cot.total,
+      moneda: "COP",
+    });
+  },
+);
+
+// ── GET /api/cotizaciones/:id/pago ───────────────────────────────────────────
+// Estado del pago de la cotización. Rol: admin, vendedor, contador.
+router.get("/:id/pago", requireRole(["admin", "vendedor", "contador"]), async (req, res) => {
+  const [cot] = await db
+    .select({ id: cotizaciones.id })
+    .from(cotizaciones)
+    .where(and(eq(cotizaciones.id, req.params.id), eq(cotizaciones.tenant_id, req.tenantId)))
+    .limit(1);
+
+  if (!cot) return res.status(404).json({ error: "Cotización no encontrada." });
+
+  const [pago] = await db
+    .select({
+      id: pagos_cotizacion.id,
+      proveedor: pagos_cotizacion.proveedor,
+      referencia_externa: pagos_cotizacion.referencia_externa,
+      monto: pagos_cotizacion.monto,
+      moneda: pagos_cotizacion.moneda,
+      estado: pagos_cotizacion.estado,
+      url_link_pago: pagos_cotizacion.url_link_pago,
+      pagado_en: pagos_cotizacion.pagado_en,
+      expira_en: pagos_cotizacion.expira_en,
+      created_at: pagos_cotizacion.created_at,
+    })
+    .from(pagos_cotizacion)
+    .where(eq(pagos_cotizacion.cotizacion_id, cot.id))
+    .orderBy(desc(pagos_cotizacion.created_at))
+    .limit(1);
+
+  if (!pago) return res.json({ tiene_pago: false });
+  res.json({ tiene_pago: true, ...pago });
 });
 
 export default router;

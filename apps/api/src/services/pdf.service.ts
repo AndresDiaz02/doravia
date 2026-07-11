@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 type PDFDoc = InstanceType<typeof PDFDocument>;
 import type { Readable } from "node:stream";
 import type { Factura, ItemFactura, Cliente, Tenant, Cotizacion, ItemCotizacion } from "@workspace/db";
+import QRCode from "qrcode";
 
 const COP = new Intl.NumberFormat("es-CO", {
   style: "currency", currency: "COP", minimumFractionDigits: 0,
@@ -221,12 +222,13 @@ export function generarPdfFactura(
 // ──────────────────────────────────────────────────────────────────────────────
 // PDF COTIZACIÓN
 // ──────────────────────────────────────────────────────────────────────────────
-export function generarPdfCotizacion(
+export async function generarPdfCotizacion(
   cotizacion: Cotizacion,
   cliente: Cliente,
   items: ItemCotizacion[],
   tenant: Tenant,
-): Readable {
+  urlPago?: string,
+): Promise<Readable> {
   const doc = new PDFDocument({ margin: 50, size: "A4" });
 
   encabezado(doc, tenant, "Cotización / Oferta Comercial", `Válida hasta: ${cotizacion.fecha_vencimiento ? new Date(cotizacion.fecha_vencimiento).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" }) : "—"}`);
@@ -295,6 +297,22 @@ export function generarPdfCotizacion(
     doc.moveDown(0.8);
     doc.fontSize(8).fillColor(GRIS).text("Observaciones:", 50, doc.y);
     doc.fontSize(8).fillColor(NEGRO).text(cotizacion.observaciones, 50, doc.y, { width: 280 });
+  }
+
+  // QR de pago si la cotización tiene link activo
+  if (urlPago) {
+    try {
+      const qrBuf = await QRCode.toBuffer(urlPago, { width: 100, margin: 1 });
+      doc.moveDown(1.2);
+      const yQr = doc.y;
+      doc.roundedRect(50, yQr, 495, 118, 4).fill("#f0fdf4").stroke("#86efac");
+      doc.fillColor("#15803d").fontSize(9).text("Paga esta cotización en línea:", 62, yQr + 10);
+      doc.image(qrBuf, 62, yQr + 22, { width: 90, height: 90 });
+      doc.fillColor(GRIS).fontSize(7).text(urlPago, 162, yQr + 22, { width: 360, lineBreak: true });
+      doc.y = yQr + 120;
+    } catch {
+      // Silencioso si QR falla
+    }
   }
 
   pie(doc, tenant);

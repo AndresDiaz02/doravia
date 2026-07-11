@@ -36,10 +36,11 @@ interface Cotizacion {
   cliente: { id: string; nombre: string };
 }
 
-const ESTADO_BADGE: Record<string, "green" | "yellow" | "red" | "gray" | "blue"> = {
+const ESTADO_BADGE: Record<string, "green" | "yellow" | "red" | "gray" | "blue" | "purple"> = {
   borrador:   "yellow",
   enviada:    "blue",
   aceptada:   "green",
+  pagada:     "purple",
   rechazada:  "red",
   vencida:    "gray",
   convertida: "green",
@@ -49,6 +50,7 @@ const ESTADO_LABEL: Record<string, string> = {
   borrador:   "Borrador",
   enviada:    "Enviada",
   aceptada:   "Aceptada",
+  pagada:     "Pagada en línea",
   rechazada:  "Rechazada",
   vencida:    "Vencida",
   convertida: "Convertida a factura",
@@ -257,7 +259,9 @@ export default function Cotizaciones() {
                 return true;
               }).map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.numero}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    <Link to={`/cotizaciones/${c.id}`} className="hover:underline text-indigo-700">{c.numero}</Link>
+                  </td>
                   <td className="px-4 py-3 text-gray-700">{c.cliente.nombre}</td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fecha(c.fecha_emision)}</td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">

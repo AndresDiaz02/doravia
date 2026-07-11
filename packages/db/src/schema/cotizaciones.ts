@@ -7,6 +7,7 @@ export const ESTADOS_COTIZACION = [
   "borrador",
   "enviada",
   "aceptada",
+  "pagada",     // pagada en línea vía link de pago; pendiente conversión a factura
   "rechazada",
   "vencida",
   "convertida", // convertida a factura

@@ -35,6 +35,7 @@ import iaRouter from "./routes/ia.js";
 import tutorialesRouter from "./routes/tutoriales.js";
 import pagosRouter from "./routes/pagos.js";
 import { boldRouter } from "./routes/bold.js";
+import { pagosCotizacionRouter } from "./routes/pagos-cotizacion.js";
 import retencionesRouter from "./routes/retenciones.js";
 import notasCreditoRouter from "./routes/notas-credito.js";
 import notasDebitoRouter  from "./routes/notas-debito.js";
@@ -191,8 +192,9 @@ app.use("/api/cotizaciones",  authenticate, requirePlanFeature("cotizaciones"), 
 app.use("/api/gastos",        authenticate, requirePlanFeature("gastos"),                  gastosRouter);
 app.use("/api/ia",            authenticate, requirePlanFeature("ia_asistente"),            iaRouter);
 app.use("/api/tutoriales",   authenticate, tutorialesRouter);
-app.use("/api/pagos/bold",    boldRouter);  // primero: más específico
-app.use("/api/pagos",         pagosRouter); // después: más general (Wompi/otros)
+app.use("/api/pagos/bold",         boldRouter);             // Doravia Bold subscriptions
+app.use("/api/pagos/cotizaciones", pagosCotizacionRouter); // tenant payment links (FASE 9.1)
+app.use("/api/pagos",              pagosRouter);            // Wompi/otros
 
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────
 app.use("/api/retenciones",    authenticate, retencionesRouter);

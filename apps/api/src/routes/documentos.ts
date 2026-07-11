@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, facturas, items_factura, clientes, cotizaciones, items_cotizacion } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, facturas, items_factura, clientes, cotizaciones, items_cotizacion, pagos_cotizacion } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 import { generarPdfFactura, generarPdfCotizacion, generarReciboCaja } from "../services/pdf.service.js";
 import type { Readable } from "node:stream";
 
@@ -55,7 +55,16 @@ router.get("/cotizaciones/:id/pdf", async (req, res) => {
       .from(items_cotizacion)
       .where(eq(items_cotizacion.cotizacion_id, row.cotizacion.id));
 
-    const stream = generarPdfCotizacion(row.cotizacion, row.cliente, items, req.tenant);
+    // Incluir QR si hay un link de pago pendiente
+    const [pago] = await db
+      .select({ url_link_pago: pagos_cotizacion.url_link_pago, estado: pagos_cotizacion.estado })
+      .from(pagos_cotizacion)
+      .where(eq(pagos_cotizacion.cotizacion_id, row.cotizacion.id))
+      .orderBy(desc(pagos_cotizacion.created_at))
+      .limit(1);
+
+    const urlPago = pago?.estado === "pendiente" ? pago.url_link_pago : undefined;
+    const stream = await generarPdfCotizacion(row.cotizacion, row.cliente, items, req.tenant, urlPago);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${row.cotizacion.numero}.pdf"`);

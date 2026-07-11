@@ -63,6 +63,10 @@ import RegistroPostPago from "./pages/RegistroPostPago";
 import ActivosFijos from "./pages/ActivosFijos";
 import DocumentosSoporte from "./pages/DocumentosSoporte";
 import AgendaServicios from "./pages/AgendaServicios";
+import CotizacionDetalle from "./pages/CotizacionDetalle";
+import ConfiguracionPagos from "./pages/ConfiguracionPagos";
+import PagoExito from "./pages/PagoExito";
+import PagoFallo from "./pages/PagoFallo";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -117,6 +121,8 @@ export default function App() {
               <Route path="/alertas/cobro" element={<AlertasCobro />} />
               <Route path="/recurrentes" element={<><RequiereRol allow={["admin", "contador"]} /><Recurrentes /></>} />
               <Route path="/cotizaciones" element={<Cotizaciones />} />
+              <Route path="/cotizaciones/:id" element={<CotizacionDetalle />} />
+              <Route path="/configuracion/pagos" element={<><RequiereRol allow={["admin"]} /><ConfiguracionPagos /></>} />
               <Route path="/gastos" element={<><RequiereRol allow={["admin", "contador"]} /><Gastos /></>} />
               <Route path="/proveedores" element={<Proveedores />} />
               <Route path="/proveedores/:id" element={<ProveedorDetalle />} />
@@ -160,6 +166,8 @@ export default function App() {
           </Route>
 
           <Route path="/pago/resultado" element={<ResultadoPago />} />
+          <Route path="/pago-exito" element={<PagoExito />} />
+          <Route path="/pago-fallo" element={<PagoFallo />} />
           <Route path="/privacidad" element={<Privacidad />} />
           <Route path="/terminos" element={<Terminos />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

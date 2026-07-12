@@ -42,6 +42,8 @@ pg_restore --clean --no-acl --no-owner \
   backups/doravia_2026-06-22_14-35-00.dump
 ```
 
+> **Schema en dos pasos:** La BD de producción se levanta con `drizzle-kit push` (schema base) + `migrate.ts` (incremental). Restaurar desde una BD vacía requiere ambos pasos, no solo `migrate.ts`.
+
 > **Retención legal DIAN:** Plemsi almacena los documentos electrónicos (facturas, NC, ND) por **6 años** según exigencia DIAN. Aunque se pierda la base de datos local, los XML firmados y los CUFEs quedan en los servidores de Plemsi y pueden recuperarse vía su panel de administración.
 
 ---
@@ -88,6 +90,7 @@ npx wrangler pages deploy dist --project-name doravia
 | `PLEMSI_NIT` | NIT del emisor en Plemsi | Sí |
 | `DIAN_AMBIENTE` | `1` = producción, otro = pruebas | Sí |
 | `BOLD_SECRET_KEY` | Webhook secret de Bold | Sí |
+| `ENCRYPTION_KEY` | Clave AES-256 para credenciales de proveedores de pago (32 bytes base64) | Sí |
 | `ANTHROPIC_API_KEY` | Para el asistente IA | Sí |
 | `SEED_DEMO` | `true` solo en entorno demo | No |
 | `ROSE_SEED_PASSWORD` | Password de rose@doravia.com en seed | Solo si SEED_DEMO=true |

@@ -5,12 +5,16 @@ interface IntentResponse {
   reference_id: string;
   firma: string;
   api_key: string;
+  monto: number;
 }
 
 interface PagoBoldProps {
   planSlug: string;
-  monto: number;
+  /** Solo informativo — el servidor siempre determina el monto real desde la BD. */
+  monto?: number;
   descripcion: string;
+  /** Ciclo de pago: 'anual' (default), 'mensual' o 'cuotas'. */
+  ciclo?: "anual" | "mensual" | "cuotas";
   onCancelar?: () => void;
   /** Ruta base del API. Por defecto "/api/pagos/bold" (requiere auth).
    *  Usar "/api/pagos/bold/public" para clientes nuevos sin cuenta. */
@@ -19,8 +23,8 @@ interface PagoBoldProps {
 
 export default function PagoBold({
   planSlug,
-  monto,
   descripcion,
+  ciclo = "anual",
   onCancelar,
   apiBase = "/api/pagos/bold",
 }: PagoBoldProps) {
@@ -42,7 +46,7 @@ export default function PagoBold({
     try {
       const data = await apiFetch<IntentResponse>(`${apiBase}/intent`, {
         method: "POST",
-        body: JSON.stringify({ plan_id: planSlug, monto, descripcion }),
+        body: JSON.stringify({ plan_id: planSlug, ciclo, descripcion }),
       });
       setIntent(data);
     } catch {
@@ -60,7 +64,7 @@ export default function PagoBold({
 
     const origin = window.location.origin;
     const redirectUrl = isPublic
-      ? `${origin}/registro-post-pago?ref=${intent.reference_id}&plan=${planSlug}&monto=${monto}`
+      ? `${origin}/registro-post-pago?ref=${intent.reference_id}&plan=${planSlug}&monto=${intent.monto}`
       : `${origin}/pago/resultado?ref=${intent.reference_id}`;
 
     const script = document.createElement("script");
@@ -68,7 +72,7 @@ export default function PagoBold({
     script.setAttribute("data-bold-button", "");
     script.setAttribute("data-order-id", intent.reference_id);
     script.setAttribute("data-description", descripcion);
-    script.setAttribute("data-amount", String(monto));
+    script.setAttribute("data-amount", String(intent.monto));
     script.setAttribute("data-currency", "COP");
     script.setAttribute("data-api-key", intent.api_key);
     script.setAttribute("data-integrity-signature", intent.firma);

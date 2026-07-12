@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { resolverMontoBold } from "../lib/bold-monto.js";
 
 // ── Spec de precios 2026 (fuente de verdad para tests) ───────────────────────
 // Cambiar aquí cuando se actualicen los precios en seed/plans.ts
@@ -184,5 +185,67 @@ describe("Planes Origen: precios sin cambio respecto al spec original", () => {
     for (const slug of Object.keys(ORIGEN)) {
       expect(Object.keys(SPEC_2026)).not.toContain(slug);
     }
+  });
+});
+
+// ── 10. SEGURIDAD: resolverMontoBold ignora monto del cliente ────────────────
+
+const PLAN_SEMILLA_BD = {
+  precio_anual_cop:         590_000,
+  precio_mensual_cop:        55_000,
+  precio_3cuotas_total_cop: 626_000,
+  num_cuotas:                     2,
+} as const;
+
+describe("SEGURIDAD — resolverMontoBold: el backend usa precio de BD, no el del cliente", () => {
+  it("plan=semilla + body.monto=50000 → el monto usado es 590000 (BD), no 50000 (cliente)", () => {
+    // Simula: atacante envía monto=50000 en el body POST
+    const bodyAtacante = { plan_id: "semilla", monto: 50_000 };
+
+    // El backend ignora bodyAtacante.monto y usa solo el plan de BD
+    const montoReal = resolverMontoBold(PLAN_SEMILLA_BD, "anual");
+
+    expect(montoReal).toBe(590_000);
+    expect(montoReal).not.toBe(bodyAtacante.monto);
+  });
+
+  it("ciclo=anual → precio_anual_cop (590000)", () => {
+    expect(resolverMontoBold(PLAN_SEMILLA_BD, "anual")).toBe(590_000);
+  });
+
+  it("ciclo=mensual → precio_mensual_cop (55000)", () => {
+    expect(resolverMontoBold(PLAN_SEMILLA_BD, "mensual")).toBe(55_000);
+  });
+
+  it("ciclo=cuotas → ceil(626000/2) = 313000 por cuota", () => {
+    expect(resolverMontoBold(PLAN_SEMILLA_BD, "cuotas")).toBe(313_000);
+  });
+
+  it("raiz ciclo=cuotas → ceil(838000/3) = 279334 por cuota", () => {
+    const raiz = {
+      precio_anual_cop:         790_000,
+      precio_mensual_cop:        74_000,
+      precio_3cuotas_total_cop: 838_000,
+      num_cuotas:                     3,
+    };
+    expect(resolverMontoBold(raiz, "cuotas")).toBe(Math.ceil(838_000 / 3));
+  });
+
+  it("ciclo default = anual si no se especifica", () => {
+    expect(resolverMontoBold(PLAN_SEMILLA_BD)).toBe(590_000);
+  });
+
+  it("si precio_mensual_cop es null, ciclo=mensual hace fallback a precio_anual_cop", () => {
+    const planSinMensual = { ...PLAN_SEMILLA_BD, precio_mensual_cop: null };
+    expect(resolverMontoBold(planSinMensual, "mensual")).toBe(590_000);
+  });
+
+  it("la firma Bold NO puede calcularse con el monto del cliente — solo con el de BD", () => {
+    // Este test documenta la invariante: generarFirma(ref, monto) debe recibir
+    // el monto de resolverMontoBold, nunca body.monto
+    const montoCliente = 1; // peor caso: cliente intenta pagar $1
+    const montoBD = resolverMontoBold(PLAN_SEMILLA_BD, "anual");
+    expect(montoBD).toBeGreaterThan(montoCliente);
+    expect(montoBD).toBe(590_000);
   });
 });

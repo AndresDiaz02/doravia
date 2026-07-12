@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 import { verifyAccessToken } from "../services/auth.service.js";
 import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
+import { resolverMontoBold, type CicloPago } from "../lib/bold-monto.js";
 
 const router = Router();
 
@@ -88,36 +89,43 @@ async function generarComisionContador(
 
 // ── POST /api/pagos/bold/intent (clientes existentes, autenticados) ───────────
 // Genera referencia + firma para el botón Bold. No llama a Bold API.
+// El monto viene SIEMPRE de la BD — cualquier monto enviado por el cliente se ignora.
 router.post("/intent", authenticate, async (req, res) => {
   try {
-    const { plan_id, monto, descripcion } = req.body as {
+    const { plan_id, ciclo, descripcion } = req.body as {
       plan_id?: string;
-      monto?: number;
+      ciclo?: CicloPago;
       descripcion?: string;
     };
 
-    if (!plan_id || !monto) {
-      return res.status(400).json({ error: "plan_id y monto son requeridos." });
+    if (!plan_id) {
+      return res.status(400).json({ error: "plan_id es requerido." });
     }
 
+    const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_id)).limit(1);
+    if (!plan) {
+      return res.status(404).json({ error: `Plan "${plan_id}" no encontrado.` });
+    }
+
+    const dbMonto = resolverMontoBold(plan, ciclo);
     const tenantId = req.tenantId;
     const reference_id = `DORAVIA-${tenantId.slice(0, 8)}-${Date.now()}`;
-    const desc = descripcion ?? `Suscripción Doravia — ${plan_id}`;
+    const desc = descripcion ?? `Suscripción Doravia — ${plan.nombre}`;
 
     await db.insert(bold_payments).values({
       tenant_id: tenantId,
       reference_id,
       plan_id,
-      monto: String(monto),
+      monto: String(dbMonto),
       moneda: "COP",
       estado: "PENDING",
       descripcion: desc,
       callback_url: `${APP_URL}/pago/resultado?ref=${reference_id}`,
     });
 
-    const firma = generarFirma(reference_id, monto);
+    const firma = generarFirma(reference_id, dbMonto);
 
-    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY });
+    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY, monto: dbMonto });
   } catch (err) {
     console.error("[Bold] Error en POST /intent:", err);
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -192,35 +200,42 @@ router.get("/status/:reference_id", async (req, res) => {
 
 // ── POST /api/pagos/bold/public/intent (clientes nuevos, sin cuenta) ──────────
 // Genera referencia + firma para el botón Bold. No llama a Bold API.
+// El monto viene SIEMPRE de la BD — cualquier monto enviado por el cliente se ignora.
 router.post("/public/intent", async (req, res) => {
   try {
-    const { plan_id, monto, descripcion } = req.body as {
+    const { plan_id, ciclo, descripcion } = req.body as {
       plan_id?: string;
-      monto?: number;
+      ciclo?: CicloPago;
       descripcion?: string;
     };
 
-    if (!plan_id || !monto) {
-      return res.status(400).json({ error: "plan_id y monto son requeridos." });
+    if (!plan_id) {
+      return res.status(400).json({ error: "plan_id es requerido." });
     }
 
+    const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_id)).limit(1);
+    if (!plan) {
+      return res.status(404).json({ error: `Plan "${plan_id}" no encontrado.` });
+    }
+
+    const dbMonto = resolverMontoBold(plan, ciclo);
     const reference_id = `DORAVIA-NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    const desc = descripcion ?? `Suscripción Doravia — ${plan_id}`;
+    const desc = descripcion ?? `Suscripción Doravia — ${plan.nombre}`;
 
     // tenant_id queda NULL hasta que el cliente crea su cuenta
     await db.insert(bold_payments).values({
       reference_id,
       plan_id,
-      monto: String(monto),
+      monto: String(dbMonto),
       moneda: "COP",
       estado: "PENDING",
       descripcion: desc,
-      callback_url: `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${monto}`,
+      callback_url: `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${dbMonto}`,
     });
 
-    const firma = generarFirma(reference_id, monto);
+    const firma = generarFirma(reference_id, dbMonto);
 
-    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY });
+    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY, monto: dbMonto });
   } catch (err) {
     console.error("[Bold] Error en POST /public/intent:", err);
     return res.status(500).json({ error: "Error interno del servidor." });

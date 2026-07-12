@@ -683,6 +683,11 @@ const migrations = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_cotizacion_tenant    ON pagos_cotizacion(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_cotizacion_cotizacion ON pagos_cotizacion(cotizacion_id)`,
+
+  // ── FASE 9.2 — Precios promocionales 2026 ────────────────────────────────
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS num_cuotas                smallint`,
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_regular_anual_cop  integer`,
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_regular_mensual_cop integer`,
 ];
 
 for (const migration of migrations) {

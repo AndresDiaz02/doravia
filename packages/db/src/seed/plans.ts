@@ -1,13 +1,37 @@
 import type { NewPlan } from "../schema/plans.js";
 import type { PlanFeatures } from "@workspace/shared";
 
-// Calcula precios de modalidades (spec: mensual = anual÷10, 3cuotas = anual×1.10)
-function precios(anual: number): { precio_mensual_cop: number; precio_3cuotas_total_cop: number } {
-  if (anual === 0) return { precio_mensual_cop: 0, precio_3cuotas_total_cop: 0 };
-  const mensual = Math.round(anual / 10);
-  const tresCuotas = Math.round(anual * 1.10);
-  return { precio_mensual_cop: mensual, precio_3cuotas_total_cop: tresCuotas };
+// Origen: precios sin cambio — fórmula original (mensual = anual÷10, 3cuotas = anual×1.10, num_cuotas=3)
+function preciosOrigen(anual: number): {
+  precio_mensual_cop: number;
+  precio_3cuotas_total_cop: number;
+  num_cuotas: number;
+} {
+  if (anual === 0) return { precio_mensual_cop: 0, precio_3cuotas_total_cop: 0, num_cuotas: 3 };
+  return {
+    precio_mensual_cop: Math.round(anual / 10),
+    precio_3cuotas_total_cop: Math.round(anual * 1.10),
+    num_cuotas: 3,
+  };
 }
+
+// ── Precios 2026 (PROMOCIONALES) — vigentes para cobro ─────────────────────
+// En 2027 los clientes que renueven pasan al precio_regular_*
+// Para actualizar a regular: cambiar precio_anual_cop y precio_mensual_cop a los valores de precio_regular_*
+
+// ERP
+const PROMO_ERP = {
+  semilla:  { anual: 590_000, mensual: 55_000, cuotasTotal: 626_000, numCuotas: 2, regular_anual: 730_000, regular_mensual: 73_000 },
+  raiz:     { anual: 790_000, mensual: 74_000, cuotasTotal: 838_000, numCuotas: 3, regular_anual: 990_000, regular_mensual: 99_000 },
+  brote:    { anual: 1_190_000, mensual: 110_000, cuotasTotal: 1_262_000, numCuotas: 4, regular_anual: 1_450_000, regular_mensual: 145_000 },
+  cosecha:  { anual: 1_590_000, mensual: 149_000, cuotasTotal: 1_686_000, numCuotas: 4, regular_anual: 1_990_000, regular_mensual: 199_000 },
+} as const;
+
+// POS
+const PROMO_POS = {
+  punto:       { anual: 360_000, mensual: 34_000, cuotasTotal: 382_000, numCuotas: 2, regular_anual: 450_000, regular_mensual: 45_000 },
+  punto_plus:  { anual: 630_000, mensual: 59_000, cuotasTotal: 668_000, numCuotas: 2, regular_anual: 790_000, regular_mensual: 79_000 },
+} as const;
 
 const noFeatures: PlanFeatures = {
   pos:                    false,
@@ -37,7 +61,7 @@ const noFeatures: PlanFeatures = {
 const origenFeatures: PlanFeatures = { ...noFeatures };
 
 export const PLAN_SEEDS: NewPlan[] = [
-  // ── Origen: facturación electrónica pura ─────────────────────────────────
+  // ── Origen: facturación electrónica pura (sin cambio de precios) ─────────
   {
     slug: "origen",
     nombre: "Origen 10",
@@ -51,7 +75,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 0,
-    ...precios(0),
+    ...preciosOrigen(0),
   },
   {
     slug: "origen_24",
@@ -66,7 +90,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 99_900,
-    ...precios(99_900),
+    ...preciosOrigen(99_900),
   },
   {
     slug: "origen_60",
@@ -81,7 +105,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 169_900,
-    ...precios(169_900),
+    ...preciosOrigen(169_900),
   },
   {
     slug: "origen_120",
@@ -96,7 +120,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 249_900,
-    ...precios(249_900),
+    ...preciosOrigen(249_900),
   },
   {
     slug: "origen_300",
@@ -111,7 +135,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 0,
     features: { ...origenFeatures },
     precio_anual_cop: 329_900,
-    ...precios(329_900),
+    ...preciosOrigen(329_900),
   },
 
   // ── ERP: escalera principal ───────────────────────────────────────────────
@@ -137,8 +161,12 @@ export const PLAN_SEEDS: NewPlan[] = [
       ia_asistente:          true,
       conciliacion_bancaria: true,
     },
-    precio_anual_cop: 730_000,
-    ...precios(730_000),
+    precio_anual_cop:           PROMO_ERP.semilla.anual,
+    precio_mensual_cop:         PROMO_ERP.semilla.mensual,
+    precio_3cuotas_total_cop:   PROMO_ERP.semilla.cuotasTotal,
+    num_cuotas:                 PROMO_ERP.semilla.numCuotas,
+    precio_regular_anual_cop:   PROMO_ERP.semilla.regular_anual,
+    precio_regular_mensual_cop: PROMO_ERP.semilla.regular_mensual,
   },
   {
     slug: "raiz",
@@ -164,8 +192,12 @@ export const PLAN_SEEDS: NewPlan[] = [
       ia_asistente:          true,
       conciliacion_bancaria: true,
     },
-    precio_anual_cop: 990_000,
-    ...precios(990_000),
+    precio_anual_cop:           PROMO_ERP.raiz.anual,
+    precio_mensual_cop:         PROMO_ERP.raiz.mensual,
+    precio_3cuotas_total_cop:   PROMO_ERP.raiz.cuotasTotal,
+    num_cuotas:                 PROMO_ERP.raiz.numCuotas,
+    precio_regular_anual_cop:   PROMO_ERP.raiz.regular_anual,
+    precio_regular_mensual_cop: PROMO_ERP.raiz.regular_mensual,
   },
   {
     slug: "brote",
@@ -194,8 +226,12 @@ export const PLAN_SEEDS: NewPlan[] = [
       ia_asistente:           true,
       conciliacion_bancaria:  true,
     },
-    precio_anual_cop: 1_450_000,
-    ...precios(1_450_000),
+    precio_anual_cop:           PROMO_ERP.brote.anual,
+    precio_mensual_cop:         PROMO_ERP.brote.mensual,
+    precio_3cuotas_total_cop:   PROMO_ERP.brote.cuotasTotal,
+    num_cuotas:                 PROMO_ERP.brote.numCuotas,
+    precio_regular_anual_cop:   PROMO_ERP.brote.regular_anual,
+    precio_regular_mensual_cop: PROMO_ERP.brote.regular_mensual,
   },
   {
     slug: "cosecha",
@@ -230,8 +266,12 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos:                    false,
       pos_multi_caja:         false,
     },
-    precio_anual_cop: 1_990_000,
-    ...precios(1_990_000),
+    precio_anual_cop:           PROMO_ERP.cosecha.anual,
+    precio_mensual_cop:         PROMO_ERP.cosecha.mensual,
+    precio_3cuotas_total_cop:   PROMO_ERP.cosecha.cuotasTotal,
+    num_cuotas:                 PROMO_ERP.cosecha.numCuotas,
+    precio_regular_anual_cop:   PROMO_ERP.cosecha.regular_anual,
+    precio_regular_mensual_cop: PROMO_ERP.cosecha.regular_mensual,
   },
 
   // ── Punto de venta (POS) ─────────────────────────────────────────────────
@@ -251,8 +291,12 @@ export const PLAN_SEEDS: NewPlan[] = [
       gastos:     true,
       pos:        true,
     },
-    precio_anual_cop: 450_000,
-    ...precios(450_000),
+    precio_anual_cop:           PROMO_POS.punto.anual,
+    precio_mensual_cop:         PROMO_POS.punto.mensual,
+    precio_3cuotas_total_cop:   PROMO_POS.punto.cuotasTotal,
+    num_cuotas:                 PROMO_POS.punto.numCuotas,
+    precio_regular_anual_cop:   PROMO_POS.punto.regular_anual,
+    precio_regular_mensual_cop: PROMO_POS.punto.regular_mensual,
   },
   {
     slug: "punto_plus",
@@ -266,7 +310,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     accounting_level: 1,
     features: {
       ...noFeatures,
-      inventario:        true,
+      inventario:            true,
       gastos:                true,
       cuentas_por_pagar:     true,
       conciliacion_bancaria: true,
@@ -274,7 +318,11 @@ export const PLAN_SEEDS: NewPlan[] = [
       pos_multi_caja:        true,
       agenda_servicios:      true,
     },
-    precio_anual_cop: 790_000,
-    ...precios(790_000),
+    precio_anual_cop:           PROMO_POS.punto_plus.anual,
+    precio_mensual_cop:         PROMO_POS.punto_plus.mensual,
+    precio_3cuotas_total_cop:   PROMO_POS.punto_plus.cuotasTotal,
+    num_cuotas:                 PROMO_POS.punto_plus.numCuotas,
+    precio_regular_anual_cop:   PROMO_POS.punto_plus.regular_anual,
+    precio_regular_mensual_cop: PROMO_POS.punto_plus.regular_mensual,
   },
 ];

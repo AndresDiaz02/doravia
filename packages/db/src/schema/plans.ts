@@ -23,11 +23,16 @@ export const plans = pgTable("plans", {
   // Feature flags booleanos para modulos completos
   features: jsonb("features").$type<PlanFeatures>().notNull(),
 
+  // Precios promocionales 2026 (precio_anual_cop es el vigente para cobro)
   precio_anual_cop: integer("precio_anual_cop").notNull(),
-  // Modalidades de pago (calculados del anual; sin lógica de cobro aún — FASE 5)
-  // mensual = anual / 10 ; 3 cuotas = anual * 1.10
   precio_mensual_cop: integer("precio_mensual_cop"),
   precio_3cuotas_total_cop: integer("precio_3cuotas_total_cop"),
+  num_cuotas: smallint("num_cuotas"),
+
+  // Precios regulares 2027 — informativos (para mostrar tachado en landing/propuestas)
+  precio_regular_anual_cop: integer("precio_regular_anual_cop"),
+  precio_regular_mensual_cop: integer("precio_regular_mensual_cop"),
+
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

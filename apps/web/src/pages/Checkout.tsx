@@ -18,7 +18,7 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
 
   const plan = searchParams.get("plan") ?? "semilla";
-  const monto = Number(searchParams.get("monto") ?? "730000");
+  const monto = Number(searchParams.get("monto") ?? "590000");
   const planInfo = PLANES[plan] ?? PLANES.semilla;
   const montoFormateado = monto.toLocaleString("es-CO");
 

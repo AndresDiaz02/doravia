@@ -23,9 +23,12 @@ async function seed() {
         document_limit: sql`excluded.document_limit`,
         accounting_level: sql`excluded.accounting_level`,
         features: sql`excluded.features`,
-        precio_anual_cop: sql`excluded.precio_anual_cop`,
-        precio_mensual_cop: sql`excluded.precio_mensual_cop`,
-        precio_3cuotas_total_cop: sql`excluded.precio_3cuotas_total_cop`,
+        precio_anual_cop:            sql`excluded.precio_anual_cop`,
+        precio_mensual_cop:          sql`excluded.precio_mensual_cop`,
+        precio_3cuotas_total_cop:    sql`excluded.precio_3cuotas_total_cop`,
+        num_cuotas:                  sql`excluded.num_cuotas`,
+        precio_regular_anual_cop:    sql`excluded.precio_regular_anual_cop`,
+        precio_regular_mensual_cop:  sql`excluded.precio_regular_mensual_cop`,
       },
     });
   console.log("✓ Planes:", PLAN_SEEDS.map((p) => p.slug).join(", "));

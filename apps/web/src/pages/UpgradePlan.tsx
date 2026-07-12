@@ -25,6 +25,7 @@ interface PlanERP {
   slug: string;
   nombre: string;
   precio: number;
+  precioRegular: number;
   descripcion: string;
   features: string[];
   destacado?: boolean;
@@ -34,7 +35,8 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "semilla",
     nombre: "Semilla",
-    precio: 730_000,
+    precio: 590_000,
+    precioRegular: 730_000,
     descripcion: "ERP completo para empresas en operación",
     features: [
       "Facturación ilimitada",
@@ -50,7 +52,8 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "raiz",
     nombre: "Raíz",
-    precio: 990_000,
+    precio: 790_000,
+    precioRegular: 990_000,
     descripcion: "Para negocios con operaciones más complejas",
     features: [
       "Todo Semilla +",
@@ -64,7 +67,8 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "brote",
     nombre: "Brote",
-    precio: 1_450_000,
+    precio: 1_190_000,
+    precioRegular: 1_450_000,
     descripcion: "Facturación recurrente y reportes avanzados",
     features: [
       "Todo Raíz +",
@@ -78,7 +82,8 @@ const PLANES_ERP: PlanERP[] = [
   {
     slug: "cosecha",
     nombre: "Cosecha",
-    precio: 1_990_000,
+    precio: 1_590_000,
+    precioRegular: 1_990_000,
     descripcion: "Sin restricciones — el plan más completo",
     features: [
       "Todo Brote +",
@@ -132,6 +137,9 @@ export default function UpgradePlan() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Elige tu plan</h1>
           <p className="text-gray-500 mt-2">Precios en COP · facturación anual.</p>
+          <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-full px-3 py-1 inline-block">
+            Precio especial 2026 — se renueva a precio regular en 2027
+          </p>
           {planActual && (
             <p className="mt-1 text-sm text-action font-medium">
               Plan actual: <strong>{planActual.nombre}</strong>
@@ -248,8 +256,14 @@ export default function UpgradePlan() {
                   </div>
 
                   <div>
-                    <span className="text-2xl font-bold text-gray-900">{cop(plan.precio)}</span>
-                    <span className="text-xs text-gray-500 ml-1">/ año</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-gray-900">{cop(plan.precio)}</span>
+                      <span className="text-xs text-gray-500">/ año</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      <s>{cop(plan.precioRegular)}</s>{" "}
+                      <span className="text-gray-400">Precio 2027</span>
+                    </div>
                   </div>
 
                   <ul className="flex-1 space-y-1.5">

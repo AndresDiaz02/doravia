@@ -38,7 +38,9 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .btn-login{font-size:13.5px;font-weight:600;color:var(--navy);padding:9px 18px;border-radius:30px;border:1.5px solid var(--border);transition:background 0.2s;}
 .btn-login:hover{background:rgba(123,47,247,0.06);}
 .btn-cta-small{font-size:13.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#7B2FF7 0%,#4A6FF5 55%,#2E9BF5 100%);padding:10px 20px;border-radius:30px;box-shadow:0 6px 16px rgba(123,47,247,0.3);}
-.mobile-toggle{display:none;font-size:22px;color:var(--navy);cursor:pointer;background:none;border:none;}
+.mobile-toggle{display:none;font-size:22px;color:var(--navy);cursor:pointer;background:none;border:none;padding:6px;}
+/* CTA visible solo en el menú desplegable móvil */
+.nav-mobile-cta{display:none;}
 
 /* HERO */
 .hero{min-height:92vh;display:flex;align-items:center;background:var(--navy);position:relative;overflow:hidden;padding-top:90px;}
@@ -290,7 +292,10 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
 @media(max-width:900px){
   nav{display:none;}
   .mobile-toggle{display:block;}
-  .nav-actions{display:none;}
+  /* Mantener "Iniciar sesión" visible; ocultar "Hablar con ventas" del header */
+  .btn-cta-small{display:none;}
+  /* "Hablar con ventas" aparece al final del menú desplegable hamburguesa */
+  .nav-mobile-cta{display:block;font-size:13.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#7B2FF7 0%,#4A6FF5 55%,#2E9BF5 100%);padding:10px 20px;border-radius:30px;text-align:center;margin-top:4px;}
   .erp-plans-grid{grid-template-columns:1fr;max-width:380px;margin:0 auto;}
   .erp-plan.featured{transform:none;}
   .pos-plans-grid{grid-template-columns:1fr;max-width:380px;margin:0 auto;}

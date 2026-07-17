@@ -41,3 +41,4 @@ export * from "./tax_parameters.ts";
 export * from "./notification_queue.ts";
 export * from "./notifications.ts";
 export * from "./pagos_cotizacion.ts";
+export * from "./nomina.ts";

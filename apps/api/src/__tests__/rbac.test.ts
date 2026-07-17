@@ -72,6 +72,7 @@ const BLOQUEADO_VENDEDOR = [
   "/api/activos-fijos",
   "/api/documentos-soporte",
   "/api/retenciones-proveedor",
+  "/api/nomina",
 ];
 
 const BLOQUEADO_OPERARIO = [
@@ -86,6 +87,7 @@ const BLOQUEADO_OPERARIO = [
   "/api/activos-fijos",
   "/api/documentos-soporte",
   "/api/retenciones-proveedor",
+  "/api/nomina",
 ];
 
 const CONTABLE_WRITE_OK = [
@@ -605,6 +607,66 @@ describe("RBAC por rol", () => {
       applyRbacRules(req, res, next);
       expect(next).toHaveBeenCalled();
       expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Nómina electrónica (FASE 10) — datos sensibles de empleados", () => {
+    it("bloquea vendedor en GET /api/nomina/empleados → 403", () => {
+      const req = makeReq("vendedor", "/api/nomina/empleados", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea operario en GET /api/nomina/empleados → 403", () => {
+      const req = makeReq("operario", "/api/nomina/empleados", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("bloquea cajero en GET /api/nomina/pool → 403 (fuera de su lista blanca POS)", () => {
+      const req = makeReq("cajero", "/api/nomina/pool", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("permite GET /api/nomina/empleados al admin", () => {
+      const req = makeReq("admin", "/api/nomina/empleados", "GET");
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("contador puede GET /api/nomina/empleados (solo lectura)", () => {
+      const req = makeReq("contador", "/api/nomina/empleados", "GET");
+      req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("contador bloqueado en POST /api/nomina/empleados → 403 (nunca puede escribir nómina)", () => {
+      // A diferencia de contabilidad/gastos, nómina NO está en CONTABLE_WRITE_OK:
+      // el contador es siempre solo-lectura aquí, incluso con permisos_contables=true.
+      const req = makeReq("contador", "/api/nomina/empleados", "POST");
+      req.userContable = true;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
     });
   });
 });

@@ -33,6 +33,15 @@ const PROMO_POS = {
   punto_plus:  { anual: 630_000, mensual: 59_000, cuotasTotal: 668_000, numCuotas: 2, regular_anual: 790_000, regular_mensual: 79_000 },
 } as const;
 
+// Nómina electrónica (FASE 10) — sin opción de 3 cuotas definida aún (pendiente de confirmar con Rose)
+const PROMO_NOMINA = {
+  nomina_semilla: { docsAno: 36,   anual: 99_000,  mensual: 9_500,  regular_anual: 130_000,   regular_mensual: 13_000 },
+  nomina_raiz:    { docsAno: 120,  anual: 230_000, mensual: 21_500, regular_anual: 290_000,   regular_mensual: 29_000 },
+  nomina_brote:   { docsAno: 300,  anual: 470_000, mensual: 44_000, regular_anual: 590_000,   regular_mensual: 59_000 },
+  nomina_plus:    { docsAno: null, anual: 630_000, mensual: 59_000, regular_anual: 790_000,   regular_mensual: 79_000 },
+  nomina_pro:     { docsAno: null, anual: 870_000, mensual: 81_000, regular_anual: 1_090_000, regular_mensual: 109_000 },
+} as const;
+
 const noFeatures: PlanFeatures = {
   pos:                    false,
   pos_multi_caja:         false,
@@ -324,5 +333,95 @@ export const PLAN_SEEDS: NewPlan[] = [
     num_cuotas:                 PROMO_POS.punto_plus.numCuotas,
     precio_regular_anual_cop:   PROMO_POS.punto_plus.regular_anual,
     precio_regular_mensual_cop: PROMO_POS.punto_plus.regular_mensual,
+  },
+
+  // ── Nómina electrónica (FASE 10) — naming provisional, Rose puede renombrar ──
+  // features={...noFeatures}: no aplica al toggle jsonb de ERP/POS. El gating
+  // LITE/Plus/Pro de nómina se define en una etapa posterior (Etapa 4/5).
+  // accounting_level=0: no gatea profundidad contable ERP, es un producto aparte.
+  {
+    slug: "nomina_semilla",
+    nombre: "Nómina Semilla",
+    product: "nomina",
+    max_usuarios: null,
+    max_bodegas: null,
+    max_facturas_mes: null,
+    max_facturas_ano: null,
+    max_ia_docs_mes: 0,
+    document_limit: PROMO_NOMINA.nomina_semilla.docsAno,
+    accounting_level: 0,
+    features: { ...noFeatures },
+    precio_anual_cop:           PROMO_NOMINA.nomina_semilla.anual,
+    precio_mensual_cop:         PROMO_NOMINA.nomina_semilla.mensual,
+    precio_regular_anual_cop:   PROMO_NOMINA.nomina_semilla.regular_anual,
+    precio_regular_mensual_cop: PROMO_NOMINA.nomina_semilla.regular_mensual,
+  },
+  {
+    slug: "nomina_raiz",
+    nombre: "Nómina Raíz",
+    product: "nomina",
+    max_usuarios: null,
+    max_bodegas: null,
+    max_facturas_mes: null,
+    max_facturas_ano: null,
+    max_ia_docs_mes: 0,
+    document_limit: PROMO_NOMINA.nomina_raiz.docsAno,
+    accounting_level: 0,
+    features: { ...noFeatures },
+    precio_anual_cop:           PROMO_NOMINA.nomina_raiz.anual,
+    precio_mensual_cop:         PROMO_NOMINA.nomina_raiz.mensual,
+    precio_regular_anual_cop:   PROMO_NOMINA.nomina_raiz.regular_anual,
+    precio_regular_mensual_cop: PROMO_NOMINA.nomina_raiz.regular_mensual,
+  },
+  {
+    slug: "nomina_brote",
+    nombre: "Nómina Brote",
+    product: "nomina",
+    max_usuarios: null,
+    max_bodegas: null,
+    max_facturas_mes: null,
+    max_facturas_ano: null,
+    max_ia_docs_mes: 0,
+    document_limit: PROMO_NOMINA.nomina_brote.docsAno,
+    accounting_level: 0,
+    features: { ...noFeatures },
+    precio_anual_cop:           PROMO_NOMINA.nomina_brote.anual,
+    precio_mensual_cop:         PROMO_NOMINA.nomina_brote.mensual,
+    precio_regular_anual_cop:   PROMO_NOMINA.nomina_brote.regular_anual,
+    precio_regular_mensual_cop: PROMO_NOMINA.nomina_brote.regular_mensual,
+  },
+  {
+    slug: "nomina_plus",
+    nombre: "Nómina Plus",
+    product: "nomina",
+    max_usuarios: null,
+    max_bodegas: null,
+    max_facturas_mes: null,
+    max_facturas_ano: null,
+    max_ia_docs_mes: 0,
+    document_limit: PROMO_NOMINA.nomina_plus.docsAno, // null = ilimitado (empleados)
+    accounting_level: 0,
+    features: { ...noFeatures },
+    precio_anual_cop:           PROMO_NOMINA.nomina_plus.anual,
+    precio_mensual_cop:         PROMO_NOMINA.nomina_plus.mensual,
+    precio_regular_anual_cop:   PROMO_NOMINA.nomina_plus.regular_anual,
+    precio_regular_mensual_cop: PROMO_NOMINA.nomina_plus.regular_mensual,
+  },
+  {
+    slug: "nomina_pro",
+    nombre: "Nómina Pro",
+    product: "nomina",
+    max_usuarios: null,
+    max_bodegas: null,
+    max_facturas_mes: null,
+    max_facturas_ano: null,
+    max_ia_docs_mes: 0,
+    document_limit: PROMO_NOMINA.nomina_pro.docsAno, // null = ilimitado (empleados)
+    accounting_level: 0,
+    features: { ...noFeatures },
+    precio_anual_cop:           PROMO_NOMINA.nomina_pro.anual,
+    precio_mensual_cop:         PROMO_NOMINA.nomina_pro.mensual,
+    precio_regular_anual_cop:   PROMO_NOMINA.nomina_pro.regular_anual,
+    precio_regular_mensual_cop: PROMO_NOMINA.nomina_pro.regular_mensual,
   },
 ];

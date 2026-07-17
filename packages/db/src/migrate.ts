@@ -710,6 +710,85 @@ const migrations = [
   `ALTER TABLE plans ADD COLUMN IF NOT EXISTS num_cuotas                smallint`,
   `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_regular_anual_cop  integer`,
   `ALTER TABLE plans ADD COLUMN IF NOT EXISTS precio_regular_mensual_cop integer`,
+
+  // ── FASE 10 — Nómina electrónica — Etapa 1: modelo de datos ──────────────
+  `CREATE TABLE IF NOT EXISTS empleados (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    cedula varchar(30) NOT NULL,
+    nombres varchar(150) NOT NULL,
+    apellidos varchar(150) NOT NULL,
+    cargo varchar(100),
+    fecha_ingreso date NOT NULL,
+    salario_base numeric(14,2) NOT NULL,
+    tipo_contrato varchar(30) NOT NULL,
+    estado varchar(20) NOT NULL DEFAULT 'activo',
+    fecha_retiro date,
+    centro_costos_id uuid REFERENCES centros_costos(id),
+    datos_bancarios_encrypted text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_empleado_tenant_cedula UNIQUE (tenant_id, cedula)
+  )`,
+  `CREATE TABLE IF NOT EXISTS contratos_empleado (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    empleado_id uuid NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
+    fecha_inicio date NOT NULL,
+    fecha_fin date,
+    tipo varchar(30) NOT NULL,
+    salario numeric(14,2) NOT NULL,
+    observaciones text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS nominas_periodo (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    ano integer NOT NULL,
+    mes integer NOT NULL,
+    quincena integer,
+    estado varchar(20) NOT NULL DEFAULT 'borrador',
+    totales_calculados jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_periodo_tenant_ciclo UNIQUE (tenant_id, ano, mes, quincena)
+  )`,
+  `CREATE TABLE IF NOT EXISTS nominas_detalle (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nomina_periodo_id uuid NOT NULL REFERENCES nominas_periodo(id) ON DELETE CASCADE,
+    empleado_id uuid NOT NULL REFERENCES empleados(id),
+    salario_base numeric(14,2) NOT NULL,
+    horas_extras_valor numeric(14,2) NOT NULL DEFAULT 0,
+    recargos_valor numeric(14,2) NOT NULL DEFAULT 0,
+    comisiones_valor numeric(14,2) NOT NULL DEFAULT 0,
+    deducciones_totales numeric(14,2) NOT NULL DEFAULT 0,
+    aportes_parafiscales numeric(14,2) NOT NULL DEFAULT 0,
+    neto_pagar numeric(14,2) NOT NULL DEFAULT 0,
+    documento_soporte_id uuid,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_detalle_periodo_empleado UNIQUE (nomina_periodo_id, empleado_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS documentos_soporte_nomina (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    nomina_detalle_id uuid NOT NULL REFERENCES nominas_detalle(id) ON DELETE CASCADE,
+    cude varchar(256),
+    estado_dian varchar(20) NOT NULL DEFAULT 'pendiente',
+    fecha_emision timestamptz,
+    plemsi_response jsonb,
+    error_dian text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS pool_documentos_nomina_tenant (
+    tenant_id uuid PRIMARY KEY REFERENCES tenants(id),
+    plan_slug varchar(20) NOT NULL,
+    documentos_incluidos integer NOT NULL,
+    documentos_consumidos_ciclo integer NOT NULL DEFAULT 0,
+    documentos_acumulados_previos integer NOT NULL DEFAULT 0,
+    documentos_adicionales_comprados integer NOT NULL DEFAULT 0,
+    fecha_renovacion date NOT NULL,
+    limite_acumulacion integer NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
 ];
 
 for (const migration of migrations) {

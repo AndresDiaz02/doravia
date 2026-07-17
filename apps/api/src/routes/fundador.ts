@@ -6,6 +6,7 @@ import {
   refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
+  pool_documentos_nomina_tenant,
 } from "@workspace/db";
 import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
@@ -831,6 +832,78 @@ router.get("/consumo-dian", async (_req, res, next) => {
 
     const totalMes = rows.reduce((s, r) => s + (r.facturas_mes_actual ?? 0), 0);
     res.json({ total_mes: totalMes, tenants: rows });
+  } catch (err) { next(err); }
+});
+
+// ── FASE 10 — Nómina electrónica: consumo de pool por tenant ─────────────────
+
+// GET /api/fundador/nomina/consumo — pool de nómina de cada tenant que la tiene activa
+router.get("/nomina/consumo", async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        tenant_id: tenants.id,
+        nombre: tenants.nombre,
+        nit: tenants.nit,
+        plan_slug: pool_documentos_nomina_tenant.plan_slug,
+        documentos_incluidos: pool_documentos_nomina_tenant.documentos_incluidos,
+        documentos_consumidos_ciclo: pool_documentos_nomina_tenant.documentos_consumidos_ciclo,
+        documentos_acumulados_previos: pool_documentos_nomina_tenant.documentos_acumulados_previos,
+        documentos_adicionales_comprados: pool_documentos_nomina_tenant.documentos_adicionales_comprados,
+        fecha_renovacion: pool_documentos_nomina_tenant.fecha_renovacion,
+        limite_acumulacion: pool_documentos_nomina_tenant.limite_acumulacion,
+      })
+      .from(pool_documentos_nomina_tenant)
+      .innerJoin(tenants, eq(tenants.id, pool_documentos_nomina_tenant.tenant_id))
+      .orderBy(desc(pool_documentos_nomina_tenant.documentos_consumidos_ciclo));
+
+    const conAlerta = rows.filter((r) => {
+      const disponibles = r.documentos_incluidos + r.documentos_acumulados_previos + r.documentos_adicionales_comprados - r.documentos_consumidos_ciclo;
+      return disponibles <= Math.ceil(r.documentos_incluidos * 0.1);
+    });
+
+    res.json({ tenants: rows, alertas_cerca_limite: conAlerta.map((r) => r.tenant_id) });
+  } catch (err) { next(err); }
+});
+
+// POST /api/fundador/nomina/activar — asigna/actualiza el plan de nómina de un tenant
+router.post("/nomina/activar", async (req, res, next) => {
+  try {
+    const { tenant_id, plan_slug, fecha_renovacion } = req.body as {
+      tenant_id?: string; plan_slug?: string; fecha_renovacion?: string;
+    };
+    if (!tenant_id || !plan_slug || !fecha_renovacion) {
+      return res.status(400).json({ error: "Campos requeridos: tenant_id, plan_slug, fecha_renovacion." });
+    }
+
+    const [plan] = await db.select().from(plans)
+      .where(and(eq(plans.slug, plan_slug), eq(plans.product, "nomina"))).limit(1);
+    if (!plan) return res.status(400).json({ error: "plan_slug no corresponde a un plan de nómina válido." });
+
+    const documentosIncluidos = plan.document_limit ?? 999_999; // null = ilimitado (Plus/Pro)
+
+    const [pool] = await db
+      .insert(pool_documentos_nomina_tenant)
+      .values({
+        tenant_id,
+        plan_slug,
+        documentos_incluidos: documentosIncluidos,
+        fecha_renovacion,
+        limite_acumulacion: documentosIncluidos * 2,
+      })
+      .onConflictDoUpdate({
+        target: pool_documentos_nomina_tenant.tenant_id,
+        set: {
+          plan_slug,
+          documentos_incluidos: documentosIncluidos,
+          fecha_renovacion,
+          limite_acumulacion: documentosIncluidos * 2,
+          updated_at: new Date(),
+        },
+      })
+      .returning();
+
+    res.status(201).json(pool);
   } catch (err) { next(err); }
 });
 

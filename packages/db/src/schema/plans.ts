@@ -5,7 +5,7 @@ export const plans = pgTable("plans", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: varchar("slug", { length: 20 }).unique().notNull(),
   nombre: varchar("nombre", { length: 50 }).notNull(),
-  // 'erp' | 'pos' | 'origen'
+  // 'erp' | 'pos' | 'origen' | 'nomina'
   product: varchar("product", { length: 20 }).notNull().default("erp"),
 
   // Limites numericos -- NULL = ilimitado
@@ -14,7 +14,7 @@ export const plans = pgTable("plans", {
   max_facturas_mes: integer("max_facturas_mes"),
   max_facturas_ano: integer("max_facturas_ano"),
   max_ia_docs_mes:  integer("max_ia_docs_mes"),
-  // Cupo anual de documentos electrónicos (solo planes Origen). NULL = sin límite (ERP/POS). Prerrequisito FASE 3.
+  // Cupo anual de documentos electrónicos (planes Origen y Nómina). NULL = sin límite. Prerrequisito FASE 3.
   document_limit:   integer("document_limit"),
 
   // Nivel contable ordinal: 0=ninguno, 1=diario_mayor, 2=balance, 3=comparativo, 4=centros_costos

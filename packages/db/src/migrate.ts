@@ -2,6 +2,27 @@ import postgres from "postgres";
 import { is } from "drizzle-orm";
 import { PgTable, getTableConfig } from "drizzle-orm/pg-core";
 import * as schema from "./schema/index.ts";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Carga .env si DATABASE_URL no está en el entorno (mismo mecanismo que client.ts)
+if (!process.env.DATABASE_URL) {
+  const roots = [
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "../../.env"),
+    resolve(process.cwd(), "../../../.env"),
+  ];
+  for (const p of roots) {
+    try {
+      const env = readFileSync(p, "utf-8");
+      for (const line of env.split("\n")) {
+        const m = line.match(/^([^#][^=\s][^=]*)=(.*)/);
+        if (m) process.env[m[1].trim()] = m[2].trim();
+      }
+      break;
+    } catch { /* intentar siguiente ruta */ }
+  }
+}
 
 const sql = postgres(process.env.DATABASE_URL!);
 

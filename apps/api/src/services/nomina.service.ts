@@ -78,15 +78,16 @@ export async function calcularPeriodo(
   const uvt = Number(uvtParam.valor);
 
   const detalles: NominaDetalle[] = [];
-  let totalDevengado = 0, totalDeducciones = 0, totalAportes = 0, totalNeto = 0;
+  let totalDevengado = 0, totalDeducciones = 0, totalAportes = 0, totalNeto = 0, totalAuxilioTransporte = 0;
 
   for (const empleado of empleadosPeriodo) {
-    const calculo = calcularNominaEmpleado(empleado, ajustes[empleado.id] ?? {}, parametros, uvt);
+    const calculo = calcularNominaEmpleado(empleado, ajustes[empleado.id] ?? {}, parametros, uvt, fin);
     const devengado = calculo.salario_base + calculo.horas_extras_valor + calculo.recargos_valor + calculo.comisiones_valor;
     totalDevengado += devengado;
     totalDeducciones += calculo.deducciones_totales;
     totalAportes += calculo.aportes_parafiscales;
     totalNeto += calculo.neto_pagar;
+    totalAuxilioTransporte += calculo.auxilio_transporte;
 
     const [row] = await db
       .insert(nominas_detalle)
@@ -97,6 +98,7 @@ export async function calcularPeriodo(
         horas_extras_valor: String(calculo.horas_extras_valor),
         recargos_valor: String(calculo.recargos_valor),
         comisiones_valor: String(calculo.comisiones_valor),
+        auxilio_transporte: String(calculo.auxilio_transporte),
         salud_empleado: String(calculo.salud_empleado),
         pension_empleado: String(calculo.pension_empleado),
         retencion_fuente: String(calculo.retencion_fuente),
@@ -112,6 +114,7 @@ export async function calcularPeriodo(
           horas_extras_valor: String(calculo.horas_extras_valor),
           recargos_valor: String(calculo.recargos_valor),
           comisiones_valor: String(calculo.comisiones_valor),
+          auxilio_transporte: String(calculo.auxilio_transporte),
           salud_empleado: String(calculo.salud_empleado),
           pension_empleado: String(calculo.pension_empleado),
           retencion_fuente: String(calculo.retencion_fuente),
@@ -135,6 +138,7 @@ export async function calcularPeriodo(
         total_deducciones: round2(totalDeducciones),
         total_aportes_parafiscales: round2(totalAportes),
         total_neto_pagar: round2(totalNeto),
+        total_auxilio_transporte: round2(totalAuxilioTransporte),
       },
       updated_at: new Date(),
     })

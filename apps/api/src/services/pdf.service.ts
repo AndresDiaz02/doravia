@@ -426,7 +426,7 @@ export function generarPdfColillaConsolidada(
 
   for (const d of detalles) {
     const emp = empleadosPorId.get(d.empleado_id);
-    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor);
+    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor) + Number(d.auxilio_transporte);
     totalDevengado += devengado;
     totalDeducciones += Number(d.deducciones_totales);
     totalAportes += Number(d.aportes_parafiscales);

@@ -1,6 +1,7 @@
 import type { Empleado, ParametrosNominaAnuales } from "@workspace/db";
 import { calcularSaludEmpleado, calcularPensionEmpleado, calcularRetencionFuenteSimplificada } from "./deducciones.js";
 import { calcularAportesParafiscalesEmpleador } from "./aportes.js";
+import { calcularJornadaSemanal, calcularValorHoraOrdinaria } from "./jornada.js";
 
 export interface AjusteEmpleado {
   horas_extras_valor?: number;
@@ -14,6 +15,7 @@ export interface DetalleCalculado {
   horas_extras_valor: number;
   recargos_valor: number;
   comisiones_valor: number;
+  auxilio_transporte: number;
   salud_empleado: number;
   pension_empleado: number;
   retencion_fuente: number;
@@ -21,6 +23,12 @@ export interface DetalleCalculado {
   deducciones_totales: number;
   aportes_parafiscales: number;
   neto_pagar: number;
+  // Informativos — jornada vigente en la fecha del período y valor de la hora ordinaria
+  // resultante. No se usan todavía para derivar horas_extras_valor/recargos_valor
+  // automáticamente (eso es Etapa 4 — Plus, liquidación desde horas trabajadas); se
+  // exponen aquí para que Etapa 4 los consuma sin tener que reimplementar la jornada.
+  jornada_semanal: 42 | 44;
+  valor_hora_ordinaria: number;
 }
 
 /**
@@ -31,12 +39,23 @@ export interface DetalleCalculado {
  * manualmente vía `ajuste` (liquidación automática desde horas trabajadas es Etapa 4 — Plus).
  * No se prorratea por días trabajados en el mes (empleados de medio período usan salario_base
  * completo) — limitación conocida, documentada para Etapa 2.
+ *
+ * `fechaPeriodo` (YYYY-MM-DD, fecha de corte del período de nómina — no la fecha de hoy)
+ * determina la jornada laboral vigente (Ley 2101/2021: 44h hasta 30/06/2026, 42h desde
+ * 01/07/2026) para el valor_hora_ordinaria informativo, y es la fecha usada para el tope
+ * de auxilio de transporte.
+ *
+ * Auxilio de transporte: se paga completo (parametros.auxilio_transporte_cop) a quienes
+ * ganan hasta `tope_auxilio_transporte_smlv` SMLV, pero NO es constitutivo de salario —
+ * no entra en la base (IBC) de salud/pensión/aportes/retención, solo se suma al final
+ * para el neto a pagar.
  */
 export function calcularNominaEmpleado(
   empleado: Pick<Empleado, "salario_base">,
   ajuste: AjusteEmpleado,
   parametros: ParametrosNominaAnuales,
   uvt: number,
+  fechaPeriodo: string,
 ): DetalleCalculado {
   const salario_base = Number(empleado.salario_base);
   const horas_extras_valor = ajuste.horas_extras_valor ?? 0;
@@ -44,7 +63,11 @@ export function calcularNominaEmpleado(
   const comisiones_valor = ajuste.comisiones_valor ?? 0;
   const otras_deducciones = ajuste.otras_deducciones ?? 0;
 
+  // Base gravable (IBC) — constitutiva de salario, excluye auxilio de transporte
   const devengado = salario_base + horas_extras_valor + recargos_valor + comisiones_valor;
+
+  const topeAuxilioCop = Number(parametros.tope_auxilio_transporte_smlv) * parametros.salario_minimo_cop;
+  const auxilio_transporte = salario_base <= topeAuxilioCop ? parametros.auxilio_transporte_cop : 0;
 
   const salud_empleado = calcularSaludEmpleado(devengado, parametros);
   const pension_empleado = calcularPensionEmpleado(devengado, parametros);
@@ -52,12 +75,17 @@ export function calcularNominaEmpleado(
 
   const deducciones_totales = round2(salud_empleado + pension_empleado + retencion_fuente + otras_deducciones);
   const aportes_parafiscales = calcularAportesParafiscalesEmpleador(devengado, parametros);
-  const neto_pagar = round2(devengado - deducciones_totales);
+  // Neto = devengado gravable - deducciones + auxilio de transporte (no gravable, se paga completo)
+  const neto_pagar = round2(devengado - deducciones_totales + auxilio_transporte);
+
+  const jornada_semanal = calcularJornadaSemanal(fechaPeriodo);
+  const valor_hora_ordinaria = calcularValorHoraOrdinaria(salario_base, fechaPeriodo);
 
   return {
-    salario_base, horas_extras_valor, recargos_valor, comisiones_valor,
+    salario_base, horas_extras_valor, recargos_valor, comisiones_valor, auxilio_transporte,
     salud_empleado, pension_empleado, retencion_fuente, otras_deducciones,
     deducciones_totales, aportes_parafiscales, neto_pagar,
+    jornada_semanal, valor_hora_ordinaria,
   };
 }
 

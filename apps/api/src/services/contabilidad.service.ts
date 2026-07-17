@@ -597,7 +597,10 @@ export async function crearAsientoNomina(
   let totalAportes = 0;
 
   for (const d of detalles) {
-    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor);
+    // Incluye auxilio_transporte: no es constitutivo de salario (no entra en la base de
+    // aportes/deducciones — ver calculadora.ts) pero SÍ es un gasto de personal real que
+    // se paga al empleado, por eso entra al débito de 5105 igual que el resto del devengado.
+    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor) + Number(d.auxilio_transporte);
     totalDevengado += devengado;
     totalNeto += Number(d.neto_pagar);
     totalDeducciones += Number(d.deducciones_totales);

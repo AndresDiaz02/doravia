@@ -6,7 +6,7 @@ import {
   refresh_tokens, facturas,
   user_accesos, gastos_internos, comisiones_contador,
   retencion_seguimiento, leads_doravia, pending_registrations,
-  pool_documentos_nomina_tenant,
+  pool_documentos_nomina_tenant, nomina_config_global,
 } from "@workspace/db";
 import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
@@ -904,6 +904,33 @@ router.post("/nomina/activar", async (req, res, next) => {
       .returning();
 
     res.status(201).json(pool);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/fundador/nomina/config-global — activa/desactiva el banner de advertencia
+// (docs/NOMINA-DEUDA-TECNICA.md: debe permanecer activo hasta cerrar los 3 pendientes).
+router.patch("/nomina/config-global", async (req, res, next) => {
+  try {
+    const { banner_activo, banner_mensaje } = req.body as { banner_activo?: boolean; banner_mensaje?: string };
+    if (banner_activo === undefined && banner_mensaje === undefined) {
+      return res.status(400).json({ error: "Campos permitidos: banner_activo, banner_mensaje." });
+    }
+
+    const patch: Partial<typeof nomina_config_global.$inferInsert> = {
+      actualizado_por: req.userId,
+      updated_at: new Date(),
+    };
+    if (banner_activo !== undefined) patch.banner_activo = banner_activo;
+    if (banner_mensaje !== undefined) patch.banner_mensaje = banner_mensaje;
+
+    const [config] = await db
+      .insert(nomina_config_global)
+      .values({ id: "global", ...patch })
+      .onConflictDoUpdate({ target: nomina_config_global.id, set: patch })
+      .returning();
+
+    console.log(`[nomina-config-global] banner_activo=${config.banner_activo} actualizado por ${req.userId}`);
+    res.json(config);
   } catch (err) { next(err); }
 });
 

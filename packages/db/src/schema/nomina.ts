@@ -68,6 +68,7 @@ export const nominas_periodo = pgTable("nominas_periodo", {
     total_deducciones?: number;
     total_aportes_parafiscales?: number;
     total_neto_pagar?: number;
+    total_auxilio_transporte?: number;
   }>(),
   // Asiento contable consolidado del período completo, creado al emitir (Etapa 2)
   asiento_id: uuid("asiento_id"),
@@ -89,6 +90,10 @@ export const nominas_detalle = pgTable("nominas_detalle", {
   horas_extras_valor: numeric("horas_extras_valor", { precision: 14, scale: 2 }).notNull().default("0"),
   recargos_valor: numeric("recargos_valor", { precision: 14, scale: 2 }).notNull().default("0"),
   comisiones_valor: numeric("comisiones_valor", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Auxilio de transporte (empleados con salario_base <= tope_auxilio_transporte_smlv × SMLV).
+  // No es constitutivo de salario: se paga al empleado pero NO integra la base (IBC) de
+  // salud/pensión/aportes/retención — ver services/nomina/calculadora.ts.
+  auxilio_transporte: numeric("auxilio_transporte", { precision: 14, scale: 2 }).notNull().default("0"),
   // Desglose de deducciones a cargo del empleado (Etapa 2) — deducciones_totales es la suma de las 4
   salud_empleado: numeric("salud_empleado", { precision: 14, scale: 2 }).notNull().default("0"),
   pension_empleado: numeric("pension_empleado", { precision: 14, scale: 2 }).notNull().default("0"),
@@ -138,3 +143,19 @@ export const pool_documentos_nomina_tenant = pgTable("pool_documentos_nomina_ten
 
 export type PoolDocumentosNominaTenant = typeof pool_documentos_nomina_tenant.$inferSelect;
 export type NewPoolDocumentosNominaTenant = typeof pool_documentos_nomina_tenant.$inferInsert;
+
+// ── Config global del módulo (una sola fila, id fijo "global") ───────────────
+// banner_activo: mientras esté en true, el ERP muestra un banner de advertencia
+// en toda la sección de Nómina — solo el fundador lo puede desactivar (ver
+// docs/NOMINA-DEUDA-TECNICA.md, debe permanecer activo hasta cerrar los 3 pendientes).
+export const nomina_config_global = pgTable("nomina_config_global", {
+  id: varchar("id", { length: 20 }).primaryKey().default("global"),
+  banner_activo: boolean("banner_activo").notNull().default(true),
+  banner_mensaje: text("banner_mensaje").notNull().default(
+    "MÓDULO EN CONFIGURACIÓN — No emitir nómina real hasta que se validen parámetros tributarios",
+  ),
+  actualizado_por: varchar("actualizado_por", { length: 200 }),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type NominaConfigGlobal = typeof nomina_config_global.$inferSelect;

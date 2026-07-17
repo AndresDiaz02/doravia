@@ -37,6 +37,7 @@ import {
   X,
   Zap,
   Landmark,
+  Wallet,
 } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
@@ -87,6 +88,13 @@ const NAV_COBRO = [
 
 const NAV_BROTE = [
   { to: "/recurrentes", label: "Recurrentes", icon: CalendarClock },
+];
+
+// Nómina es una línea de producto independiente del plan ERP/POS (gateada por el pool de
+// nómina del tenant, no por plan.features) — se muestra siempre a admin/contador, la propia
+// página resuelve el estado "sin nómina activa" si el tenant no tiene un plan de nómina.
+const NAV_NOMINA = [
+  { to: "/nomina/empleados", label: "Nómina", icon: Wallet },
 ];
 
 const NAV_COSECHA = [
@@ -376,6 +384,10 @@ export function AppLayout() {
               <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />
             );
           })}
+
+          {!isVendedor && NAV_NOMINA.map(({ to, label, icon: Icon }) => (
+            <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to) || location.pathname.startsWith("/nomina/")} />
+          ))}
 
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
             if (isVendedor) return null;

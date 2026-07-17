@@ -67,6 +67,12 @@ import CotizacionDetalle from "./pages/CotizacionDetalle";
 import ConfiguracionPagos from "./pages/ConfiguracionPagos";
 import PagoExito from "./pages/PagoExito";
 import PagoFallo from "./pages/PagoFallo";
+import NominaEmpleados from "./pages/NominaEmpleados";
+import NominaEmpleadoForm from "./pages/NominaEmpleadoForm";
+import NominaPeriodos from "./pages/NominaPeriodos";
+import NominaPeriodoNuevo from "./pages/NominaPeriodoNuevo";
+import NominaPeriodoDetalle from "./pages/NominaPeriodoDetalle";
+import NominaMiPlan from "./pages/NominaMiPlan";
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -155,6 +161,13 @@ export default function App() {
               <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />
               <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
               <Route path="/agenda-servicios" element={<AgendaServicios />} />
+              <Route path="/nomina/empleados" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleados /></>} />
+              <Route path="/nomina/empleados/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
+              <Route path="/nomina/empleados/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleadoForm /></>} />
+              <Route path="/nomina/periodos" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodos /></>} />
+              <Route path="/nomina/periodos/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><SoloEscritura to="/nomina/periodos" /><NominaPeriodoNuevo /></>} />
+              <Route path="/nomina/periodos/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoDetalle /></>} />
+              <Route path="/nomina/mi-plan" element={<><RequiereRol allow={["admin", "contador"]} /><NominaMiPlan /></>} />
             </Route>
 
             {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}

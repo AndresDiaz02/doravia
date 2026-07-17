@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   db, empleados, contratos_empleado, nominas_periodo, nominas_detalle,
-  centros_costos, tenants,
+  centros_costos, tenants, nomina_config_global,
 } from "@workspace/db";
 import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
@@ -324,6 +324,11 @@ router.get("/periodos/:id", async (req, res) => {
         horas_extras_valor: nominas_detalle.horas_extras_valor,
         recargos_valor: nominas_detalle.recargos_valor,
         comisiones_valor: nominas_detalle.comisiones_valor,
+        auxilio_transporte: nominas_detalle.auxilio_transporte,
+        salud_empleado: nominas_detalle.salud_empleado,
+        pension_empleado: nominas_detalle.pension_empleado,
+        retencion_fuente: nominas_detalle.retencion_fuente,
+        otras_deducciones: nominas_detalle.otras_deducciones,
         deducciones_totales: nominas_detalle.deducciones_totales,
         aportes_parafiscales: nominas_detalle.aportes_parafiscales,
         neto_pagar: nominas_detalle.neto_pagar,
@@ -482,6 +487,20 @@ router.get("/pool", async (req, res) => {
     ...pool,
     documentos_disponibles: Math.max(0, disponibles),
   });
+});
+
+// ── Config global del módulo (banner de advertencia) ──────────────────────────
+
+// GET /api/nomina/config-global — visible a cualquier rol con acceso al módulo,
+// el toggle solo lo puede tocar el fundador (POST /api/fundador/nomina/config-global).
+router.get("/config-global", async (_req, res) => {
+  try {
+    const [config] = await db.select().from(nomina_config_global).where(eq(nomina_config_global.id, "global")).limit(1);
+    res.json(config ?? { id: "global", banner_activo: true, banner_mensaje: "MÓDULO EN CONFIGURACIÓN — No emitir nómina real hasta que se validen parámetros tributarios" });
+  } catch (err) {
+    console.error("Error en GET /nomina/config-global:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
 });
 
 export default router;

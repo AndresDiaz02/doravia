@@ -796,6 +796,8 @@ const migrations = [
   `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS pension_empleado numeric(14,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS retencion_fuente numeric(14,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS otras_deducciones numeric(14,2) NOT NULL DEFAULT 0`,
+  // Auxilio de transporte — no constitutivo de salario, no entra en IBC (ver calculadora.ts)
+  `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS auxilio_transporte numeric(14,2) NOT NULL DEFAULT 0`,
   // Asiento contable consolidado del período, creado al emitir
   `ALTER TABLE nominas_periodo ADD COLUMN IF NOT EXISTS asiento_id uuid`,
   // Cuenta PUC para retenciones y aportes de nómina por pagar (faltaba en el seed original — mismo caso que 2410)
@@ -827,9 +829,11 @@ const migrations = [
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT uq_parametros_nomina_ano UNIQUE (ano)
   )`,
-  // Seed 2026 — ⚠️ salario_minimo_cop/auxilio_transporte_cop son un ESTIMADO, no el decreto oficial
-  // (no se confirmó la cifra exacta del decreto de Diciembre 2025). Verificar con el decreto real
-  // antes de calcular nómina de producción. Los porcentajes de aportes son la norma vigente estable.
+  // Seed 2026 — salario mínimo y auxilio de transporte CONFIRMADOS oficialmente:
+  // Decretos 1469 y 1470 de diciembre de 2025 (Min. Trabajo), vigentes 01/ene/2026 a 31/dic/2026.
+  // Porcentajes de aportes: Art. 204/244 Ley 100 de 1993, Ley 21 de 1982 (norma estable, no decretada
+  // anualmente). Retención simplificada: ver docs/NOMINA-DEUDA-TECNICA.md punto (c) — BLOQUEANTE
+  // para nómina real, no implementa la tabla progresiva completa del Art. 383 ET.
   `INSERT INTO parametros_nomina_anuales (
      ano, salario_minimo_cop, auxilio_transporte_cop, tope_auxilio_transporte_smlv,
      salud_empleado_pct, salud_empleador_pct, pension_empleado_pct, pension_empleador_pct,
@@ -838,15 +842,34 @@ const migrations = [
      retencion_base_uvt, retencion_pct_simplificada, fuente_normativa, creado_por
    )
    VALUES (
-     2026, 1509000, 212000, 2.00,
+     2026, 1750905, 249095, 2.00,
      4.00, 8.50, 4.00, 12.00,
      0.5220, 2.00, 3.00, 4.00,
      8.33, 12.00, 8.33, 4.17,
      95.00, 19.00,
-     'ESTIMADO — pendiente confirmar decreto SMLV 2026 (Min. Trabajo). Porcentajes: Art. 204/244 Ley 100, Ley 21/1982.',
+     'Decretos 1469 y 1470 de diciembre de 2025 (Min. Trabajo) — SMLV y auxilio de transporte 2026. Porcentajes: Art. 204/244 Ley 100 de 1993, Ley 21 de 1982.',
      'seed'
    )
    ON CONFLICT (ano) DO NOTHING`,
+  // Corrección one-shot: BDs que ya corrieron el seed con el valor ESTIMADO anterior
+  // (1.509.000 / 212.000) quedan con la cifra vieja porque la tabla es inmutable por diseño
+  // (ON CONFLICT DO NOTHING). Este UPDATE puntual las corrige una sola vez — solo toca la fila
+  // si todavía tiene exactamente el valor estimado, nunca pisa una corrección manual posterior.
+  `UPDATE parametros_nomina_anuales
+   SET salario_minimo_cop = 1750905,
+       auxilio_transporte_cop = 249095,
+       fuente_normativa = 'Decretos 1469 y 1470 de diciembre de 2025 (Min. Trabajo) — SMLV y auxilio de transporte 2026. Porcentajes: Art. 204/244 Ley 100 de 1993, Ley 21 de 1982.'
+   WHERE ano = 2026 AND salario_minimo_cop = 1509000 AND auxilio_transporte_cop = 212000`,
+  // Config global del módulo de nómina — banner de advertencia mientras la deuda técnica
+  // (docs/NOMINA-DEUDA-TECNICA.md) siga abierta. Fila única, id fijo 'global'.
+  `CREATE TABLE IF NOT EXISTS nomina_config_global (
+    id varchar(20) PRIMARY KEY DEFAULT 'global',
+    banner_activo boolean NOT NULL DEFAULT true,
+    banner_mensaje text NOT NULL DEFAULT 'MÓDULO EN CONFIGURACIÓN — No emitir nómina real hasta que se validen parámetros tributarios',
+    actualizado_por varchar(200),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `INSERT INTO nomina_config_global (id, banner_activo) VALUES ('global', true) ON CONFLICT (id) DO NOTHING`,
 ];
 
 for (const migration of migrations) {

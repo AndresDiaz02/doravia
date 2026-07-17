@@ -1,6 +1,6 @@
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
-import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja } from "@workspace/db";
+import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
 /**
  * Verifica que la fecha no caiga dentro de un período contable cerrado.
@@ -37,6 +37,8 @@ const CODIGOS = {
   INGRESOS_COMERCIO: "4135",
   INGRESOS_SERVICIOS: "4175",
   PROVEEDORES: "2205",
+  GASTOS_PERSONAL: "5105",
+  APORTES_NOMINA_POR_PAGAR: "2370",
 } as const;
 
 // Método de pago POS → cuenta PUC del activo que recibe el dinero
@@ -558,4 +560,78 @@ export async function crearAsientoDevolucionPOS(
   ]);
 
   return asiento.id;
+}
+
+/**
+ * Genera el asiento contable consolidado de UN período de nómina completo (todos los
+ * empleados emitidos en esa corrida), no uno por empleado — misma convención que un
+ * "comprobante de nómina" contable tradicional.
+ *
+ * Partida doble:
+ *   Débito:  5105 Gastos de personal            = Σ devengado + Σ aportes_parafiscales (costo total empleador)
+ *   Crédito: 1110 Bancos                         = Σ neto_pagar (pago inmediato)
+ *   Crédito: 2370 Retenciones y aportes de nómina = Σ deducciones_totales + Σ aportes_parafiscales (por pagar a EPS/AFP/ARL/etc.)
+ *
+ * Balancea por construcción: neto_pagar_i = devengado_i - deducciones_totales_i, así que
+ * Σneto + Σdeducciones = Σdevengado, y sumando aportes a ambos lados el asiento cuadra.
+ */
+export async function crearAsientoNomina(
+  tenantId: string,
+  periodo: NominaPeriodo,
+  detalles: NominaDetalle[],
+): Promise<string> {
+  const fecha = new Date().toISOString().split("T")[0];
+  await verificarPeriodoCerrado(tenantId, fecha);
+
+  const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
+
+  const [cGastos, cBancos, cAportes] = await Promise.all([
+    getCuenta(tenantId, CODIGOS.GASTOS_PERSONAL),
+    getCuenta(tenantId, CODIGOS.BANCOS),
+    getCuenta(tenantId, CODIGOS.APORTES_NOMINA_POR_PAGAR),
+  ]);
+
+  let totalDevengado = 0;
+  let totalNeto = 0;
+  let totalDeducciones = 0;
+  let totalAportes = 0;
+
+  for (const d of detalles) {
+    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor);
+    totalDevengado += devengado;
+    totalNeto += Number(d.neto_pagar);
+    totalDeducciones += Number(d.deducciones_totales);
+    totalAportes += Number(d.aportes_parafiscales);
+  }
+
+  const totalGasto = round2(totalDevengado + totalAportes);
+  const totalCreditoAportes = round2(totalDeducciones + totalAportes);
+
+  const periodoLabel = periodo.quincena
+    ? `${periodo.mes}/${periodo.ano} quincena ${periodo.quincena}`
+    : `${periodo.mes}/${periodo.ano} mensual`;
+
+  const [asiento] = await db
+    .insert(asientos_contables)
+    .values({
+      tenant_id: tenantId,
+      numero,
+      fecha,
+      descripcion: `Nómina ${periodoLabel} — ${detalles.length} empleado(s)`,
+      origen: "nomina",
+      referencia_id: periodo.id,
+    })
+    .returning();
+
+  await db.insert(lineas_asiento).values([
+    { asiento_id: asiento.id, cuenta_id: cGastos.id, descripcion: "Gastos de personal — nómina", debito: String(totalGasto), credito: "0" },
+    { asiento_id: asiento.id, cuenta_id: cBancos.id, descripcion: "Pago neto nómina", debito: "0", credito: String(totalNeto) },
+    { asiento_id: asiento.id, cuenta_id: cAportes.id, descripcion: "Retenciones y aportes de nómina por pagar", debito: "0", credito: String(totalCreditoAportes) },
+  ]);
+
+  return asiento.id;
+}
+
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
 }

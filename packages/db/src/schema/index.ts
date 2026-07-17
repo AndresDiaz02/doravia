@@ -42,3 +42,4 @@ export * from "./notification_queue.ts";
 export * from "./notifications.ts";
 export * from "./pagos_cotizacion.ts";
 export * from "./nomina.ts";
+export * from "./parametros_nomina.ts";

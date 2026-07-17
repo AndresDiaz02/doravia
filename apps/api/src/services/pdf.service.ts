@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 type PDFDoc = InstanceType<typeof PDFDocument>;
 import type { Readable } from "node:stream";
-import type { Factura, ItemFactura, Cliente, Tenant, Cotizacion, ItemCotizacion } from "@workspace/db";
+import type { Factura, ItemFactura, Cliente, Tenant, Cotizacion, ItemCotizacion, NominaPeriodo, NominaDetalle, Empleado } from "@workspace/db";
 import QRCode from "qrcode";
 
 const COP = new Intl.NumberFormat("es-CO", {
@@ -386,6 +386,79 @@ export function generarReciboCaja(
   doc.fontSize(9).fillColor(GRIS).text("Firma y sello empresa", 50, firmaY + 46);
   doc.moveTo(330, firmaY + 40).lineTo(500, firmaY + 40).strokeColor(GRIS).stroke();
   doc.fontSize(9).fillColor(GRIS).text("Recibido por", 330, firmaY + 46);
+
+  pie(doc, tenant);
+  doc.end();
+  return doc as unknown as Readable;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COLILLA DE PAGO CONSOLIDADA (todos los empleados de un período de nómina)
+// ──────────────────────────────────────────────────────────────────────────────
+export function generarPdfColillaConsolidada(
+  periodo: NominaPeriodo,
+  detalles: NominaDetalle[],
+  empleadosPorId: Map<string, Pick<Empleado, "nombres" | "apellidos" | "cedula">>,
+  tenant: Tenant,
+): Readable {
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+
+  const periodoLabel = periodo.quincena
+    ? `${periodo.mes}/${periodo.ano} — Quincena ${periodo.quincena}`
+    : `${periodo.mes}/${periodo.ano} — Mensual`;
+
+  encabezado(doc, tenant, "Colilla de Pago — Nómina Consolidada", periodoLabel);
+
+  const colX = [50, 180, 280, 350, 420, 490];
+  const colW = [130, 100, 70, 70, 70, 55];
+
+  doc.rect(50, doc.y, 495, 18).fill("#f3f4f6");
+  doc.fillColor(NEGRO).fontSize(8);
+  doc.text("Empleado", colX[0], doc.y - 14, { width: colW[0] });
+  doc.text("Cédula", colX[1], doc.y - 14, { width: colW[1] });
+  doc.text("Devengado", colX[2], doc.y - 14, { width: colW[2], align: "right" });
+  doc.text("Deducciones", colX[3], doc.y - 14, { width: colW[3], align: "right" });
+  doc.text("Aportes", colX[4], doc.y - 14, { width: colW[4], align: "right" });
+  doc.text("Neto", colX[5], doc.y - 14, { width: colW[5], align: "right" });
+
+  let startY = doc.y + 6;
+  let totalDevengado = 0, totalDeducciones = 0, totalAportes = 0, totalNeto = 0;
+
+  for (const d of detalles) {
+    const emp = empleadosPorId.get(d.empleado_id);
+    const devengado = Number(d.salario_base) + Number(d.horas_extras_valor) + Number(d.recargos_valor) + Number(d.comisiones_valor);
+    totalDevengado += devengado;
+    totalDeducciones += Number(d.deducciones_totales);
+    totalAportes += Number(d.aportes_parafiscales);
+    totalNeto += Number(d.neto_pagar);
+
+    doc.fontSize(7.5).fillColor(NEGRO)
+      .text(emp ? `${emp.nombres} ${emp.apellidos}` : "—", colX[0], startY, { width: colW[0] })
+      .text(emp?.cedula ?? "—", colX[1], startY, { width: colW[1] })
+      .text(fmt(devengado), colX[2], startY, { width: colW[2], align: "right" })
+      .text(fmt(d.deducciones_totales), colX[3], startY, { width: colW[3], align: "right" })
+      .text(fmt(d.aportes_parafiscales), colX[4], startY, { width: colW[4], align: "right" })
+      .text(fmt(d.neto_pagar), colX[5], startY, { width: colW[5], align: "right" });
+    startY += 16;
+    if (startY > 700) {
+      doc.addPage();
+      startY = 50;
+    }
+  }
+
+  doc.moveTo(50, startY + 4).lineTo(545, startY + 4).strokeColor(GRIS).stroke();
+  startY += 14;
+
+  doc.roundedRect(50, startY, 495, 60, 6).fill(CLARO);
+  doc.fontSize(8).fillColor(GRIS).text("Total devengado", 70, startY + 10);
+  doc.fontSize(10).fillColor(NEGRO).text(fmt(totalDevengado), 70, startY + 22);
+  doc.fontSize(8).fillColor(GRIS).text("Total deducciones", 200, startY + 10);
+  doc.fontSize(10).fillColor(NEGRO).text(fmt(totalDeducciones), 200, startY + 22);
+  doc.fontSize(8).fillColor(GRIS).text("Total aportes empleador", 330, startY + 10);
+  doc.fontSize(10).fillColor(NEGRO).text(fmt(totalAportes), 330, startY + 22);
+  doc.fontSize(9).fillColor(VERDE).text("NETO PAGADO", 70, startY + 40, { continued: false });
+  doc.fontSize(13).fillColor(VERDE).font("Helvetica-Bold").text(fmt(totalNeto), 330, startY + 38, { width: 195, align: "right" });
+  doc.font("Helvetica");
 
   pie(doc, tenant);
   doc.end();

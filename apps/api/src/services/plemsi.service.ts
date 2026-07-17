@@ -575,6 +575,84 @@ export async function registrarResolucion(params: {
   }
 }
 
+/**
+ * Emite un documento soporte de nómina electrónica individual.
+ *
+ * ⚠️ ENDPOINT NO CONFIRMADO — Plemsi expone nómina electrónica como un producto separado de
+ * facturación (`/api/billing/*`). El path `/api/payroll/individual` usado abajo sigue la misma
+ * convención REST que el resto de este archivo pero NO fue verificado contra la documentación
+ * real de Plemsi para nómina. Confirmar el path y el shape exacto del body con Plemsi antes de
+ * habilitar esto en producción (requiere credenciales de prueba reales, que no están disponibles
+ * en este entorno). El código de manejo de respuesta (fallback de CUDE, manejo de errores) sí
+ * sigue el patrón ya probado del resto del archivo y no debería necesitar cambios.
+ */
+export async function emitirNominaIndividual(params: {
+  apiKey: string;
+  ambiente?: string;
+  periodo: { fechaIngreso: string; fechaLiquidacionInicio: string; fechaLiquidacionFin: string; fechaGeneracion: string };
+  numeroSecuencial: number;
+  empleado: { tipoDocumento: string; numeroDocumento: string; nombres: string; apellidos: string; cargo?: string | null };
+  devengos: { salarioBase: number; horasExtra: number; recargos: number; comisiones: number };
+  deducciones: { saludEmpleado: number; pensionEmpleado: number; retencionFuente: number; otras: number };
+  netoPagar: number;
+}): Promise<ResultadoPlemsi> {
+  try {
+    const body = {
+      novedad: false,
+      periodo: params.periodo,
+      numeroSecuencialNomina: params.numeroSecuencial,
+      trabajador: {
+        tipoDocumento: params.empleado.tipoDocumento,
+        numeroDocumento: params.empleado.numeroDocumento,
+        primerNombre: params.empleado.nombres,
+        primerApellido: params.empleado.apellidos,
+        cargo: params.empleado.cargo ?? undefined,
+      },
+      devengados: {
+        salarioBase: params.devengos.salarioBase,
+        horasExtra: params.devengos.horasExtra,
+        recargos: params.devengos.recargos,
+        comisiones: params.devengos.comisiones,
+      },
+      deducciones: {
+        saludEmpleado: params.deducciones.saludEmpleado,
+        pensionEmpleado: params.deducciones.pensionEmpleado,
+        retencionFuente: params.deducciones.retencionFuente,
+        otras: params.deducciones.otras,
+      },
+      netoPagar: params.netoPagar,
+    };
+
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/payroll/individual`, {
+      method: "POST",
+      headers: headersParaTenant(params.apiKey),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const rawText = await res.text();
+    console.log(`[PLEMSI] POST /api/payroll/individual → status=${res.status} body=${rawText.slice(0, 600)}`);
+
+    let json: Record<string, unknown>;
+    try {
+      json = JSON.parse(rawText) as Record<string, unknown>;
+    } catch {
+      return { ok: false, error: `Plemsi devolvió respuesta no-JSON (status ${res.status}): ${rawText.slice(0, 200)}` };
+    }
+
+    if (!res.ok) return { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(json)}` };
+
+    const data = (typeof json.data === "object" && json.data !== null ? json.data : json) as Record<string, unknown>;
+    return {
+      ok: true,
+      cufe: (data.cude ?? data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cude ?? json.cufe ?? json.uuid) as string | undefined,
+      plemsi_id: (data.id ?? json.id ?? json.uuid) as string | undefined,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };
+  }
+}
+
 /** Consulta folios restantes */
 export async function obtenerFoliosRestantes(apiKey: string, resolution?: string, ambiente?: string): Promise<number | null> {
   try {

@@ -69,6 +69,8 @@ export const nominas_periodo = pgTable("nominas_periodo", {
     total_aportes_parafiscales?: number;
     total_neto_pagar?: number;
   }>(),
+  // Asiento contable consolidado del período completo, creado al emitir (Etapa 2)
+  asiento_id: uuid("asiento_id"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -87,6 +89,11 @@ export const nominas_detalle = pgTable("nominas_detalle", {
   horas_extras_valor: numeric("horas_extras_valor", { precision: 14, scale: 2 }).notNull().default("0"),
   recargos_valor: numeric("recargos_valor", { precision: 14, scale: 2 }).notNull().default("0"),
   comisiones_valor: numeric("comisiones_valor", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Desglose de deducciones a cargo del empleado (Etapa 2) — deducciones_totales es la suma de las 4
+  salud_empleado: numeric("salud_empleado", { precision: 14, scale: 2 }).notNull().default("0"),
+  pension_empleado: numeric("pension_empleado", { precision: 14, scale: 2 }).notNull().default("0"),
+  retencion_fuente: numeric("retencion_fuente", { precision: 14, scale: 2 }).notNull().default("0"),
+  otras_deducciones: numeric("otras_deducciones", { precision: 14, scale: 2 }).notNull().default("0"),
   deducciones_totales: numeric("deducciones_totales", { precision: 14, scale: 2 }).notNull().default("0"),
   aportes_parafiscales: numeric("aportes_parafiscales", { precision: 14, scale: 2 }).notNull().default("0"),
   neto_pagar: numeric("neto_pagar", { precision: 14, scale: 2 }).notNull().default("0"),

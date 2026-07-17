@@ -8,7 +8,7 @@ export type TipoCuenta = (typeof TIPOS_CUENTA)[number];
 export const NATURALEZA_CUENTA = ["debito", "credito"] as const;
 export type NaturalezaCuenta = (typeof NATURALEZA_CUENTA)[number];
 
-export const ORIGENES_ASIENTO = ["factura", "compra", "pago", "ajuste", "manual"] as const;
+export const ORIGENES_ASIENTO = ["factura", "compra", "pago", "ajuste", "manual", "nomina"] as const;
 export type OrigenAsiento = (typeof ORIGENES_ASIENTO)[number];
 
 // PUC simplificado â€" cuentas del sistema (tenant_id null) + cuentas del tenant

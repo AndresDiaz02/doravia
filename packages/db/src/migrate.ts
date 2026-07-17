@@ -789,6 +789,64 @@ const migrations = [
     limite_acumulacion integer NOT NULL,
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
+
+  // ── FASE 10 — Nómina electrónica — Etapa 2: cálculo, Plemsi, contabilización ─
+  // Desglose de deducciones del empleado (deducciones_totales sigue siendo la suma)
+  `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS salud_empleado numeric(14,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS pension_empleado numeric(14,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS retencion_fuente numeric(14,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE nominas_detalle ADD COLUMN IF NOT EXISTS otras_deducciones numeric(14,2) NOT NULL DEFAULT 0`,
+  // Asiento contable consolidado del período, creado al emitir
+  `ALTER TABLE nominas_periodo ADD COLUMN IF NOT EXISTS asiento_id uuid`,
+  // Cuenta PUC para retenciones y aportes de nómina por pagar (faltaba en el seed original — mismo caso que 2410)
+  `INSERT INTO cuentas_contables (id, tenant_id, codigo, nombre, tipo, naturaleza, nivel, padre_id, activo)
+   SELECT gen_random_uuid(), NULL, '2370', 'Retenciones y aportes de nómina por pagar', 'pasivo', 'credito', 3, NULL, true
+   WHERE NOT EXISTS (SELECT 1 FROM cuentas_contables WHERE codigo = '2370' AND tenant_id IS NULL)`,
+  `CREATE TABLE IF NOT EXISTS parametros_nomina_anuales (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    ano integer NOT NULL,
+    salario_minimo_cop integer NOT NULL,
+    auxilio_transporte_cop integer NOT NULL,
+    tope_auxilio_transporte_smlv numeric(4,2) NOT NULL,
+    salud_empleado_pct numeric(5,2) NOT NULL,
+    salud_empleador_pct numeric(5,2) NOT NULL,
+    pension_empleado_pct numeric(5,2) NOT NULL,
+    pension_empleador_pct numeric(5,2) NOT NULL,
+    arl_pct_default numeric(5,4) NOT NULL,
+    sena_pct numeric(5,2) NOT NULL,
+    icbf_pct numeric(5,2) NOT NULL,
+    caja_compensacion_pct numeric(5,2) NOT NULL,
+    cesantias_pct numeric(5,2) NOT NULL,
+    intereses_cesantias_pct numeric(5,2) NOT NULL,
+    prima_pct numeric(5,2) NOT NULL,
+    vacaciones_pct numeric(5,2) NOT NULL,
+    retencion_base_uvt numeric(8,2) NOT NULL,
+    retencion_pct_simplificada numeric(5,2) NOT NULL,
+    fuente_normativa varchar(300),
+    creado_por varchar(200),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_parametros_nomina_ano UNIQUE (ano)
+  )`,
+  // Seed 2026 — ⚠️ salario_minimo_cop/auxilio_transporte_cop son un ESTIMADO, no el decreto oficial
+  // (no se confirmó la cifra exacta del decreto de Diciembre 2025). Verificar con el decreto real
+  // antes de calcular nómina de producción. Los porcentajes de aportes son la norma vigente estable.
+  `INSERT INTO parametros_nomina_anuales (
+     ano, salario_minimo_cop, auxilio_transporte_cop, tope_auxilio_transporte_smlv,
+     salud_empleado_pct, salud_empleador_pct, pension_empleado_pct, pension_empleador_pct,
+     arl_pct_default, sena_pct, icbf_pct, caja_compensacion_pct,
+     cesantias_pct, intereses_cesantias_pct, prima_pct, vacaciones_pct,
+     retencion_base_uvt, retencion_pct_simplificada, fuente_normativa, creado_por
+   )
+   VALUES (
+     2026, 1509000, 212000, 2.00,
+     4.00, 8.50, 4.00, 12.00,
+     0.5220, 2.00, 3.00, 4.00,
+     8.33, 12.00, 8.33, 4.17,
+     95.00, 19.00,
+     'ESTIMADO — pendiente confirmar decreto SMLV 2026 (Min. Trabajo). Porcentajes: Art. 204/244 Ley 100, Ley 21/1982.',
+     'seed'
+   )
+   ON CONFLICT (ano) DO NOTHING`,
 ];
 
 for (const migration of migrations) {

@@ -1,12 +1,14 @@
 import { Router } from "express";
 import {
   db, empleados, contratos_empleado, nominas_periodo, nominas_detalle,
-  centros_costos,
+  centros_costos, tenants,
 } from "@workspace/db";
-import { eq, and, desc, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
 import { encrypt, decrypt } from "../services/encryption.js";
 import { TIPOS_CONTRATO, ESTADOS_EMPLEADO } from "@workspace/db";
+import { calcularPeriodo, aprobarPeriodo, emitirPeriodo, NominaEstadoError } from "../services/nomina.service.js";
+import { generarPdfColillaConsolidada } from "../services/pdf.service.js";
 
 const router = Router();
 
@@ -338,7 +340,7 @@ router.get("/periodos/:id", async (req, res) => {
   }
 });
 
-// POST /api/nomina/periodos — crea el período en borrador (el cálculo llega en Etapa 2)
+// POST /api/nomina/periodos — crea el período en borrador
 router.post("/periodos", requireNotContador, async (req, res) => {
   try {
     const { ano, mes, quincena } = req.body as { ano?: number; mes?: number; quincena?: number | null };
@@ -369,6 +371,99 @@ router.post("/periodos", requireNotContador, async (req, res) => {
   } catch (err) {
     console.error("Error en POST /nomina/periodos:", err);
     res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+function manejarErrorEstado(err: unknown, res: import("express").Response): boolean {
+  if (err instanceof NominaEstadoError) {
+    const status = err.code === "PERIODO_NO_ENCONTRADO" ? 404 : err.code === "POOL_INSUFICIENTE" ? 409 : 422;
+    res.status(status).json({ error: err.message, code: err.code });
+    return true;
+  }
+  return false;
+}
+
+// POST /api/nomina/periodos/:id/calcular — calcula/recalcula la nómina de todos los
+// empleados activos del período. No consume pool (chequeo de saldo es solo en /emitir).
+router.post("/periodos/:id/calcular", requireNotContador, async (req, res) => {
+  try {
+    const { ajustes } = req.body as { ajustes?: Record<string, {
+      horas_extras_valor?: number; recargos_valor?: number; comisiones_valor?: number; otras_deducciones?: number;
+    }> };
+
+    const [periodoCheck] = await db.select({ id: nominas_periodo.id }).from(nominas_periodo)
+      .where(and(eq(nominas_periodo.id, req.params.id), eq(nominas_periodo.tenant_id, req.tenantId))).limit(1);
+    if (!periodoCheck) return res.status(404).json({ error: "Período no encontrado." });
+
+    const resultado = await calcularPeriodo(req.tenantId, req.params.id, ajustes ?? {});
+    res.json(resultado);
+  } catch (err) {
+    if (manejarErrorEstado(err, res)) return;
+    console.error("Error en POST /nomina/periodos/:id/calcular:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/nomina/periodos/:id/aprobar
+router.post("/periodos/:id/aprobar", requireNotContador, async (req, res) => {
+  try {
+    const [periodoCheck] = await db.select({ id: nominas_periodo.id }).from(nominas_periodo)
+      .where(and(eq(nominas_periodo.id, req.params.id), eq(nominas_periodo.tenant_id, req.tenantId))).limit(1);
+    if (!periodoCheck) return res.status(404).json({ error: "Período no encontrado." });
+
+    const periodo = await aprobarPeriodo(req.tenantId, req.params.id);
+    res.json(periodo);
+  } catch (err) {
+    if (manejarErrorEstado(err, res)) return;
+    console.error("Error en POST /nomina/periodos/:id/aprobar:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// POST /api/nomina/periodos/:id/emitir — único punto donde se valida saldo del pool.
+// Solo admin (no requireNotContador — DELETE-equivalente en impacto, restringido explícitamente).
+router.post("/periodos/:id/emitir", async (req, res) => {
+  try {
+    if (req.userRole !== "admin") {
+      return res.status(403).json({ error: "Solo el administrador puede emitir nómina." });
+    }
+    const [periodoCheck] = await db.select({ id: nominas_periodo.id }).from(nominas_periodo)
+      .where(and(eq(nominas_periodo.id, req.params.id), eq(nominas_periodo.tenant_id, req.tenantId))).limit(1);
+    if (!periodoCheck) return res.status(404).json({ error: "Período no encontrado." });
+
+    const resultado = await emitirPeriodo(req.tenantId, req.params.id);
+    res.json(resultado);
+  } catch (err) {
+    if (manejarErrorEstado(err, res)) return;
+    console.error("Error en POST /nomina/periodos/:id/emitir:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// GET /api/nomina/periodos/:id/pdf — colilla de pago consolidada del período
+router.get("/periodos/:id/pdf", async (req, res) => {
+  try {
+    const [periodo] = await db.select().from(nominas_periodo)
+      .where(and(eq(nominas_periodo.id, req.params.id), eq(nominas_periodo.tenant_id, req.tenantId))).limit(1);
+    if (!periodo) return res.status(404).json({ error: "Período no encontrado." });
+
+    const detalles = await db.select().from(nominas_detalle).where(eq(nominas_detalle.nomina_periodo_id, periodo.id));
+    if (detalles.length === 0) return res.status(400).json({ error: "El período no tiene nómina calculada." });
+
+    const empleadosIds = [...new Set(detalles.map((d) => d.empleado_id))];
+    const empleadosRows = await db.select({ id: empleados.id, nombres: empleados.nombres, apellidos: empleados.apellidos, cedula: empleados.cedula })
+      .from(empleados).where(inArray(empleados.id, empleadosIds));
+    const empleadosPorId = new Map(empleadosRows.map((e) => [e.id, e]));
+
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, req.tenantId)).limit(1);
+
+    const pdfStream = generarPdfColillaConsolidada(periodo, detalles, empleadosPorId, tenant);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=nomina_${periodo.ano}_${periodo.mes}${periodo.quincena ? `_q${periodo.quincena}` : ""}.pdf`);
+    pdfStream.pipe(res);
+  } catch (err) {
+    console.error("Error en GET /nomina/periodos/:id/pdf:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Error interno al generar el PDF." });
   }
 });
 

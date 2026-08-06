@@ -141,7 +141,7 @@ const writeRateLimit = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: (req) => req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS",
-  keyGenerator: (req) => (req as { tenantId?: string }).tenantId ?? ipKeyGenerator(req) ?? "anon",
+  keyGenerator: (req) => (req as { tenantId?: string }).tenantId ?? ipKeyGenerator(req.ip ?? "anon"),
   message: { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
 });
 

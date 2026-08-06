@@ -239,14 +239,21 @@ router.post("/factura/:facturaId", async (req, res) => {
             const [resolucionFact] = factura.resolucion_id
               ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
               : [null];
-            const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+            if (!resolucionFact) {
+              const error = "La factura original no tiene una resolución DIAN válida. No se envió la nota a Plemsi.";
+              await db.update(notas_debito)
+                .set({ estado_dian: "error", error_dian: error })
+                .where(and(eq(notas_debito.id, nota.id), eq(notas_debito.tenant_id, req.tenantId)));
+              console.error(`[PLEMSI] Nota débito ${nota.numero}: ${error}`);
+              return;
+            }
 
             const resultado = await plemsiEmitirNotaDebito({
               apiKey: plemsiCreds.apiKey,
               ambiente: plemsiCreds.ambiente,
               prefix: "ND",
               number: consecutivo,
-              resolution: resolucionNumero,
+              resolution: resolucionFact.numero,
               discrepancy_code,
               discrepancy_description: motivo,
               customer: customerData,
@@ -351,14 +358,19 @@ router.post("/:id/reenviar-dian", async (req, res) => {
     const [resolucionFact] = facturaOrig.resolucion_id
       ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, facturaOrig.resolucion_id)).limit(1)
       : [null];
-    const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+    if (!resolucionFact) {
+      return res.status(422).json({
+        error: "La factura original no tiene una resolución DIAN válida. No se puede reenviar la nota.",
+        code: "DIAN_RESOLUTION_REQUIRED",
+      });
+    }
 
     const resultado = await plemsiEmitirNotaDebito({
       apiKey: plemsiCreds.apiKey,
       ambiente: plemsiCreds.ambiente,
       prefix: "ND",
       number: nota.consecutivo,
-      resolution: resolucionNumero,
+      resolution: resolucionFact.numero,
       discrepancy_code,
       discrepancy_description: nota.motivo,
       customer: customerData,

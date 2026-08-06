@@ -252,14 +252,21 @@ router.post("/factura/:facturaId", async (req, res) => {
             const [resolucionFact] = factura.resolucion_id
               ? await db.select({ numero: resoluciones_dian.numero_resolucion }).from(resoluciones_dian).where(eq(resoluciones_dian.id, factura.resolucion_id)).limit(1)
               : [null];
-            const resolucionNumero = resolucionFact?.numero ?? process.env.PLEMSI_RESOLUCION_DEFAULT ?? "18760000001";
+            if (!resolucionFact) {
+              const error = "La factura original no tiene una resolución DIAN válida. No se envió la nota a Plemsi.";
+              await db.update(notas_credito)
+                .set({ estado_dian: "error", error_dian: error })
+                .where(and(eq(notas_credito.id, nota.id), eq(notas_credito.tenant_id, req.tenantId)));
+              console.error(`[PLEMSI] Nota crédito ${nota.numero}: ${error}`);
+              return;
+            }
 
             const resultado = await plemsiEmitirNotaCredito({
               apiKey: plemsiCreds.apiKey,
               ambiente: plemsiCreds.ambiente,
               prefix: "NC",
               number: consecutivo,
-              resolution: resolucionNumero,
+              resolution: resolucionFact.numero,
               discrepancy_code,
               discrepancy_description: motivo,
               buyer: buyerData,

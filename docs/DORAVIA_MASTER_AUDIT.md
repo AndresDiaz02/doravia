@@ -14,7 +14,7 @@
 | Área | Nivel | Evidencia / estado |
 | --- | --- | --- |
 | Seguridad de secretos | **CRÍTICO** | `.env.example` contenía claves de terceros. Se reemplazaron por placeholders; las claves históricas deben rotarse fuera del repositorio. |
-| DevOps / CI | **ALTO** | `apps/api` tiene `build: echo 'ok'`; el despliegue no verifica TypeScript. No hay CI observado. El typecheck inicial además revela errores reales de API, frontend y configuración de paquetes. |
+| DevOps / CI | **MEDIO** | El API ejecuta typecheck real durante su build y CI valida API, ERP y POS. Frontend/POS aún deben normalizar su propia línea base de tipos. |
 | Facturación electrónica | **ALTO** | El flujo Plemsi por tenant y bloqueo de `stub` en producción existen. Aún falta historial/idempotencia de intentos y validación externa de todos los payloads. |
 | POS | **ALTO** | Hay ventas, turnos e inventario. La emisión del documento equivalente y su estado real requieren verificación contra Plemsi antes de comercializar cumplimiento DIAN. |
 | Multi-tenancy / RBAC | **MEDIO** | JWT, middleware de plan y roles existen. Debe completarse una auditoría ruta por ruta, en particular mutaciones que validan ownership antes de actualizar o borrar. |
@@ -36,9 +36,9 @@
 ### ALTO — compilación del API es un falso positivo
 
 - **Módulo:** `apps/api/package.json`, `render.yaml`.
-- **Impacto / riesgo:** errores TypeScript pueden llegar a producción porque el comando `build` solo imprime `ok`.
-- **Acción recomendada:** añadir `tsconfig`, `typecheck` y un build real; hacer que CI y Render los ejecuten antes de iniciar.
-- **Estado:** pendiente, fase DevOps.
+- **Impacto / riesgo:** errores TypeScript podían llegar a producción porque el comando `build` solo imprimía `ok`.
+- **Acción aplicada:** `build` ahora ejecuta `typecheck` con `tsc --noEmit`; se corrigieron los errores API que bloqueaban la línea base.
+- **Estado:** corregido para API; CI creado. Typecheck de frontend/POS permanece pendiente.
 
 ### ALTO — typecheck sin línea base verde
 

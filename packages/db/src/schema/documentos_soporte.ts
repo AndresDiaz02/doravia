@@ -7,7 +7,7 @@ export const documentos_soporte = pgTable("documentos_soporte", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
   numero: varchar("numero", { length: 30 }).notNull(),
-  consecutivo: integer("consecutivo", { mode: "number" }).notNull(),
+  consecutivo: integer("consecutivo").notNull(),
   // Datos del vendedor no obligado
   nombre_vendedor: varchar("nombre_vendedor", { length: 200 }).notNull(),
   tipo_documento_vendedor: varchar("tipo_documento_vendedor", { length: 20 }).notNull().default("CC"),

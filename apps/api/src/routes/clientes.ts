@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, clientes, facturas } from "@workspace/db";
+import { db, clientes, facturas, TIPOS_DOCUMENTO } from "@workspace/db";
 import { eq, and, desc, inArray, or, isNull } from "drizzle-orm";
 import { audit } from "../services/audit.service.js";
 import multer from "multer";
@@ -119,6 +119,7 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
         errores.push({ fila: nFila, error: `tipo_documento inválido "${tipo_documento}" — debe ser: ${TIPOS_VALIDOS.join(", ")}` });
         continue;
       }
+      const tipoDocumentoValido = tipo_documento as (typeof TIPOS_DOCUMENTO)[number];
 
       try {
         // Upsert por (tenant_id, numero_documento)
@@ -141,8 +142,8 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
         } else {
           await db.insert(clientes).values({
             tenant_id: req.tenantId,
-            tipo_persona: tipo_documento === "NIT" ? "juridica" : "natural",
-            tipo_documento,
+            tipo_persona: tipoDocumentoValido === "NIT" ? "juridica" : "natural",
+            tipo_documento: tipoDocumentoValido,
             numero_documento,
             nombre,
             correo: fila.correo || null,

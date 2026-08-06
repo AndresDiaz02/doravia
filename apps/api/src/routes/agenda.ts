@@ -730,7 +730,7 @@ router.get("/disponibilidad", async (req, res) => {
     }).from(citas_pos).where(and(
       eq(citas_pos.tenant_id, req.tenantId),
       sql`DATE(${citas_pos.fecha_hora} AT TIME ZONE 'America/Bogota') = ${fecha}::date`,
-      inArray(citas_pos.estado, ["agendada", "confirmada", "en_atencion"] as string[]),
+      inArray(citas_pos.estado, ["agendada", "confirmada", "en_atencion"]),
     ));
 
     function minutosDesde(hora: string): number {

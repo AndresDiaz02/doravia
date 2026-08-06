@@ -33,6 +33,7 @@ export const notas_credito = pgTable("notas_credito", {
   cude: varchar("cude", { length: 256 }),
   plemsi_id: varchar("plemsi_id", { length: 100 }),
   estado_dian: varchar("estado_dian", { length: 30 }).$type<"pendiente" | "emitida" | "error" | "no_aplica">().default("no_aplica"),
+  error_dian: text("error_dian"),
 
   asiento_id: uuid("asiento_id"),
 

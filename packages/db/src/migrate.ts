@@ -196,6 +196,7 @@ const migrations = [
   `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS cude varchar(256)`,
   `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
   `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'no_aplica'`,
+  `ALTER TABLE notas_credito ADD COLUMN IF NOT EXISTS error_dian text`,
   `ALTER TABLE resoluciones_dian ADD COLUMN IF NOT EXISTS plemsi_id varchar(100)`,
   // Notas débito (documentos que aumentan el valor de una factura para la DIAN)
   `CREATE TABLE IF NOT EXISTS notas_debito (

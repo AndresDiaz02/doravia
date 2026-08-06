@@ -6,7 +6,8 @@ try {
   const env = readFileSync(resolve(process.cwd(), "../../.env"), "utf-8");
   for (const line of env.split("\n")) {
     const m = line.match(/^([^#][^=\s][^=]*)=(.*)/);
-    if (m) process.env[m[1].trim()] = m[2].trim();
+    const key = m?.[1].trim();
+    if (key && process.env[key] === undefined) process.env[key] = m[2].trim();
   }
 } catch { /* .env no encontrado, se usan vars del sistema */ }
 

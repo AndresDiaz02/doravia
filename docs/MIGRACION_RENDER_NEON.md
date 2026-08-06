@@ -43,6 +43,19 @@ pnpm db:migrate
 
 No ejecutar `pnpm db:seed` sobre una base restaurada: puede introducir datos de prueba o alterar datos existentes. Tampoco ejecutar `pnpm db:migrate` contra una base nueva y vacia; el proceso actual presupone que ya existe el esquema base de Doravia.
 
+### Instalacion nueva (solo si no se recuperaran datos)
+
+Si no existe operacion ni respaldo que conservar, inicializar Neon una sola vez y en este orden:
+
+```powershell
+$env:DATABASE_URL = '<URL de conexion de Neon>'
+pnpm db:push
+pnpm db:seed
+pnpm db:migrate
+```
+
+`db:push` crea el esquema base; `db:migrate` aplica los ajustes acumulados; y `db:seed` crea planes y el PUC base. No establecer `SEED_DEMO=true`, para no crear datos de simulacion. Nunca usar `db:push` como comando de inicio del servicio: es un paso controlado de inicializacion, no un reemplazo de migraciones.
+
 ## 4. Crear el servicio en Render
 
 1. En Render, crear un **Blueprint** desde el repositorio de GitHub. Detectara `render.yaml` en la raiz.

@@ -148,7 +148,8 @@ const migrations = [
    SELECT 'Hub Contadores Doravia', '0000000001',
           (SELECT id FROM plans WHERE slug = 'origen' LIMIT 1),
           now(), now() + interval '100 years', true, true
-   WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE nit = '0000000001')`,
+   WHERE EXISTS (SELECT 1 FROM plans WHERE slug = 'origen')
+     AND NOT EXISTS (SELECT 1 FROM tenants WHERE nit = '0000000001')`,
   // TAREA 5 — índice único compuesto (tenant_id, usuario_pos) WHERE usuario_pos IS NOT NULL
   `CREATE UNIQUE INDEX IF NOT EXISTS users_usuario_pos_tenant_unique ON users(tenant_id, usuario_pos) WHERE usuario_pos IS NOT NULL`,
   // TAREA 6 — FK self-referencial en cuentas_contables (padre_id → id)

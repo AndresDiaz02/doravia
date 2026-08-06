@@ -22,17 +22,3 @@ services:
         sync: false
       - key: APP_URL
         sync: false
-      - key: RESEND_API_KEY
-        sync: false
-      - key: RESEND_FROM
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
-      - key: FUNDADOR_EMAILS
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: BOLD_API_KEY
-        sync: false
-      - key: BOLD_SECRET_KEY
-        sync: false

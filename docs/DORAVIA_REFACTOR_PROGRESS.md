@@ -7,6 +7,7 @@
 - Eliminados secretos de `.env.example`; el archivo usa placeholders y el selector DIAN documentado es `DIAN_PROVEEDOR`.
 - Corregido el generador de clave del rate limiter para usar la IP y no el objeto HTTP completo.
 - Eliminado el fallback de resolución DIAN fija de notas crédito/débito; ahora se bloquea el envío si falta la resolución de la factura original.
+- Reforzadas mutaciones de nómina y documento soporte con filtro de tenant y validación de centro de costos.
 - Suite API: 298 pruebas verdes; compilación de frontend y verificación actual del API completadas antes de esta auditoría.
 
 ## In progress

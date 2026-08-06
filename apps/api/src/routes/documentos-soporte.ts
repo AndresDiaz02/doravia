@@ -184,7 +184,7 @@ router.delete("/:id", async (req, res) => {
     const [anulado] = await db
       .update(documentos_soporte)
       .set({ anulado: true })
-      .where(eq(documentos_soporte.id, documento.id))
+      .where(and(eq(documentos_soporte.id, documento.id), eq(documentos_soporte.tenant_id, req.tenantId)))
       .returning();
 
     res.json({ ok: true, documento: anulado });

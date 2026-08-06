@@ -76,6 +76,13 @@
 - **Acción recomendada:** matriz de autorización por endpoint, helpers de ownership, soft-delete/anulación para documentos financieros y pruebas de tenant cruzado.
 - **Estado:** en auditoría.
 
+### MEDIO — mutaciones críticas sin filtro repetido de tenant
+
+- **Módulos:** `apps/api/src/routes/nomina.ts`, `apps/api/src/routes/documentos-soporte.ts`.
+- **Impacto / riesgo:** aunque el recurso se comprobaba previamente, un refactor futuro podía convertir una actualización o anulación en un IDOR.
+- **Acción aplicada:** las mutaciones repiten el filtro `tenant_id`; la edición de empleado verifica también que el centro de costos pertenezca al tenant.
+- **Estado:** corregido en los puntos identificados; auditoría ruta por ruta continúa.
+
 ### MEDIO — precisión y restricciones financieras incompletas
 
 - **Módulos:** `facturas`, `pos`, `contabilidad`, servicios de cálculo.

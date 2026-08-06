@@ -154,11 +154,20 @@ router.patch("/empleados/:id", requireNotContador, async (req, res) => {
     if (nombres !== undefined) patch.nombres = nombres;
     if (apellidos !== undefined) patch.apellidos = apellidos;
     if (cargo !== undefined) patch.cargo = cargo;
-    if (centro_costos_id !== undefined) patch.centro_costos_id = centro_costos_id;
+    if (centro_costos_id !== undefined) {
+      if (centro_costos_id !== null) {
+        const [centroCosto] = await db.select({ id: centros_costos.id }).from(centros_costos)
+          .where(and(eq(centros_costos.id, centro_costos_id), eq(centros_costos.tenant_id, req.tenantId)))
+          .limit(1);
+        if (!centroCosto) return res.status(400).json({ error: "centro_costos_id no existe para este tenant." });
+      }
+      patch.centro_costos_id = centro_costos_id;
+    }
     if (datos_bancarios !== undefined) patch.datos_bancarios_encrypted = encrypt(JSON.stringify(datos_bancarios));
 
     const [updated] = await db.update(empleados).set(patch)
-      .where(eq(empleados.id, req.params.id)).returning(EMPLEADO_COLUMNAS_LISTADO);
+      .where(and(eq(empleados.id, req.params.id), eq(empleados.tenant_id, req.tenantId)))
+      .returning(EMPLEADO_COLUMNAS_LISTADO);
 
     res.json(updated);
   } catch (err) {
@@ -179,7 +188,7 @@ router.patch("/empleados/:id/retirar", requireNotContador, async (req, res) => {
 
     const [updated] = await db.update(empleados)
       .set({ estado: "retirado", fecha_retiro, updated_at: new Date() })
-      .where(eq(empleados.id, req.params.id))
+      .where(and(eq(empleados.id, req.params.id), eq(empleados.tenant_id, req.tenantId)))
       .returning(EMPLEADO_COLUMNAS_LISTADO);
 
     // Cierra el contrato vigente (fecha_fin null) a la fecha de retiro
@@ -214,7 +223,8 @@ router.delete("/empleados/:id", requireNotContador, async (req, res) => {
     }
 
     await db.delete(contratos_empleado).where(eq(contratos_empleado.empleado_id, req.params.id));
-    await db.delete(empleados).where(eq(empleados.id, req.params.id));
+    await db.delete(empleados)
+      .where(and(eq(empleados.id, req.params.id), eq(empleados.tenant_id, req.tenantId)));
     res.json({ ok: true });
   } catch (err) {
     console.error("Error en DELETE /nomina/empleados/:id:", err);
@@ -277,7 +287,7 @@ router.post("/empleados/:empleadoId/contratos", requireNotContador, async (req, 
     // El contrato nuevo pasa a ser la condición vigente del empleado
     await db.update(empleados)
       .set({ tipo_contrato: tipo as (typeof TIPOS_CONTRATO)[number], salario_base: String(salario), updated_at: new Date() })
-      .where(eq(empleados.id, req.params.empleadoId));
+      .where(and(eq(empleados.id, req.params.empleadoId), eq(empleados.tenant_id, req.tenantId)));
 
     res.status(201).json(nuevo);
   } catch (err) {

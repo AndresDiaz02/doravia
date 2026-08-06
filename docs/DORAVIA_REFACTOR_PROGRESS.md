@@ -10,6 +10,7 @@
 - Reforzadas mutaciones de nómina y documento soporte con filtro de tenant y validación de centro de costos.
 - El build del API dejó de ser un falso positivo: ahora ejecuta typecheck real y la línea base del API quedó corregida.
 - Añadido CI para typecheck del API, pruebas y builds de ERP/POS en cada push a `main` y pull request.
+- Webhooks de pagos endurecidos: producción exige firma por tenant para cotizaciones y bloquea suscripciones sin contrato de firma verificado.
 - Suite API: 298 pruebas verdes; compilación de frontend y verificación actual del API completadas antes de esta auditoría.
 
 ## In progress
@@ -29,6 +30,7 @@
 
 - Confirmación y sandbox de Plemsi para nómina electrónica.
 - Rotación de todas las credenciales que fueron expuestas fuera del repositorio.
+- Confirmación de Bold del esquema de firma de webhooks de suscripciones.
 
 ## Requires legal review
 

@@ -9,6 +9,7 @@ import { resolverMontoBold, type CicloPago } from "../lib/bold-monto.js";
 const router = Router();
 
 const APP_URL = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
+const IS_PROD = process.env.NODE_ENV === "production";
 
 // ── Lógica de activar plan ────────────────────────────────────────────────────
 async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
@@ -283,6 +284,13 @@ router.get("/public/status/:reference_id", async (req, res) => {
 // ── POST /api/pagos/bold/webhook (viene de Bold, sin autenticación) ───────────
 router.post("/webhook", async (req, res) => {
   try {
+    // No existe un contrato de firma verificable para este webhook en el repositorio.
+    // En producción se rechaza hasta implementar el mecanismo oficial de Bold.
+    if (IS_PROD) {
+      console.error("[Bold] Webhook de suscripciones bloqueado: falta verificación de firma confirmada.");
+      return res.status(503).json({ error: "Webhook de suscripciones no habilitado de forma segura." });
+    }
+
     const body = req.body as Record<string, unknown>;
 
     // Bold puede enviar el body en formato plano o anidado en { data: {...} }

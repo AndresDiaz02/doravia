@@ -141,6 +141,11 @@ router.post("/bold/webhook", async (req, res) => {
       // que la integración Bold existente de suscripciones Doravia)
     }
 
+    if (!eventSecret && IS_PROD) {
+      console.error(`[PagosCot] Webhook sin event_secret para referencia ${referencia}`);
+      return res.status(503).json({ error: "Webhook no configurado de forma segura." });
+    }
+
     if (eventSecret && !verificarFirmaBold(payloadRaw, headers, eventSecret)) {
       console.warn(`[PagosCot] Firma Bold inválida para referencia ${referencia}`);
       return res.status(401).json({ error: "Firma inválida." });

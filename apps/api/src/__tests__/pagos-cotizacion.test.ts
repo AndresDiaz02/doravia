@@ -119,7 +119,9 @@ describe("Encryption round-trip — AES-256-GCM", () => {
   it("decrypt con token manipulado lanza error (autenticación AES-GCM)", () => {
     const token = encrypt("data");
     const [iv, enc, tag] = token.split(".");
-    const tampered = [iv, enc!.slice(0, -2) + "ff", tag].join(".");
+    const tagBytes = Buffer.from(tag!, "hex");
+    tagBytes[0] = tagBytes[0]! ^ 0xff;
+    const tampered = [iv, enc, tagBytes.toString("hex")].join(".");
     expect(() => decrypt(tampered)).toThrow();
   });
 });

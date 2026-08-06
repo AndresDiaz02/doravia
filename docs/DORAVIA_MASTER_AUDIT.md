@@ -33,6 +33,13 @@
 - **Acción aplicada:** se eliminaron los valores y se sustituyeron por placeholders; `DIAN_MODO` obsoleto se sustituyó por `DIAN_PROVEEDOR`.
 - **Estado:** código corregido. **Requiere acción externa:** revocar/rotar las claves que hayan aparecido en Git, chats o archivos compartidos.
 
+### CRÍTICO — webhooks de pagos sin autenticidad comprobada
+
+- **Módulos:** `apps/api/src/routes/pagos-cotizacion.ts`, `apps/api/src/routes/bold.ts`.
+- **Impacto / riesgo:** un actor externo podía notificar un pago sin firma si faltaba la configuración; el webhook de suscripciones no tenía verificación de firma implementada.
+- **Acción aplicada:** pagos de cotizaciones fallan cerrados en producción si no existe `event_secret`; el webhook de suscripciones se bloquea en producción hasta confirmar e implementar la firma oficial.
+- **Estado:** mitigado. `PROVIDER_CONFIRMATION_REQUIRED` para reactivar suscripciones automáticas de forma segura.
+
 ### ALTO — compilación del API es un falso positivo
 
 - **Módulo:** `apps/api/package.json`, `render.yaml`.

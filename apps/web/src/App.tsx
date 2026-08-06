@@ -44,6 +44,7 @@ import AuditLog from "./pages/AuditLog";
 import FundadorLayout from "./components/FundadorLayout";
 import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
+import FundadorSales from "./pages/FundadorSales";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
 import ReporteIVA from "./pages/ReporteIVA";
@@ -172,7 +173,8 @@ export default function App() {
 
             {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}
             <Route path="/fundador" element={<FundadorLayout />}>
-              <Route index element={<Navigate to="/fundador/admin" replace />} />
+              <Route index element={<Navigate to="/fundador/ventas" replace />} />
+              <Route path="ventas" element={<FundadorSales />} />
               <Route path="admin" element={<FundadorAdmin />} />
               <Route path="marketing" element={<FundadorMarketing />} />
             </Route>

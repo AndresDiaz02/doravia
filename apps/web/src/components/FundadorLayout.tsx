@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Outlet, useLocation, Navigate } from "react-router-dom";
-import { BarChart2, Megaphone, Zap, Lock } from "lucide-react";
+import { BarChart2, Megaphone, Zap, Lock, KanbanSquare } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
 import { apiFetch } from "../lib/api";
@@ -131,6 +131,7 @@ export default function FundadorLayout() {
   // ── Panel normal ───────────────────────────────────────────────────────────
   const isAdmin     = location.pathname.startsWith("/fundador/admin");
   const isMarketing = location.pathname.startsWith("/fundador/marketing");
+  const isSales = location.pathname.startsWith("/fundador/ventas");
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
@@ -146,6 +147,7 @@ export default function FundadorLayout() {
         </div>
 
         <nav className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+          <Link to="/fundador/ventas" className={cn("flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all", isSales ? "bg-white text-slate-900 shadow" : "text-white/70 hover:text-white hover:bg-white/10")}><KanbanSquare className="h-4 w-4" />Ventas</Link>
           <Link
             to="/fundador/admin"
             className={cn(

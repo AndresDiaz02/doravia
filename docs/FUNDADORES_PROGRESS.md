@@ -8,10 +8,11 @@
 - Implementados endpoints de cuentas, contactos, oportunidades, movimiento validado de etapa, actividades y metricas de pipeline.
 - Los cambios de etapa y actividades generan eventos de timeline. Una oportunidad perdida exige motivo.
 - API typecheck y build de la web pasan localmente.
+- Creada la vista interna `/fundador/ventas`: dashboard de ACV, alta rapida de prospectos y oportunidades, y pipeline comercial con movimientos trazables.
 
 ## In Progress
 
-- UI de pipeline, detalle de oportunidad, agenda comercial y dashboard Fundadores.
+- Detalle de oportunidad, contactos, agenda comercial y filtros del pipeline.
 - Migracion segura de las tablas `sales_*` en la base de datos administrada.
 
 ## Pending

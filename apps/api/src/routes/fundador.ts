@@ -10,8 +10,10 @@ import {
 } from "@workspace/db";
 import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
+import fundadorSalesRouter from "./fundador-sales.js";
 
 const router = Router();
+router.use("/sales", fundadorSalesRouter);
 
 // POST /api/fundador/verify-pin — valida el PIN de acceso al panel
 // Si FUNDADOR_PIN no está configurado, devuelve ok sin verificar (PIN desactivado)

@@ -871,6 +871,29 @@ const migrations = [
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
   `INSERT INTO nomina_config_global (id, banner_activo) VALUES ('global', true) ON CONFLICT (id) DO NOTHING`,
+
+  // ── Fundadores V1 ──────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS sales_accounts (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid REFERENCES tenants(id), tipo varchar(30) NOT NULL DEFAULT 'prospect',
+    nombre_comercial varchar(200) NOT NULL, razon_social varchar(200), nit varchar(20), dv varchar(2), ciudad varchar(100), departamento varchar(100), direccion varchar(300), sitio_web varchar(200), industria varchar(100), numero_empleados integer, numero_sedes integer, tamano varchar(30), fuente_lead varchar(50), owner_id uuid REFERENCES users(id),
+    current_acv numeric(14,2) NOT NULL DEFAULT 0, potential_acv numeric(14,2) NOT NULL DEFAULT 0, expansion_acv numeric(14,2) NOT NULL DEFAULT 0, notas text, tags jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sales_contacts (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), account_id uuid NOT NULL REFERENCES sales_accounts(id) ON DELETE CASCADE, nombres varchar(150) NOT NULL, apellidos varchar(150), cargo varchar(100), telefono varchar(30), whatsapp varchar(30), email varchar(200), es_principal boolean NOT NULL DEFAULT false, es_decisor boolean NOT NULL DEFAULT false, es_influenciador boolean NOT NULL DEFAULT false, canal_preferido varchar(30), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sales_opportunities (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), account_id uuid NOT NULL REFERENCES sales_accounts(id), contact_id uuid REFERENCES sales_contacts(id), owner_id uuid REFERENCES users(id), nombre varchar(200) NOT NULL, etapa varchar(30) NOT NULL DEFAULT 'new_lead', fuente varchar(50), expected_acv numeric(14,2) NOT NULL DEFAULT 0, potential_acv numeric(14,2) NOT NULL DEFAULT 0, probability integer NOT NULL DEFAULT 10, forecast_category varchar(20) NOT NULL DEFAULT 'pipeline', expected_close_date date, competitor varchar(200), loss_reason varchar(100), notes text, discovery jsonb NOT NULL DEFAULT '{}'::jsonb, next_activity_at timestamptz, won_at timestamptz, lost_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sales_activities (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), opportunity_id uuid REFERENCES sales_opportunities(id) ON DELETE CASCADE, account_id uuid REFERENCES sales_accounts(id) ON DELETE CASCADE, contact_id uuid REFERENCES sales_contacts(id), owner_id uuid REFERENCES users(id), tipo varchar(30) NOT NULL, estado varchar(20) NOT NULL DEFAULT 'pending', scheduled_at timestamptz NOT NULL, completed_at timestamptz, notas text, resultado text, created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sales_timeline_events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), account_id uuid NOT NULL REFERENCES sales_accounts(id) ON DELETE CASCADE, opportunity_id uuid REFERENCES sales_opportunities(id) ON DELETE CASCADE, actor_id uuid REFERENCES users(id), tipo varchar(80) NOT NULL, payload jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_accounts_owner ON sales_accounts(owner_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_opportunities_stage ON sales_opportunities(etapa, expected_close_date)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_activities_owner_due ON sales_activities(owner_id, estado, scheduled_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_timeline_account ON sales_timeline_events(account_id, created_at DESC)`,
 ];
 
 for (const migration of migrations) {

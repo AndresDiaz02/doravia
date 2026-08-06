@@ -88,6 +88,36 @@ router.patch("/opportunities/:id/stage", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get("/opportunities/:id", async (req, res, next) => {
+  try {
+    const [opportunity] = await db.select().from(sales_opportunities).where(eq(sales_opportunities.id, req.params.id)).limit(1);
+    if (!opportunity) return res.status(404).json({ error: "Oportunidad no encontrada." });
+    const [account, contacts, activities, timeline] = await Promise.all([
+      db.select().from(sales_accounts).where(eq(sales_accounts.id, opportunity.account_id)).limit(1),
+      db.select().from(sales_contacts).where(eq(sales_contacts.account_id, opportunity.account_id)),
+      db.select().from(sales_activities).where(eq(sales_activities.opportunity_id, opportunity.id)).orderBy(desc(sales_activities.scheduled_at)),
+      db.select().from(sales_timeline_events).where(eq(sales_timeline_events.opportunity_id, opportunity.id)).orderBy(desc(sales_timeline_events.created_at)),
+    ]);
+    res.json({ ...opportunity, account: account ?? null, contacts, activities, timeline });
+  } catch (err) { next(err); }
+});
+router.patch("/opportunities/:id", async (req, res, next) => {
+  try {
+    const body = req.body as Partial<typeof sales_opportunities.$inferInsert>;
+    const [current] = await db.select().from(sales_opportunities).where(eq(sales_opportunities.id, req.params.id)).limit(1);
+    if (!current) return res.status(404).json({ error: "Oportunidad no encontrada." });
+    if (body.probability != null && (body.probability < 0 || body.probability > 100)) return res.status(400).json({ error: "probability debe estar entre 0 y 100." });
+    const [updated] = await db.update(sales_opportunities).set({
+      ...(body.nombre !== undefined && { nombre: body.nombre }), ...(body.expected_acv !== undefined && { expected_acv: body.expected_acv }),
+      ...(body.potential_acv !== undefined && { potential_acv: body.potential_acv }), ...(body.probability !== undefined && { probability: body.probability }),
+      ...(body.expected_close_date !== undefined && { expected_close_date: body.expected_close_date }), ...(body.competitor !== undefined && { competitor: body.competitor }),
+      ...(body.notes !== undefined && { notes: body.notes }), ...(body.discovery !== undefined && { discovery: body.discovery }), updated_at: new Date(),
+    }).where(eq(sales_opportunities.id, current.id)).returning();
+    await event(current.account_id, current.id, req.userId, "opportunity_updated", { fields: Object.keys(body) });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 router.post("/opportunities/:id/activities", async (req, res, next) => {
   try {
     const body = req.body as Partial<typeof sales_activities.$inferInsert>;
@@ -102,6 +132,26 @@ router.post("/opportunities/:id/activities", async (req, res, next) => {
     await db.update(sales_opportunities).set({ next_activity_at: activity.scheduled_at, updated_at: new Date() }).where(eq(sales_opportunities.id, opportunity.id));
     await event(opportunity.account_id, opportunity.id, req.userId, "sales_activity_scheduled", { activity_id: activity.id, tipo: activity.tipo });
     res.status(201).json(activity);
+  } catch (err) { next(err); }
+});
+
+router.get("/activities", async (req, res, next) => {
+  try {
+    const estado = req.query.estado as string | undefined;
+    if (estado && !SALES_ACTIVITY_STATUSES.includes(estado as typeof SALES_ACTIVITY_STATUSES[number])) return res.status(400).json({ error: "Estado no valido." });
+    const rows = await db.select().from(sales_activities).where(estado ? eq(sales_activities.estado, estado as typeof SALES_ACTIVITY_STATUSES[number]) : undefined).orderBy(sales_activities.scheduled_at);
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+router.patch("/activities/:id", async (req, res, next) => {
+  try {
+    const { estado, resultado } = req.body as { estado?: string; resultado?: string };
+    if (!estado || !SALES_ACTIVITY_STATUSES.includes(estado as typeof SALES_ACTIVITY_STATUSES[number])) return res.status(400).json({ error: "Estado no valido." });
+    const [activity] = await db.select().from(sales_activities).where(eq(sales_activities.id, req.params.id)).limit(1);
+    if (!activity) return res.status(404).json({ error: "Actividad no encontrada." });
+    const [updated] = await db.update(sales_activities).set({ estado: estado as typeof SALES_ACTIVITY_STATUSES[number], resultado: resultado ?? activity.resultado, completed_at: estado === "completed" ? new Date() : null }).where(eq(sales_activities.id, activity.id)).returning();
+    if (activity.account_id) await event(activity.account_id, activity.opportunity_id ?? null, req.userId, "sales_activity_updated", { activity_id: activity.id, estado });
+    res.json(updated);
   } catch (err) { next(err); }
 });
 

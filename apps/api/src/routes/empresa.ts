@@ -3,7 +3,7 @@ import { db, tenants } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
-import { isDianEnProduccion } from "../services/dian.service.js";
+import { getDianConfigurationStatus } from "../services/dian.service.js";
 import { obtenerFoliosRestantes } from "../services/plemsi.service.js";
 import { encrypt } from "../services/encryption.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
@@ -13,10 +13,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 *
 
 // GET /api/empresa/dian-modo — indica si la facturación electrónica está activa o en stub
 router.get("/dian-modo", (_req, res) => {
-  res.json({
-    modo:      isDianEnProduccion() ? "produccion" : "stub",
-    proveedor: process.env.DIAN_PROVEEDOR ?? "stub",
-  });
+  res.json(getDianConfigurationStatus());
 });
 
 // GET /api/empresa

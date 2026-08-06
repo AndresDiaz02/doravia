@@ -5,7 +5,6 @@ import { sql } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
 import { assertCanEmitirFactura } from "../guards/plan-limits.js";
 import { crearAsientoFactura } from "./contabilidad.service.js";
-import { enviarFacturaDian } from "./dian.service.js";
 import { registrarSalidaFactura } from "./inventario.service.js";
 import { generarPdfFactura } from "./pdf.service.js";
 import { enviarFacturaAceptada } from "./email.service.js";
@@ -16,6 +15,7 @@ import {
   calcularTotalesPlemsi,
   emitirFactura as plemsiEmitirFactura,
   metodoPagoId,
+  type ResultadoPlemsi,
 } from "./plemsi.service.js";
 
 export interface ItemInput {
@@ -241,15 +241,9 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
       .from(items_factura)
       .where(eq(items_factura.factura_id, factura.id));
 
-    const respDian = await enviarFacturaDian({
-      factura,
-      cliente,
-      items: itemsParaDian,
-      tenant,
-      resolucion: resolucion!,
-    });
+    const respDian = await enviarAPlemsiSiAplica(tenant, factura, cliente, itemsParaDian, resolucion!);
 
-    if (respDian.aceptada) {
+    if (respDian.ok) {
       // crearAsientoFactura falla si no hay cuentas PUC configuradas.
       // Esto NO debe impedir que la factura quede aceptada — la factura ya
       // fue validada por la DIAN. Se captura el error y se registra para
@@ -274,18 +268,15 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         .set({
           estado: "aceptada",
           cufe: respDian.cufe,
-          qr_code: respDian.qr_code,
-          xml_firmado: respDian.xml_firmado,
           asiento_id: asientoId,
+          plemsi_id: respDian.plemsi_id ?? null,
+          estado_dian: "emitida",
+          error_dian: null,
         })
         .where(eq(facturas.id, factura.id))
         .returning();
 
-      // Enviar a Plemsi si está configurado (best-effort — no bloquea ni falla la creación)
-      void enviarAPlemsiSiAplica(tenant, facturaFinal, cliente, itemsParaDian, resolucion!).catch(
-        (e) => console.error(`[PLEMSI] Error inesperado factura ${factura.numero}:`, e),
-      );
-
+      // Plemsi ya confirmó la emisión antes de contabilizar esta factura.
       // Enviar PDF por email al cliente (best-effort, no bloquea la respuesta)
       if (cliente.correo) {
         const pdfStream = generarPdfFactura(facturaFinal, cliente, itemsParaDian, tenant);
@@ -301,18 +292,19 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
 
       return { factura: facturaFinal, advertencias: asientoError ? [asientoError] : [] };
     } else {
-      await db.update(facturas).set({ estado: "rechazada" }).where(eq(facturas.id, factura.id));
-      throw new Error(`La DIAN rechazó la factura: ${respDian.mensaje}`);
+      // El documento permanece en borrador para corregirlo y reintentarlo.
+      // No existe asiento ni movimiento de inventario que debamos revertir.
+      throw new Error(`Plemsi rechazó la factura: ${respDian.error ?? "sin detalle"}`);
     }
   } catch (err) {
     // Si falló el envío DIAN, la factura queda en borrador para reintento
-    if (err instanceof Error && err.message.includes("La DIAN rechazó")) throw err;
+    if (err instanceof Error && err.message.includes("Plemsi rechazó la factura")) throw err;
     throw new Error(`Error al enviar a la DIAN. La factura ${factura.numero} quedó en borrador para reintento.`);
   }
 }
 
 import type { Factura, Cliente, ItemFactura } from "@workspace/db";
-import { getPlemsiCredentials, PlemsiNotConfiguredError } from "./get-plemsi-credentials.js";
+import { getPlemsiCredentials } from "./get-plemsi-credentials.js";
 
 /**
  * Envía la factura a Plemsi si el tenant tiene configurada una API key.
@@ -324,14 +316,8 @@ export async function enviarAPlemsiSiAplica(
   cliente: Cliente,
   itemsDB: ItemFactura[],
   resolucion: ResolucionDian,
-): Promise<void> {
-  let plemsiCreds: { apiKey: string; ambiente: string };
-  try {
-    plemsiCreds = await getPlemsiCredentials(tenant.id);
-  } catch (e) {
-    if (e instanceof PlemsiNotConfiguredError) return; // sin credenciales, no hacemos nada
-    throw e;
-  }
+): Promise<ResultadoPlemsi> {
+  const plemsiCreds = await getPlemsiCredentials(tenant.id);
 
   const { apiKey, ambiente } = plemsiCreds;
 
@@ -421,4 +407,6 @@ export async function enviarAPlemsiSiAplica(
       );
     });
   }
+
+  return resultado;
 }

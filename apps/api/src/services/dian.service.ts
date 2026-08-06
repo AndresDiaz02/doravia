@@ -9,7 +9,7 @@
  * Ver README_INTEGRACION_DIAN.md en la raíz del proyecto para guía de activación.
  */
 import type { Factura, Cliente, ItemFactura, Tenant, ResolucionDian } from "@workspace/db";
-import { getDianProvider, isDianEnProduccion } from "./dian/index.js";
+import { assertDianConfiguration, getDianProvider, getDianConfigurationStatus, isDianEnProduccion } from "./dian/index.js";
 
 export type { RespuestaDian } from "./dian/index.js";
 
@@ -32,4 +32,4 @@ export async function enviarFacturaDian(data: FacturaParaDian) {
   });
 }
 
-export { isDianEnProduccion };
+export { assertDianConfiguration, getDianConfigurationStatus, isDianEnProduccion };

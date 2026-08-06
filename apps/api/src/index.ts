@@ -66,7 +66,11 @@ import { iniciarCronTrialExpiry } from "./jobs/trial-expiry.js";
 import { iniciarCronResetConsumoDian } from "./jobs/reset-consumo-dian.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { isDianEnProduccion } from "./services/dian.service.js";
+import { assertDianConfiguration, isDianEnProduccion } from "./services/dian.service.js";
+
+// Fallar antes de abrir el puerto es preferible a emitir documentos sin validez
+// fiscal por un DIAN_PROVEEDOR ausente, stub o inválido en producción.
+assertDianConfiguration();
 
 const app = express();
 app.set("trust proxy", 1);

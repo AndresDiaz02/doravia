@@ -4,7 +4,6 @@ import { eq, and, desc, gte, lte, ilike, or, SQL, sql } from "drizzle-orm";
 import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
 import { generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
 import { crearAsientoFactura, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
-import { enviarFacturaDian } from "../services/dian.service.js";
 import { registrarSalidaFactura } from "../services/inventario.service.js";
 import { audit } from "../services/audit.service.js";
 import { PlanLimitError } from "@workspace/shared";
@@ -99,9 +98,9 @@ router.post("/:id/reenviar", async (req, res) => {
   if (!resolucion) return res.status(422).json({ error: "Resolución DIAN de la factura no encontrada." });
 
   try {
-    const respDian = await enviarFacturaDian({ factura, cliente, items, tenant: req.tenant, resolucion });
+    const respDian = await enviarAPlemsiSiAplica(req.tenant, factura, cliente, items, resolucion);
 
-    if (respDian.aceptada) {
+    if (respDian.ok) {
       let asientoId: string | null = null;
       try {
         asientoId = await crearAsientoFactura(req.tenantId, factura);
@@ -119,16 +118,16 @@ router.post("/:id/reenviar", async (req, res) => {
         .set({
           estado: "aceptada",
           cufe: respDian.cufe,
-          qr_code: respDian.qr_code,
-          xml_firmado: respDian.xml_firmado,
           asiento_id: asientoId,
+          plemsi_id: respDian.plemsi_id ?? null,
+          estado_dian: "emitida",
+          error_dian: null,
         })
         .where(eq(facturas.id, factura.id))
         .returning();
       return res.json(actualizada);
     } else {
-      await db.update(facturas).set({ estado: "rechazada" }).where(eq(facturas.id, factura.id));
-      return res.status(422).json({ error: `La DIAN rechazó la factura: ${respDian.mensaje}` });
+      return res.status(422).json({ error: `Plemsi rechazó la factura: ${respDian.error ?? "sin detalle"}` });
     }
   } catch (err) {
     if (err instanceof Error) {

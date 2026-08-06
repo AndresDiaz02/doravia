@@ -101,7 +101,7 @@
 
 - **Modulos:** `apps/api/src/routes/nomina.ts`, `apps/web/src/pages/NominaPeriodoDetalle.tsx`, `render.yaml`.
 - **Impacto / riesgo:** una emision parcial podia marcar el periodo como emitido sin que el ERP mostrara claramente el resultado DIAN/Plemsi de cada empleado.
-- **Accion aplicada:** la respuesta del detalle incorpora estado, CUDE y error del documento de nomina; la pagina los presenta por empleado. El despliegue ejecuta las migraciones idempotentes antes de iniciar la API y aborta si detecta drift de esquema.
+- **Accion aplicada:** la respuesta del detalle incorpora estado, CUDE y error del documento de nomina; la pagina los presenta por empleado. La migracion mantiene una verificacion de drift y debe ejecutarse desde la configuracion administrada de Render antes de cualquier cambio de esquema.
 - **Estado:** corregido y sujeto a validacion de sandbox con Plemsi antes de uso real.
 
 ## Decisiones y bloqueos

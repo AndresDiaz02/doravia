@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: doravia-api
+    runtime: node
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/api build
+    startCommand: pnpm --filter @workspace/api start
+    healthCheckPath: /health
+    envVars:
+      # Configuracion publica/estable. Los secretos se cargan en el panel de Render.
+      - key: NODE_ENV
+        value: production
+      - key: DIAN_PROVEEDOR
+        value: plemsi
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: FUNDADOR_EMAILS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BOLD_API_KEY
+        sync: false
+      - key: BOLD_SECRET_KEY
+        sync: false

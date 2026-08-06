@@ -97,6 +97,13 @@
 - **Acción recomendada:** encapsular redondeo decimal, validar importes/estado y añadir constraints no destructivos con migraciones.
 - **Estado:** pendiente de diseño y pruebas de regresión.
 
+### MEDIO - resultado electronico de nomina no era visible por empleado
+
+- **Modulos:** `apps/api/src/routes/nomina.ts`, `apps/web/src/pages/NominaPeriodoDetalle.tsx`, `render.yaml`.
+- **Impacto / riesgo:** una emision parcial podia marcar el periodo como emitido sin que el ERP mostrara claramente el resultado DIAN/Plemsi de cada empleado.
+- **Accion aplicada:** la respuesta del detalle incorpora estado, CUDE y error del documento de nomina; la pagina los presenta por empleado. El despliegue ejecuta las migraciones idempotentes antes de iniciar la API y aborta si detecta drift de esquema.
+- **Estado:** corregido y sujeto a validacion de sandbox con Plemsi antes de uso real.
+
 ## Decisiones y bloqueos
 
 - `LEGAL_REVIEW_REQUIRED`: retención laboral/tributaria, parámetros vigentes de nómina y reglas de conservación de datos personales.

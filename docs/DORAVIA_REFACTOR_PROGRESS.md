@@ -13,6 +13,8 @@
 - Webhooks de pagos endurecidos: producción exige firma por tenant para cotizaciones y bloquea suscripciones sin contrato de firma verificado.
 - Suite API: 298 pruebas verdes; compilación de frontend y verificación actual del API completadas antes de esta auditoría.
 
+- La vista web de detalle de nomina ahora expone por empleado el estado del documento electronico, CUDE y el error devuelto por el proveedor. Render ejecuta la migracion idempotente antes de publicar la API, de modo que el esquema y el codigo se despliegan juntos.
+
 ## In progress
 
 - Auditoría de mutaciones por tenant, estados financieros y endpoints electrónicos.

@@ -3,7 +3,7 @@ services:
     name: doravia-api
     runtime: node
     plan: free
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/api build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/api build && pnpm db:migrate
     startCommand: pnpm --filter @workspace/api start
     healthCheckPath: /health
     envVars:

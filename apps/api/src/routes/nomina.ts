@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   db, empleados, contratos_empleado, nominas_periodo, nominas_detalle,
-  centros_costos, tenants, nomina_config_global,
+  centros_costos, tenants, nomina_config_global, documentos_soporte_nomina,
 } from "@workspace/db";
 import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
 import { requireNotContador } from "../middleware/require-plan-feature.js";
@@ -343,9 +343,14 @@ router.get("/periodos/:id", async (req, res) => {
         aportes_parafiscales: nominas_detalle.aportes_parafiscales,
         neto_pagar: nominas_detalle.neto_pagar,
         documento_soporte_id: nominas_detalle.documento_soporte_id,
+        documento_electronico_id: documentos_soporte_nomina.id,
+        estado_dian: documentos_soporte_nomina.estado_dian,
+        cude: documentos_soporte_nomina.cude,
+        error_dian: documentos_soporte_nomina.error_dian,
       })
       .from(nominas_detalle)
       .innerJoin(empleados, eq(empleados.id, nominas_detalle.empleado_id))
+      .leftJoin(documentos_soporte_nomina, eq(documentos_soporte_nomina.nomina_detalle_id, nominas_detalle.id))
       .where(eq(nominas_detalle.nomina_periodo_id, periodo.id));
 
     res.json({ ...periodo, empleados: detalle });

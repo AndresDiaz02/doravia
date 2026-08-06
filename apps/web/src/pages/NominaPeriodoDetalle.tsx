@@ -22,6 +22,10 @@ interface DetalleEmpleado {
   deducciones_totales: string;
   aportes_parafiscales: string;
   neto_pagar: string;
+  documento_electronico_id: string | null;
+  estado_dian: "pendiente" | "emitida" | "error" | null;
+  cude: string | null;
+  error_dian: string | null;
 }
 
 interface PeriodoDetalle {
@@ -48,6 +52,12 @@ const ESTADO_BADGE: Record<string, { variant: "gray" | "yellow" | "blue" | "gree
   calculada: { variant: "yellow", label: "Calculada" },
   aprobada: { variant: "blue", label: "Aprobada" },
   emitida: { variant: "green", label: "Emitida" },
+};
+
+const ESTADO_DIAN_BADGE: Record<NonNullable<DetalleEmpleado["estado_dian"]>, { variant: "yellow" | "green" | "red"; label: string }> = {
+  pendiente: { variant: "yellow", label: "Pendiente" },
+  emitida: { variant: "green", label: "Emitida" },
+  error: { variant: "red", label: "Con error" },
 };
 
 export default function NominaPeriodoDetalle() {
@@ -235,6 +245,7 @@ export default function NominaPeriodoDetalle() {
                   <th className="px-4 py-3 text-right">Devengado</th>
                   <th className="px-4 py-3 text-right">Deducciones</th>
                   <th className="px-4 py-3 text-right">Neto</th>
+                  {periodo.estado === "emitida" && <th className="px-4 py-3">Documento electrónico</th>}
                 </tr>
               </thead>
               <tbody>
@@ -246,6 +257,19 @@ export default function NominaPeriodoDetalle() {
                       <td className="px-4 py-3 text-right text-gray-700">{cop(devengado)}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{cop(e.deducciones_totales)}</td>
                       <td className="px-4 py-3 text-right font-medium text-gray-900">{cop(e.neto_pagar)}</td>
+                      {periodo.estado === "emitida" && (
+                        <td className="px-4 py-3">
+                          {e.estado_dian ? (
+                            <div className="space-y-1">
+                              <Badge variant={ESTADO_DIAN_BADGE[e.estado_dian].variant}>{ESTADO_DIAN_BADGE[e.estado_dian].label}</Badge>
+                              {e.cude && <p className="max-w-48 truncate text-xs text-gray-500" title={e.cude}>CUDE: {e.cude}</p>}
+                              {e.error_dian && <p className="max-w-56 text-xs text-red-700" title={e.error_dian}>{e.error_dian}</p>}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">Sin respuesta del proveedor</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

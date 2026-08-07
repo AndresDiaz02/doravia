@@ -27,7 +27,10 @@ interface AuthCtx {
 interface MeResponse {
   user: { id: string; nombre: string; email: string; role: string };
   tenant: { id: string; nombre: string; nit: string; pos_config?: PosConfig };
-  plan: { slug: string };
+  // /api/auth/me incluye el plan, pero /api/auth/login devuelve la sesión sin
+  // ese objeto. El POS no necesita el slug para operar, así que aceptamos
+  // ambas respuestas para que el inicio de sesión no falle tras autenticar.
+  plan?: { slug: string };
 }
 
 function mapMe(raw: MeResponse): PosUser {
@@ -38,7 +41,7 @@ function mapMe(raw: MeResponse): PosUser {
     role: raw.user.role,
     tenantId: raw.tenant.id,
     tenantNombre: raw.tenant.nombre,
-    planSlug: raw.plan.slug,
+    planSlug: raw.plan?.slug ?? "",
     posConfig: raw.tenant.pos_config ?? {},
   };
 }

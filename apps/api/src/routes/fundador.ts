@@ -69,6 +69,34 @@ router.post("/mi-tenant/activar-prueba", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/fundador/mi-tenant/activar-addon-prueba
+// Complementos de prueba para validar productos independientes sin reemplazar
+// el plan ERP activo del fundador. La vigencia queda limitada por el trial base.
+router.post("/mi-tenant/activar-addon-prueba", async (req, res, next) => {
+  try {
+    const { addon } = req.body as { addon?: string };
+    if (addon !== "pos") {
+      return res.status(400).json({ error: "El único complemento de prueba disponible es 'pos'." });
+    }
+
+    const addonsActuales = (req.tenant.addons ?? {}) as Record<string, boolean>;
+    const addons = { ...addonsActuales, pos: true };
+    await db.update(tenants).set({ addons }).where(eq(tenants.id, req.tenantId));
+
+    void audit({
+      tenantId: req.tenantId,
+      userId: req.userId,
+      accion: "fundador.addon_prueba_activado",
+      entidadTipo: "tenant",
+      entidadId: req.tenantId,
+      detalle: { addon: "pos", trial_ends_at: req.tenant.trial_ends_at?.toISOString() ?? null },
+      ip: req.ip,
+    });
+
+    res.json({ ok: true, addon: "pos", vigente_hasta: req.tenant.trial_ends_at ?? req.tenant.plan_ends_at });
+  } catch (err) { next(err); }
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function calcularRiesgo(d: {

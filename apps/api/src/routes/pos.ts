@@ -8,6 +8,7 @@ import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
+const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
 
 // ── Cajas ─────────────────────────────────────────────────────────────────────
 
@@ -316,17 +317,17 @@ router.post("/ventas", async (req, res) => {
       vuelto?: number;
       observaciones?: string;
       items: Array<{
-        producto_id?: string;
-        descripcion: string;
+      producto_id?: string;
+      descripcion?: string;
         cantidad: number;
-        precio_unitario: number;
-        descuento_pct: number;
-        iva_pct: number;
+      precio_unitario?: number;
+      descuento_pct?: number;
+      iva_pct?: number;
         impoconsumo_pct?: number;
-        subtotal: number;
-        iva_valor: number;
+      subtotal?: number;
+      iva_valor?: number;
         impoconsumo_valor?: number;
-        total: number;
+      total?: number;
       }>;
     };
 
@@ -334,13 +335,19 @@ router.post("/ventas", async (req, res) => {
   if (!caja_id)  return res.status(400).json({ error: "Campo requerido: caja_id." });
   if (!metodo_pago) return res.status(400).json({ error: "Campo requerido: metodo_pago (efectivo|tarjeta|transferencia|nequi|daviplata)." });
   if (!items?.length) return res.status(400).json({ error: "La venta debe tener al menos un ítem." });
+  if (!METODOS_PAGO.includes(metodo_pago as typeof METODOS_PAGO[number])) {
+    return res.status(400).json({ error: "Método de pago no válido." });
+  }
 
   for (const [i, item] of items.entries()) {
-    if (typeof item.subtotal !== "number") return res.status(400).json({ error: `items[${i}].subtotal debe ser number.` });
-    if (typeof item.iva_valor !== "number") return res.status(400).json({ error: `items[${i}].iva_valor debe ser number.` });
-    if (typeof item.total !== "number")    return res.status(400).json({ error: `items[${i}].total debe ser number.` });
-    if (typeof item.cantidad !== "number" || item.cantidad <= 0) return res.status(400).json({ error: `items[${i}].cantidad debe ser number > 0.` });
-    if (typeof item.precio_unitario !== "number") return res.status(400).json({ error: `items[${i}].precio_unitario debe ser number.` });
+    if (!item.producto_id) return res.status(400).json({ error: `items[${i}].producto_id es requerido.` });
+    if (!Number.isFinite(item.cantidad) || item.cantidad <= 0) return res.status(400).json({ error: `items[${i}].cantidad debe ser un número mayor que cero.` });
+    if (item.descuento_pct !== undefined && (!Number.isFinite(item.descuento_pct) || item.descuento_pct < 0 || item.descuento_pct > 100)) {
+      return res.status(400).json({ error: `items[${i}].descuento_pct debe estar entre 0 y 100.` });
+    }
+  }
+  if (monto_recibido !== undefined && (!Number.isFinite(monto_recibido) || monto_recibido < 0)) {
+    return res.status(400).json({ error: "monto_recibido debe ser un número válido." });
   }
 
   try {
@@ -357,19 +364,54 @@ router.post("/ventas", async (req, res) => {
     .from(turnos_pos)
     .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId), eq(turnos_pos.estado, "abierto")));
   if (!turno) return res.status(400).json({ error: "El turno no está abierto." });
+  if (turno.caja_id !== caja_id) return res.status(400).json({ error: "La caja no corresponde al turno abierto." });
 
   // Genera consecutivo con bloqueo para evitar duplicados en inserciones concurrentes
   const consecutivo = await siguienteConsecutivo("ventas_pos", "consecutivo", req.tenantId);
   const numero = `POS-${String(consecutivo).padStart(6, "0")}`;
 
-  // Calcula totales
-  const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
-  const iva_total = items.reduce((s, i) => s + i.iva_valor, 0);
-  const impoconsumo_total = items.reduce((s, i) => s + (i.impoconsumo_valor ?? 0), 0);
-  const total = items.reduce((s, i) => s + i.total, 0);
-  const descuento_total = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario * (i.descuento_pct / 100)), 0);
-
+  let impoconsumo_total = 0;
   const result = await db.transaction(async (tx) => {
+    // Los precios e impuestos no se aceptan desde el navegador: se consultan de
+    // nuevo en la base de datos del tenant antes de registrar la venta.
+    const productosVenta = await Promise.all(items.map(async (item) => {
+      const [producto] = await tx
+        .select()
+        .from(productos)
+        .where(and(
+          eq(productos.id, item.producto_id!),
+          eq(productos.tenant_id, req.tenantId),
+          eq(productos.activo, true),
+        ))
+        .limit(1);
+      if (!producto || producto.precio_venta === null) {
+        throw new Error("Uno de los productos ya no está disponible para la venta.");
+      }
+
+      const descuento_pct = Number(item.descuento_pct ?? 0);
+      const precio_unitario = Number(producto.precio_venta);
+      const subtotal = item.cantidad * precio_unitario * (1 - descuento_pct / 100);
+      const iva_valor = subtotal * (Number(producto.iva_pct) / 100);
+      const impoconsumo_valor = subtotal * (Number(producto.impoconsumo_pct ?? 0) / 100);
+
+      return {
+        producto,
+        cantidad: item.cantidad,
+        descuento_pct,
+        precio_unitario,
+        subtotal,
+        iva_valor,
+        impoconsumo_valor,
+        total: subtotal + iva_valor + impoconsumo_valor,
+      };
+    }));
+
+    const subtotal = productosVenta.reduce((s, i) => s + i.subtotal, 0);
+    const iva_total = productosVenta.reduce((s, i) => s + i.iva_valor, 0);
+    impoconsumo_total = productosVenta.reduce((s, i) => s + i.impoconsumo_valor, 0);
+    const total = productosVenta.reduce((s, i) => s + i.total, 0);
+    const descuento_total = productosVenta.reduce((s, i) => s + (i.cantidad * i.precio_unitario * (i.descuento_pct / 100)), 0);
+
     const [venta] = await tx
       .insert(ventas_pos)
       .values({
@@ -392,16 +434,16 @@ router.post("/ventas", async (req, res) => {
       .returning();
 
     await tx.insert(items_venta_pos).values(
-      items.map((i) => ({
+      productosVenta.map((i) => ({
         venta_id: venta.id,
-        producto_id: i.producto_id ?? null,
-        descripcion: i.descripcion,
+        producto_id: i.producto.id,
+        descripcion: i.producto.nombre,
         cantidad: String(i.cantidad),
         precio_unitario: String(i.precio_unitario),
         descuento_pct: String(i.descuento_pct),
-        iva_pct: String(i.iva_pct),
-        impoconsumo_pct: String(i.impoconsumo_pct ?? 0),
-        impoconsumo_valor: String(i.impoconsumo_valor ?? 0),
+        iva_pct: String(i.producto.iva_pct),
+        impoconsumo_pct: String(i.producto.impoconsumo_pct ?? 0),
+        impoconsumo_valor: String(i.impoconsumo_valor),
         subtotal: String(i.subtotal),
         iva_valor: String(i.iva_valor),
         total: String(i.total),
@@ -421,16 +463,16 @@ router.post("/ventas", async (req, res) => {
     }
 
     if (bodegaIdParaInventario) {
-      for (const item of items) {
-        if (!item.producto_id) continue;
+      for (const item of productosVenta) {
+        if (item.producto.tipo === "servicio") continue;
         await tx
           .update(productos)
           .set({ stock_actual: sql`COALESCE(stock_actual, 0) - ${Number(item.cantidad)}` })
-          .where(eq(productos.id, item.producto_id));
+          .where(and(eq(productos.id, item.producto.id), eq(productos.tenant_id, req.tenantId)));
 
         await tx.insert(movimientos_inventario).values({
           tenant_id: req.tenantId,
-          producto_id: item.producto_id,
+          producto_id: item.producto.id,
           bodega_id: bodegaIdParaInventario,
           tipo: "salida",
           cantidad: String(item.cantidad),

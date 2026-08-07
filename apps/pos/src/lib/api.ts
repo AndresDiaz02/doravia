@@ -5,7 +5,10 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = import.meta.env.VITE_API_URL ?? "";
+// El POS se publica en un subdominio independiente. Si no se configura la
+// variable durante el despliegue, "/api" apuntaría al propio POS en vez de al
+// backend, por lo que las ventas y los turnos fallarían silenciosamente.
+const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || "https://doravia-api.onrender.com";
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("pos_token");

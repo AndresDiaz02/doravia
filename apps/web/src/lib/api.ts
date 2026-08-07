@@ -116,7 +116,8 @@ export function fecha(iso: string | null | undefined): string {
 
 export async function descargarExcel(path: string, nombreArchivo: string) {
   const token = localStorage.getItem("access_token");
-  const resp = await fetch(path, {
+  const destino = /^https?:\/\//.test(path) ? path : `${BASE}${path}`;
+  const resp = await fetch(destino, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!resp.ok) throw new Error("Error al generar el archivo.");

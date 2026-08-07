@@ -38,6 +38,7 @@ interface Producto { id: string; nombre: string; codigo: string }
 interface ConsistenciaInventario {
   total_productos: number;
   con_desfase: number;
+  truncado: boolean;
   items: Array<{
     producto_id: string;
     codigo: string;
@@ -76,6 +77,7 @@ export default function Inventario() {
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [consistencia, setConsistencia] = useState<ConsistenciaInventario | null>(null);
+  const [mostrarDiferencias, setMostrarDiferencias] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -209,9 +211,56 @@ export default function Inventario() {
               <p className="mt-0.5 text-amber-800">
                 No se modificó ningún saldo. Revisa los movimientos históricos antes de realizar un ajuste.
               </p>
+              <button
+                type="button"
+                onClick={() => setMostrarDiferencias((visible) => !visible)}
+                className="mt-2 font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
+              >
+                {mostrarDiferencias ? "Ocultar diferencias" : "Revisar diferencias"}
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {consistencia && mostrarDiferencias && consistencia.con_desfase > 0 && (
+        <Card className="mb-5 border-amber-200">
+          <CardContent className="p-0">
+            <div className="border-b border-amber-100 bg-amber-50 px-4 py-3">
+              <p className="font-medium text-amber-950">Diferencias por revisar</p>
+              <p className="mt-1 text-xs text-amber-800">
+                Para cada caso, revisa el kardex y registra un ajuste con una observación que explique el conteo físico. No borres movimientos históricos.
+                {consistencia.truncado ? " Se muestran las primeras 100 diferencias." : ""}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-left text-gray-600">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Código</th>
+                    <th className="px-4 py-2.5 font-medium">Producto</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Operativo</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Kardex</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {consistencia.items.map((item) => (
+                    <tr key={item.producto_id} className="border-t border-gray-100">
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{item.codigo}</td>
+                      <td className="px-4 py-2.5 text-gray-900">{item.nombre}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{item.stock_operativo}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{item.stock_kardex}</td>
+                      <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${item.diferencia > 0 ? "text-amber-700" : "text-red-700"}`}>
+                        {item.diferencia > 0 ? "+" : ""}{item.diferencia}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Tabs */}

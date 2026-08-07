@@ -76,19 +76,20 @@ router.get("/consistencia", async (req, res) => {
       .where(and(eq(productos.tenant_id, req.tenantId), eq(productos.tipo, "producto")))
       .groupBy(productos.id, productos.codigo, productos.nombre, productos.stock_actual);
 
-    const items = filas
+    const diferencias = filas
       .map((fila) => {
         const stock_operativo = Number(fila.stock_operativo ?? 0);
         const diferencia = stock_operativo - fila.stock_kardex;
         return { ...fila, stock_operativo, diferencia };
       })
       .filter((fila) => Math.abs(fila.diferencia) > 0.0001)
-      .sort((a, b) => Math.abs(b.diferencia) - Math.abs(a.diferencia))
-      .slice(0, 100);
+      .sort((a, b) => Math.abs(b.diferencia) - Math.abs(a.diferencia));
+    const items = diferencias.slice(0, 100);
 
     res.json({
       total_productos: filas.length,
-      con_desfase: items.length,
+      con_desfase: diferencias.length,
+      truncado: diferencias.length > items.length,
       items,
     });
   } catch (err) {

@@ -66,7 +66,7 @@ interface AuthCtx {
   isVendedor: boolean;
   isFundador: boolean;
   isContadorHub: boolean;
-  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string; is_fundador: boolean } | null>;
+  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string; is_fundador: boolean; role: string } | null>;
   logout: () => Promise<void>;
   cambiarEmpresa: (tenantId: string) => Promise<void>;
 }
@@ -115,12 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadMe]);
 
   const login = useCallback(
-    async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean } | null> => {
+    async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean; role: string } | null> => {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       await loadMe();
       const data = await apiFetch<MeResponse>("/api/auth/me").catch(() => null);
-      return data ? { nit: data.tenant.nit, is_fundador: data.user.is_fundador === true } : null;
+      return data ? { nit: data.tenant.nit, is_fundador: data.user.is_fundador === true, role: data.user.role } : null;
     },
     [loadMe],
   );
@@ -158,7 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isContador = useMemo(() => user?.role === "contador", [user?.role]);
   const isVendedor = useMemo(() => user?.role === "vendedor", [user?.role]);
   const isFundador = useMemo(() => user?.is_fundador === true, [user?.is_fundador]);
-  const isContadorHub = useMemo(() => tenant?.nit === "0000000001", [tenant?.nit]);
+  // El NIT interno identifica al tenant del hub de contadores, no al rol de
+  // todos sus usuarios. Un administrador de ese tenant debe poder usar el ERP.
+  const isContadorHub = useMemo(() => tenant?.nit === "0000000001" && user?.role === "contador", [tenant?.nit, user?.role]);
 
   return (
     <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>

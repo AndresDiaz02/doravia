@@ -313,7 +313,7 @@ export function AppLayout() {
                       );
                       localStorage.setItem("access_token", data.accessToken);
                       localStorage.setItem("refresh_token", data.refreshToken);
-                      window.location.href = emp.nit === "0000000001" ? "/contador" : "/dashboard";
+                      window.location.href = emp.nit === "0000000001" && emp.role === "contador" ? "/contador" : "/dashboard";
                     } catch {
                       setCambiando(false);
                     }

@@ -342,3 +342,130 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
   .hero-sub{font-size:16px;}
   .casos-grid{grid-template-columns:1fr 1fr;}
 }
+
+/* HOME — visual refinements */
+.home-page {
+  background: #f9f7ff;
+  color: #201347;
+}
+.home-page header {
+  border-bottom-color: rgba(97, 55, 182, .12);
+  background: rgba(250, 249, 255, .82);
+}
+.home-page .hero {
+  min-height: 780px;
+  background:
+    radial-gradient(circle at 14% 20%, rgba(46,155,245,.22), transparent 25%),
+    radial-gradient(circle at 85% 12%, rgba(123,47,247,.36), transparent 28%),
+    linear-gradient(135deg, #281061 0%, #3b1e8c 48%, #2f2788 100%);
+}
+.home-page .hero::before,
+.home-page .hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.home-page .hero::before {
+  width: 520px;
+  height: 520px;
+  right: -190px;
+  bottom: -260px;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 0 0 54px rgba(255,255,255,.035), 0 0 0 108px rgba(255,255,255,.025);
+}
+.home-page .hero::after {
+  width: 160px;
+  height: 160px;
+  left: 7%;
+  top: 24%;
+  border: 1px solid rgba(255,255,255,.13);
+}
+.home-page .hero-inner { position: relative; z-index: 1; }
+.home-page .hero-eyebrow {
+  color: #f9d29f;
+  background: rgba(255,255,255,.09);
+  border: 1px solid rgba(255,255,255,.13);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.home-page .hero-title {
+  max-width: 900px;
+  font-size: clamp(42px, 5.25vw, 68px);
+  letter-spacing: -.045em;
+  line-height: 1.06;
+}
+.home-page .hero-title em {
+  background: linear-gradient(90deg, #ffb760, #6abef9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.home-page .hero-sub { max-width: 640px; font-size: 18px; color: #ded6fa; }
+.home-page .btn-primary {
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(8, 4, 42, .35);
+}
+.home-page .btn-secondary { border-radius: 14px; background: rgba(255,255,255,.04); }
+.home-page .hero-lines { gap: 16px; margin-top: 56px; }
+.home-page .hero-line-item {
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  background: rgba(255,255,255,.045);
+  color: #e8e3fa;
+}
+.home-page .hero-line-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #72c5ff;
+  box-shadow: 0 0 0 4px rgba(114,197,255,.15);
+}
+.home-page .comparativa-section { padding: 120px 0 104px; }
+.home-page .section-head { margin-bottom: 46px; }
+.home-page .section-head h2 { letter-spacing: -.035em; }
+.home-page .comparativa-list { max-width: 930px; margin: 0 auto; }
+.home-page .comparativa-list > a { display: block; margin-bottom: 10px; }
+.home-page .comparativa-row {
+  min-height: 82px;
+  border-radius: 18px;
+  border: 1px solid #e8e2f6;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 8px 28px rgba(59,30,140,.045);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.home-page .comparativa-row:hover {
+  transform: translateY(-3px);
+  border-color: rgba(123,47,247,.32);
+  box-shadow: 0 16px 34px rgba(59,30,140,.11);
+}
+.home-page .comparativa-product { border-radius: 11px; font-weight: 700; }
+.home-page .products-section { padding: 110px 0; background: #fff; }
+.home-page .product-card {
+  border-radius: 22px;
+  border-color: #e8e2f6;
+  box-shadow: 0 12px 35px rgba(59,30,140,.06);
+  padding: 34px 30px;
+}
+.home-page .product-card:hover { transform: translateY(-5px); box-shadow: 0 20px 42px rgba(59,30,140,.12); }
+.home-page .product-card-name { font-size: 25px; }
+.home-page .product-card-link { border-radius: 12px; text-align: center; }
+.home-page .diferenciales-section { padding: 112px 0; }
+.home-page .diferencial-item {
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(59,30,140,.045);
+}
+.home-page .testimonials-section { padding: 112px 0; }
+.home-page .testimonial-card { border-radius: 20px; box-shadow: 0 10px 28px rgba(59,30,140,.04); }
+.home-page .cta-final { padding: 124px 0; }
+.home-page .cta-final h2 { letter-spacing: -.035em; max-width: 720px; margin-left: auto; margin-right: auto; }
+@media(max-width:640px) {
+  .home-page .hero { min-height: 700px; }
+  .home-page .hero-title { font-size: 42px; }
+  .home-page .hero-lines { justify-content: flex-start; max-width: 330px; margin-left: auto; margin-right: auto; }
+  .home-page .comparativa-section { padding: 72px 0; }
+}

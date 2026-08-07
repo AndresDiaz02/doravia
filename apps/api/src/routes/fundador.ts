@@ -9,6 +9,7 @@ import {
   pool_documentos_nomina_tenant, nomina_config_global,
 } from "@workspace/db";
 import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
+import { audit } from "../services/audit.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
 import fundadorSalesRouter from "./fundador-sales.js";
 
@@ -23,6 +24,49 @@ router.post("/verify-pin", (req, res) => {
   if (!fundadorPin) return res.json({ ok: true });
   if (pin === fundadorPin) return res.json({ ok: true });
   return res.status(403).json({ error: "PIN incorrecto." });
+});
+
+// POST /api/fundador/mi-tenant/activar-prueba
+// Habilita un trial de ERP exclusivamente para el tenant del fundador autenticado.
+// No registra pago ni afecta a otros clientes; queda auditado para que sea reversible.
+router.post("/mi-tenant/activar-prueba", async (req, res, next) => {
+  try {
+    const { plan_slug } = req.body as { plan_slug?: string };
+    if (!plan_slug) return res.status(400).json({ error: "plan_slug es requerido." });
+
+    const [plan] = await db.select().from(plans)
+      .where(and(eq(plans.slug, plan_slug), eq(plans.product, "erp")))
+      .limit(1);
+    if (!plan) return res.status(400).json({ error: "Selecciona un plan ERP válido para la prueba." });
+
+    const inicio = new Date();
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 15);
+    const planAnterior = req.tenant.plan.slug;
+
+    await db.update(tenants)
+      .set({
+        plan_id: plan.id,
+        plan_starts_at: inicio,
+        plan_ends_at: fin,
+        trial_ends_at: fin,
+        activo: true,
+        ultimo_pago_confirmado_at: null,
+      })
+      .where(eq(tenants.id, req.tenantId));
+
+    void audit({
+      tenantId: req.tenantId,
+      userId: req.userId,
+      accion: "fundador.trial_activado",
+      entidadTipo: "tenant",
+      entidadId: req.tenantId,
+      detalle: { plan_anterior: planAnterior, plan_nuevo: plan.slug, trial_ends_at: fin.toISOString() },
+      ip: req.ip,
+    });
+
+    res.json({ ok: true, plan: plan.slug, inicio, fin, dias: 15 });
+  } catch (err) { next(err); }
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db, contador_registrations, users, tenants, plans, user_accesos, comisiones_contador } from "@workspace/db";
@@ -10,6 +11,22 @@ import { enviarConfirmacionContador } from "../services/email.service.js";
 const router = Router();
 
 const HUB_NIT = "0000000001";
+
+async function requireContadorRegistrado(req: Request, res: Response, next: NextFunction) {
+  const [registro] = await db
+    .select({ id: contador_registrations.id })
+    .from(contador_registrations)
+    .where(and(
+      eq(contador_registrations.user_id, req.userId),
+      eq(contador_registrations.confirmado, true),
+    ))
+    .limit(1);
+
+  if (!registro) {
+    return res.status(403).json({ error: "Este panel es exclusivo para contadores registrados." });
+  }
+  next();
+}
 
 async function getHubTenantId(): Promise<string> {
   const [hub] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, HUB_NIT)).limit(1);
@@ -116,7 +133,7 @@ router.get("/confirmar", async (req, res) => {
 });
 
 // ── GET /api/contadores/mis-empresas (autenticado) ───────────────────────
-router.get("/mis-empresas", authenticate, async (req, res) => {
+router.get("/mis-empresas", authenticate, requireContadorRegistrado, async (req, res) => {
   try {
     const accesos = await db
       .select({
@@ -148,7 +165,7 @@ router.get("/mis-empresas", authenticate, async (req, res) => {
 });
 
 // ── GET /api/contadores/mis-comisiones (autenticado) ─────────────────────
-router.get("/mis-comisiones", authenticate, async (req, res) => {
+router.get("/mis-comisiones", authenticate, requireContadorRegistrado, async (req, res) => {
   try {
     const comisiones = await db
       .select({

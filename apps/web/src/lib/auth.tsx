@@ -15,6 +15,7 @@ export interface AuthUser {
   nombre: string;
   role: string;
   is_fundador?: boolean;
+  is_contador_registrado?: boolean;
   dark_mode: boolean;
 }
 
@@ -66,7 +67,7 @@ interface AuthCtx {
   isVendedor: boolean;
   isFundador: boolean;
   isContadorHub: boolean;
-  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string; is_fundador: boolean; role: string } | null>;
+  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string; is_fundador: boolean; is_contador_registrado: boolean; role: string } | null>;
   logout: () => Promise<void>;
   cambiarEmpresa: (tenantId: string) => Promise<void>;
 }
@@ -115,12 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadMe]);
 
   const login = useCallback(
-    async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean; role: string } | null> => {
+    async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean; is_contador_registrado: boolean; role: string } | null> => {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       await loadMe();
       const data = await apiFetch<MeResponse>("/api/auth/me").catch(() => null);
-      return data ? { nit: data.tenant.nit, is_fundador: data.user.is_fundador === true, role: data.user.role } : null;
+      return data ? {
+        nit: data.tenant.nit,
+        is_fundador: data.user.is_fundador === true,
+        is_contador_registrado: data.user.is_contador_registrado === true,
+        role: data.user.role,
+      } : null;
     },
     [loadMe],
   );
@@ -160,7 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isFundador = useMemo(() => user?.is_fundador === true, [user?.is_fundador]);
   // El NIT interno identifica al tenant del hub de contadores, no al rol de
   // todos sus usuarios. Un administrador de ese tenant debe poder usar el ERP.
-  const isContadorHub = useMemo(() => tenant?.nit === "0000000001" && user?.role === "contador", [tenant?.nit, user?.role]);
+  const isContadorHub = useMemo(
+    () => tenant?.nit === "0000000001" && user?.role === "contador" && user?.is_contador_registrado === true,
+    [tenant?.nit, user?.role, user?.is_contador_registrado],
+  );
 
   return (
     <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>

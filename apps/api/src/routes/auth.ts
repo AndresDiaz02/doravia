@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, users, tenants, plans, pending_registrations, password_reset_tokens, bold_payments } from "@workspace/db";
+import { db, users, tenants, plans, pending_registrations, password_reset_tokens, bold_payments, contador_registrations } from "@workspace/db";
 import { eq, and, ilike } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
@@ -380,8 +380,25 @@ router.get("/me", authenticate, async (req, res) => {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
+  // El Hub de Contadores es exclusivo de cuentas que completaron el formulario
+  // público de registro. Tener el rol contador o pertenecer al tenant hub no es
+  // suficiente, pues un usuario normal puede compartir ese tenant técnico.
+  const [registroContador] = await db
+    .select({ id: contador_registrations.id })
+    .from(contador_registrations)
+    .where(and(
+      eq(contador_registrations.user_id, req.userId),
+      eq(contador_registrations.confirmado, true),
+    ))
+    .limit(1);
+
   res.json({
-    user: { ...user, role: req.userRole, is_fundador: fundadorList.includes(user.email.toLowerCase()) },
+    user: {
+      ...user,
+      role: req.userRole,
+      is_fundador: fundadorList.includes(user.email.toLowerCase()),
+      is_contador_registrado: Boolean(registroContador),
+    },
     tenant: {
       id: req.tenant.id,
       nombre: req.tenant.nombre,

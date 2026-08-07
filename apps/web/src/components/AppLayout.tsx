@@ -313,7 +313,9 @@ export function AppLayout() {
                       );
                       localStorage.setItem("access_token", data.accessToken);
                       localStorage.setItem("refresh_token", data.refreshToken);
-                      window.location.href = emp.nit === "0000000001" && emp.role === "contador" ? "/contador" : "/dashboard";
+                      // El guardia de /dashboard resuelve si el usuario es un
+                      // contador registrado; no inferirlo solo por NIT o rol.
+                      window.location.href = "/dashboard";
                     } catch {
                       setCambiando(false);
                     }

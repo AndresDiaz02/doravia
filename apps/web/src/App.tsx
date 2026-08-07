@@ -89,6 +89,12 @@ function GuardiaERP() {
   return isContadorHub ? <Navigate to="/contador" replace /> : null;
 }
 
+/** El Hub no puede abrirse por URL directa con una cuenta normal. */
+function SoloContadorRegistrado() {
+  const { isContadorHub } = useAuth();
+  return !isContadorHub ? <Navigate to="/dashboard" replace /> : null;
+}
+
 /** Redirige si el usuario no tiene uno de los roles permitidos. */
 function RequiereRol({ allow, to = "/dashboard" }: { allow: string[]; to?: string }) {
   const { user } = useAuth();
@@ -113,7 +119,7 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/contador" element={<ContadorDashboard />} />
+            <Route path="/contador" element={<><SoloContadorRegistrado /><ContadorDashboard /></>} />
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<><GuardiaERP /><Dashboard /></>} />

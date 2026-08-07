@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, componentes_producto, productos, movimientos_inventario, bodegas } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, gte, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -166,6 +166,13 @@ router.post("/:productoId/producir", async (req, res) => {
       return res.status(422).json({ error: "Este producto no tiene componentes definidos." });
     }
 
+    const [productoEnsamblado] = await db
+      .select({ id: productos.id })
+      .from(productos)
+      .where(and(eq(productos.id, productoId), eq(productos.tenant_id, req.tenantId)))
+      .limit(1);
+    if (!productoEnsamblado) return res.status(404).json({ error: "Producto ensamblado no encontrado." });
+
     // Registrar una salida por cada componente × cantidad producida
     const movimientos = comps.map((c) => ({
       tenant_id: req.tenantId,
@@ -178,9 +185,40 @@ router.post("/:productoId/producir", async (req, res) => {
       observaciones: `Producción de ${cantidad} unidad(es) de producto ensamblado`,
     }));
 
-    await db.insert(movimientos_inventario).values(movimientos);
+    await db.transaction(async (tx) => {
+      for (const movimiento of movimientos) {
+        const cantidadComponente = Number(movimiento.cantidad);
+        const [actualizado] = await tx.update(productos)
+          .set({ stock_actual: sql`COALESCE(${productos.stock_actual}, 0) - ${cantidadComponente}` })
+          .where(and(
+            eq(productos.id, movimiento.producto_id),
+            eq(productos.tenant_id, req.tenantId),
+            gte(productos.stock_actual, String(cantidadComponente)),
+          ))
+          .returning({ id: productos.id });
+        if (!actualizado) throw new Error("Stock insuficiente de componentes para producir el ensamble.");
+      }
 
-    res.json({ producidos: cantidad, movimientos_registrados: movimientos.length });
+      await tx.update(productos)
+        .set({ stock_actual: sql`COALESCE(${productos.stock_actual}, 0) + ${cantidad}` })
+        .where(and(eq(productos.id, productoId), eq(productos.tenant_id, req.tenantId)));
+
+      await tx.insert(movimientos_inventario).values([
+        ...movimientos,
+        {
+          tenant_id: req.tenantId,
+          bodega_id,
+          producto_id: productoId,
+          tipo: "entrada",
+          cantidad: String(cantidad),
+          referencia_tipo: "ensamble",
+          referencia_id: productoId,
+          observaciones: `Producción de ${cantidad} unidad(es) de producto ensamblado`,
+        },
+      ]);
+    });
+
+    res.json({ producidos: cantidad, movimientos_registrados: movimientos.length + 1 });
   } catch (err) {
     console.error("Error en POST /:productoId/producir:", err);
     res.status(500).json({ error: "Error interno del servidor." });

@@ -5,7 +5,7 @@
 | ID | Módulo | Problema | Estado | Evidencia / siguiente paso |
 | --- | --- | --- | --- | --- |
 | P0-01 | Secretos | Credenciales compartidas fuera del gestor de secretos | Bloqueado externo | Rotar en Plemsi, Bold, correo, DB, JWT y Sentry; revocar las anteriores. |
-| P0-02 | Inventario | Stock operativo y kardex pueden divergir | En progreso | Advertencia de consistencia existe; falta modelo único + migración auditable. |
+| P0-02 | Inventario | Stock operativo y kardex pueden divergir | En progreso | Nuevas entradas/salidas/ajustes, recepciones, ensambles y salidas por factura actualizan ambas representaciones en transacción. Falta conciliación histórica auditable y cobertura E2E. |
 | P0-03 | Pagos/DIAN | Proveedor real no validado end-to-end | Bloqueado externo | Validar sandbox, firma, payload e idempotencia. |
 | P0-04 | Release | Render no aplica migraciones automáticamente | Pendiente | Crear procedimiento/migración controlada y smoke test. |
 

@@ -5,6 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
 
+class StockInsuficienteError extends Error {}
+
 // GET /api/inventario — stock actual agrupado por producto + bodega
 router.get("/", async (req, res) => {
   try {
@@ -198,22 +200,15 @@ router.post("/entrada", async (req, res) => {
 
     if (!(await assertPertenece(req.tenantId, bodega_id, producto_id, res))) return;
 
-    const [nuevo] = await db
-      .insert(movimientos_inventario)
-      .values({
-        tenant_id: req.tenantId,
-        bodega_id,
-        producto_id,
-        tipo: "entrada",
-        cantidad: String(cantidad),
-        costo_unitario: costo_unitario != null ? String(costo_unitario) : null,
-        referencia_tipo: "ajuste_manual",
-        observaciones: observaciones ?? null,
-      })
-      .returning();
+    const nuevo = await registrarMovimientoConSaldo({
+      tenantId: req.tenantId, bodegaId: bodega_id, productoId: producto_id,
+      tipo: "entrada", cantidad: Number(cantidad), costoUnitario: costo_unitario,
+      observaciones,
+    });
 
     res.status(201).json(nuevo);
   } catch (err) {
+    if (err instanceof StockInsuficienteError) return res.status(409).json({ error: err.message, code: "STOCK_INSUFICIENTE" });
     console.error("Error en POST /inventario/entrada:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
@@ -234,21 +229,14 @@ router.post("/salida", async (req, res) => {
 
     if (!(await assertPertenece(req.tenantId, bodega_id, producto_id, res))) return;
 
-    const [nuevo] = await db
-      .insert(movimientos_inventario)
-      .values({
-        tenant_id: req.tenantId,
-        bodega_id,
-        producto_id,
-        tipo: "salida",
-        cantidad: String(cantidad),
-        referencia_tipo: "ajuste_manual",
-        observaciones: observaciones ?? null,
-      })
-      .returning();
+    const nuevo = await registrarMovimientoConSaldo({
+      tenantId: req.tenantId, bodegaId: bodega_id, productoId: producto_id,
+      tipo: "salida", cantidad: Number(cantidad), observaciones,
+    });
 
     res.status(201).json(nuevo);
   } catch (err) {
+    if (err instanceof StockInsuficienteError) return res.status(409).json({ error: err.message, code: "STOCK_INSUFICIENTE" });
     console.error("Error en POST /inventario/salida:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
@@ -265,21 +253,18 @@ router.post("/ajuste", async (req, res) => {
 
     if (!(await assertPertenece(req.tenantId, bodega_id, producto_id, res))) return;
 
-    const [nuevo] = await db
-      .insert(movimientos_inventario)
-      .values({
-        tenant_id: req.tenantId,
-        bodega_id,
-        producto_id,
-        tipo: "ajuste",
-        cantidad: String(cantidad),
-        referencia_tipo: "ajuste_manual",
-        observaciones: observaciones ?? null,
-      })
-      .returning();
+    if (!Number.isFinite(Number(cantidad)) || Number(cantidad) === 0) {
+      return res.status(400).json({ error: "El ajuste debe ser un número distinto de cero." });
+    }
+
+    const nuevo = await registrarMovimientoConSaldo({
+      tenantId: req.tenantId, bodegaId: bodega_id, productoId: producto_id,
+      tipo: "ajuste", cantidad: Number(cantidad), observaciones,
+    });
 
     res.status(201).json(nuevo);
   } catch (err) {
+    if (err instanceof StockInsuficienteError) return res.status(409).json({ error: err.message, code: "STOCK_INSUFICIENTE" });
     console.error("Error en POST /inventario/ajuste:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }
@@ -330,14 +315,14 @@ router.post("/recibir-lote", async (req, res) => {
         .limit(1);
       if (!prod) return res.status(404).json({ error: `Producto ${producto_id} no encontrado.` });
 
-      await db.insert(movimientos_inventario).values({
-        tenant_id: req.tenantId,
-        bodega_id,
-        producto_id,
+      await registrarMovimientoConSaldo({
+        tenantId: req.tenantId,
+        bodegaId: bodega_id,
+        productoId: producto_id,
         tipo: "entrada",
-        cantidad: String(cantidad),
-        costo_unitario: String(precio_costo),
-        referencia_tipo: "compra_proveedor",
+        cantidad: Number(cantidad),
+        costoUnitario: precio_costo,
+        referenciaTipo: "compra_proveedor",
         observaciones: proveedor_nombre ? `Compra a ${proveedor_nombre}` : (observaciones ?? null),
       });
 
@@ -410,6 +395,56 @@ async function assertPertenece(
   }
 
   return true;
+}
+
+type MovimientoConSaldo = {
+  tenantId: string;
+  bodegaId: string;
+  productoId: string;
+  tipo: "entrada" | "salida" | "ajuste";
+  cantidad: number;
+  costoUnitario?: number | string | null;
+  referenciaTipo?: string;
+  observaciones?: string | null;
+};
+
+/**
+ * Mantiene el saldo operacional y el kardex en la misma transacción. Los
+ * saldos históricos no se modifican aquí: la conciliación inicial sigue siendo
+ * una acción auditada y separada.
+ */
+async function registrarMovimientoConSaldo(input: MovimientoConSaldo) {
+  const delta = input.tipo === "salida" ? -input.cantidad : input.cantidad;
+  if (!Number.isFinite(delta) || delta === 0) throw new Error("Movimiento de inventario inválido.");
+
+  return db.transaction(async (tx) => {
+    const condiciones = [
+      eq(productos.id, input.productoId),
+      eq(productos.tenant_id, input.tenantId),
+    ];
+    if (delta < 0) condiciones.push(gte(productos.stock_actual, String(Math.abs(delta))));
+
+    const [actualizado] = await tx
+      .update(productos)
+      .set({ stock_actual: sql`COALESCE(${productos.stock_actual}, 0) + ${delta}` })
+      .where(and(...condiciones))
+      .returning({ id: productos.id });
+
+    if (!actualizado) throw new StockInsuficienteError("Stock insuficiente para registrar esta salida.");
+
+    const [movimiento] = await tx.insert(movimientos_inventario).values({
+      tenant_id: input.tenantId,
+      bodega_id: input.bodegaId,
+      producto_id: input.productoId,
+      tipo: input.tipo,
+      cantidad: String(input.cantidad),
+      costo_unitario: input.costoUnitario != null ? String(input.costoUnitario) : null,
+      referencia_tipo: input.referenciaTipo ?? "ajuste_manual",
+      observaciones: input.observaciones ?? null,
+    }).returning();
+
+    return movimiento;
+  });
 }
 
 // ── Asesor de pedidos con IA ──────────────────────────────────────────────────

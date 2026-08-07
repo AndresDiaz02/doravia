@@ -1,5 +1,5 @@
 import { db, bodegas, movimientos_inventario, componentes_producto, productos, asientos_contables, lineas_asiento, cuentas_contables } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Factura, ItemFactura } from "@workspace/db";
 
 /**
@@ -102,6 +102,15 @@ export async function registrarSalidaFactura(
 
   await db.transaction(async (tx) => {
     await tx.insert(movimientos_inventario).values(movimientos);
+
+    // El kardex y el saldo usado por POS/alertas deben avanzar juntos. No se
+    // recalculan saldos históricos aquí; solo se mantiene consistencia desde
+    // esta mutación en adelante.
+    for (const movimiento of movimientos) {
+      await tx.update(productos)
+        .set({ stock_actual: sql`COALESCE(${productos.stock_actual}, 0) - ${Number(movimiento.cantidad)}` })
+        .where(and(eq(productos.id, movimiento.producto_id), eq(productos.tenant_id, tenantId)));
+    }
 
     // Asiento de costo de ventas: Déb 6135 → Cred 1435
     if (totalCostoVentas > 0) {

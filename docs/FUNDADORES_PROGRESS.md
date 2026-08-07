@@ -9,22 +9,25 @@
 - Los cambios de etapa y actividades generan eventos de timeline. Una oportunidad perdida exige motivo.
 - API typecheck y build de la web pasan localmente.
 - Creada la vista interna `/fundador/ventas`: dashboard de ACV, alta rapida de prospectos y oportunidades, y pipeline comercial con movimientos trazables.
+- Aplicada en Neon la migración de CRM y cotizaciones comerciales (`sales_quotes` y sus ítems).
+- Creado el constructor inicial en `/fundador/cotizaciones`, usando el catálogo real de planes y vinculable a cuenta y oportunidad.
+- Cada propuesta genera un token público criptográfico, registra aperturas y está disponible en `/propuesta/:token` sin exponer el CRM.
 
 ## In Progress
 
 - Detalle de oportunidad, contactos, agenda comercial y filtros del pipeline.
-- Migracion segura de las tablas `sales_*` en la base de datos administrada.
+- Versionado de propuestas, plantillas y control de descuentos.
 
 ## Pending
 
-- Cotizaciones comerciales versionadas, propuesta publica, PDF y tracking.
-- Email, enlace WhatsApp, pagos, conversion a tenant y onboarding.
+- PDF, envío de email, aceptación y cobro de propuestas.
+- Pagos, conversión a tenant y onboarding.
 - Customer success, expansion, renovaciones, importacion/exportacion y E2E.
 
 ## Blocked
 
 - `EXTERNAL_INTEGRATION_REQUIRED`: contrato de proveedor para email de propuestas y webhook de suscripciones/pagos.
-- La migracion de produccion requiere sincronizar el Blueprint o ejecutarse una vez con el `DATABASE_URL` de Render/Neon; no se debe intentar con credenciales expuestas en chats.
+- Los enlaces de pago y el envío de email requieren configurar sus proveedores y sus webhooks antes de activarlos.
 
 ## Product Decisions
 

@@ -45,6 +45,8 @@ import FundadorLayout from "./components/FundadorLayout";
 import FundadorAdmin from "./pages/FundadorAdmin";
 import FundadorMarketing from "./pages/FundadorMarketing";
 import FundadorSales from "./pages/FundadorSales";
+import FundadorQuotes from "./pages/FundadorQuotes";
+import PropuestaPublica from "./pages/PropuestaPublica";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
 import ReporteIVA from "./pages/ReporteIVA";
@@ -107,6 +109,7 @@ export default function App() {
           <Route path="/registro-contador/confirmar" element={<RegistroContador />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/registro-post-pago" element={<RegistroPostPago />} />
+          <Route path="/propuesta/:token" element={<PropuestaPublica />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />
@@ -175,6 +178,7 @@ export default function App() {
             <Route path="/fundador" element={<FundadorLayout />}>
               <Route index element={<Navigate to="/fundador/ventas" replace />} />
               <Route path="ventas" element={<FundadorSales />} />
+              <Route path="cotizaciones" element={<FundadorQuotes />} />
               <Route path="admin" element={<FundadorAdmin />} />
               <Route path="marketing" element={<FundadorMarketing />} />
             </Route>

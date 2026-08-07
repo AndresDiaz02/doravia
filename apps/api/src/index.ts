@@ -48,6 +48,7 @@ import documentosRouter from "./routes/documentos.js";
 import posRouter from "./routes/pos.js";
 import auditLogRouter from "./routes/audit-log.js";
 import fundadorRouter from "./routes/fundador.js";
+import salesPropuestasRouter from "./routes/sales-propuestas.js";
 import miPlanRouter from "./routes/mi-plan.js";
 import soporteRouter from "./routes/soporte.js";
 import { contadoresRouter } from "./routes/contadores.js";
@@ -177,6 +178,7 @@ app.get("/health", async (_req, res) => {
 app.use("/api/auth/login", loginRateLimit);
 app.use("/api/auth/register", registerRateLimit);
 app.use("/api/auth", authRouter);
+app.use("/api/propuestas", salesPropuestasRouter);
 
 // ── Fase 1 — Semilla (todos los planes) ─────────────────────────────────────
 app.use(writeRateLimit);

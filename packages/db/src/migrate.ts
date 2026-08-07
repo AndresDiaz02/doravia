@@ -892,6 +892,20 @@ const migrations = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sales_accounts_owner ON sales_accounts(owner_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sales_opportunities_stage ON sales_opportunities(etapa, expected_close_date)`,
+  // Cotizaciones comerciales internas (Fundadores).
+  `CREATE TABLE IF NOT EXISTS sales_quotes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), quote_number varchar(40) NOT NULL UNIQUE,
+    account_id uuid NOT NULL REFERENCES sales_accounts(id), contact_id uuid REFERENCES sales_contacts(id), opportunity_id uuid REFERENCES sales_opportunities(id), seller_id uuid REFERENCES users(id),
+    currency varchar(3) NOT NULL DEFAULT 'COP', subtotal numeric(14,2) NOT NULL DEFAULT 0, discount_total numeric(14,2) NOT NULL DEFAULT 0, tax_total numeric(14,2) NOT NULL DEFAULT 0, total numeric(14,2) NOT NULL DEFAULT 0, acv numeric(14,2) NOT NULL DEFAULT 0,
+    valid_until date, status varchar(30) NOT NULL DEFAULT 'draft', terms text, notes text, public_token varchar(96) NOT NULL UNIQUE, version integer NOT NULL DEFAULT 1,
+    sent_at timestamptz, viewed_at timestamptz, view_count integer NOT NULL DEFAULT 0, accepted_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sales_quote_line_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), quote_id uuid NOT NULL REFERENCES sales_quotes(id) ON DELETE CASCADE, plan_id uuid,
+    kind varchar(30) NOT NULL DEFAULT 'plan', description varchar(300) NOT NULL, quantity integer NOT NULL DEFAULT 1, unit_price numeric(14,2) NOT NULL, discount_pct numeric(5,2) NOT NULL DEFAULT 0, line_total numeric(14,2) NOT NULL, billing_period varchar(30) NOT NULL DEFAULT 'annual', created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_quotes_account ON sales_quotes(account_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_quotes_opportunity ON sales_quotes(opportunity_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_sales_activities_owner_due ON sales_activities(owner_id, estado, scheduled_at)`,
   `CREATE INDEX IF NOT EXISTS idx_sales_timeline_account ON sales_timeline_events(account_id, created_at DESC)`,
 ];

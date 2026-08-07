@@ -8,7 +8,9 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+// En Pages no existe un proxy /api: usar Render como destino por defecto.
+// VITE_API_URL permite sustituirlo en previews o entornos posteriores.
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://doravia-api.onrender.com";
 
 // Promesa compartida: evita múltiples refresh simultáneos en la misma pestaña
 let refreshPromise: Promise<boolean> | null = null;

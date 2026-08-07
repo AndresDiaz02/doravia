@@ -88,6 +88,24 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .product-card-desc{font-size:14.5px;color:var(--gray);line-height:1.6;flex-grow:1;margin-bottom:26px;}
 .product-card-link{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;border-radius:30px;padding:11px 22px;transition:all 0.2s;}
 .product-card-test{border-color:rgba(107,79,163,.28);background:linear-gradient(160deg,#fff 0%,#faf8ff 100%);}
+.product-card-status{align-self:flex-start;background:rgba(107,79,163,.12);color:#624394;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.1em;padding:5px 10px;margin-bottom:14px;}
+
+/* NÓMINA */
+.nomina-hero{background:radial-gradient(circle at 82% 18%,rgba(143,108,224,.36),transparent 30%),linear-gradient(135deg,#251153 0%,#51318d 55%,#3e2478 100%);}
+.nomina-product-section{background:#fff;padding:104px 0;}
+.nomina-product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1080px;margin:0 auto;}
+.nomina-product-card{background:#faf9ff;border:1px solid #e8e0f7;border-radius:20px;padding:28px;box-shadow:0 12px 32px rgba(59,30,140,.06);}
+.nomina-product-card-icon{font-size:28px;margin-bottom:16px;}
+.nomina-product-card h3{font-family:'Lora',serif;color:var(--navy);font-size:21px;margin-bottom:10px;}
+.nomina-product-card p{font-size:14px;line-height:1.65;color:var(--gray);}
+.nomina-flow{background:#f8f6ff;padding:104px 0;}
+.nomina-flow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:940px;margin:0 auto;}
+.nomina-flow-step{position:relative;padding:30px;border-radius:20px;background:#fff;border:1px solid #e8e0f7;}
+.nomina-flow-number{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#6B4FA3;color:#fff;font-weight:800;margin-bottom:17px;}
+.nomina-flow-step h3{font-family:'Lora',serif;color:var(--navy);font-size:20px;margin-bottom:8px;}
+.nomina-flow-step p{font-size:14px;line-height:1.6;color:var(--gray);}
+.nomina-access-note{max-width:860px;margin:34px auto 0;padding:20px 24px;border-radius:16px;background:#f2edfB;border:1px solid #ddd0f2;color:#4a386c;font-size:13px;line-height:1.6;text-align:center;}
+@media(max-width:900px){.nomina-product-grid,.nomina-flow-grid{grid-template-columns:1fr;max-width:500px;}}
 
 /* ORIGEN */
 .origen-section{background:var(--navy);padding:100px 0;position:relative;overflow:hidden;}

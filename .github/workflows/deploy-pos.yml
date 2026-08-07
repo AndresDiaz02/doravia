@@ -23,7 +23,8 @@ jobs:
 
       - run: pnpm --filter @workspace/pos build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          # El secreto antiguo apuntaba a Railway (ya retirado). Al omitirlo,
+          # el POS usa el destino seguro definido en su cliente: Render.
           VITE_ERP_URL: ${{ secrets.VITE_ERP_URL }}
 
       - run: npx wrangler pages deploy apps/pos/dist --project-name=doravia-pos

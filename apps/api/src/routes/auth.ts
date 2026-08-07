@@ -543,6 +543,9 @@ router.post("/register-fundador", async (req, res) => {
 
   // Validar PIN
   const fundadorPin = process.env.FUNDADOR_PIN;
+  if (process.env.NODE_ENV === "production" && !fundadorPin) {
+    return res.status(503).json({ error: "El registro de fundadores no está configurado de forma segura." });
+  }
   if (fundadorPin && pin !== fundadorPin) {
     return res.status(403).json({ error: "PIN incorrecto." });
   }
@@ -600,8 +603,7 @@ router.post("/register-fundador", async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error("Error en POST /auth/register-fundador:", err);
-    if (err instanceof Error) return res.status(500).json({ error: err.message });
-    throw err;
+    return res.status(500).json({ error: "No fue posible configurar el fundador. Intenta de nuevo o contacta a soporte." });
   }
 });
 

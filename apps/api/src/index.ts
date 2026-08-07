@@ -78,6 +78,7 @@ assertDianConfiguration();
 
 const app = express();
 app.set("trust proxy", 1);
+const IS_PROD = process.env.NODE_ENV === "production";
 
 // Structured request logging (skip health checks)
 app.use((req, res, next) => {
@@ -155,6 +156,14 @@ const registerRateLimit = rateLimit({
   message: { error: "Demasiados intentos de registro. Intenta de nuevo en una hora." },
 });
 
+const founderRegistrationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de configuración de fundador. Intenta de nuevo más tarde." },
+});
+
 // ── Sin auth ────────────────────────────────────────────────────────────────
 app.get("/health", async (_req, res) => {
   const start = Date.now();
@@ -171,12 +180,13 @@ app.get("/health", async (_req, res) => {
     res.status(503).json({
       ok: false,
       db: "error",
-      error: e instanceof Error ? e.message : "DB unreachable",
+      error: IS_PROD ? "Servicio temporalmente no disponible." : (e instanceof Error ? e.message : "DB unreachable"),
     });
   }
 });
 app.use("/api/auth/login", loginRateLimit);
 app.use("/api/auth/register", registerRateLimit);
+app.use("/api/auth/register-fundador", founderRegistrationRateLimit);
 app.use("/api/auth", authRouter);
 app.use("/api/propuestas", salesPropuestasRouter);
 

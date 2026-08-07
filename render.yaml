@@ -22,3 +22,9 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      - key: FUNDADOR_EMAILS
+        sync: false
+      - key: FUNDADOR_PIN
+        sync: false
+      - key: NOMINA_MODO
+        value: pruebas

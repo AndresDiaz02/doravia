@@ -46,6 +46,55 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET /api/inventario/consistencia — compara el saldo operativo del producto
+// con el kardex. Es deliberadamente de solo lectura: una diferencia histórica
+// requiere revisión antes de alterar existencias.
+router.get("/consistencia", async (req, res) => {
+  try {
+    const filas = await db
+      .select({
+        producto_id: productos.id,
+        codigo: productos.codigo,
+        nombre: productos.nombre,
+        stock_operativo: productos.stock_actual,
+        stock_kardex: sql<number>`COALESCE(SUM(
+          CASE
+            WHEN ${movimientos_inventario.tipo} = 'entrada' THEN ${movimientos_inventario.cantidad}
+            WHEN ${movimientos_inventario.tipo} = 'salida' THEN -${movimientos_inventario.cantidad}
+            WHEN ${movimientos_inventario.tipo} = 'ajuste' THEN ${movimientos_inventario.cantidad}
+            ELSE 0
+          END
+        ), 0)`.mapWith(Number),
+      })
+      .from(productos)
+      .leftJoin(movimientos_inventario, and(
+        eq(movimientos_inventario.producto_id, productos.id),
+        eq(movimientos_inventario.tenant_id, req.tenantId),
+      ))
+      .where(and(eq(productos.tenant_id, req.tenantId), eq(productos.tipo, "producto")))
+      .groupBy(productos.id, productos.codigo, productos.nombre, productos.stock_actual);
+
+    const items = filas
+      .map((fila) => {
+        const stock_operativo = Number(fila.stock_operativo ?? 0);
+        const diferencia = stock_operativo - fila.stock_kardex;
+        return { ...fila, stock_operativo, diferencia };
+      })
+      .filter((fila) => Math.abs(fila.diferencia) > 0.0001)
+      .sort((a, b) => Math.abs(b.diferencia) - Math.abs(a.diferencia))
+      .slice(0, 100);
+
+    res.json({
+      total_productos: filas.length,
+      con_desfase: items.length,
+      items,
+    });
+  } catch (err) {
+    console.error("Error en GET /inventario/consistencia:", err);
+    res.status(500).json({ error: "No se pudo verificar la consistencia del inventario." });
+  }
+});
+
 // GET /api/inventario/kardex/:producto_id — movimientos cronológicos con saldo acumulado
 router.get("/kardex/:producto_id", async (req, res) => {
   try {

@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Dialog } from "../components/ui/dialog";
-import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen, Search, FileDown } from "lucide-react";
+import { ArrowDown, ArrowUp, SlidersHorizontal, PackageSearch, BookOpen, Search, FileDown, AlertTriangle } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { RecibirMercanciaIA } from "./RecibirMercanciaIA";
 import { TutorialOverlay } from "../components/TutorialOverlay";
@@ -35,6 +35,18 @@ interface Movimiento {
 
 interface Bodega { id: string; nombre: string }
 interface Producto { id: string; nombre: string; codigo: string }
+interface ConsistenciaInventario {
+  total_productos: number;
+  con_desfase: number;
+  items: Array<{
+    producto_id: string;
+    codigo: string;
+    nombre: string;
+    stock_operativo: number;
+    stock_kardex: number;
+    diferencia: number;
+  }>;
+}
 
 type TabActiva = "stock" | "movimientos";
 type TipoMovimiento = "entrada" | "salida" | "ajuste";
@@ -63,6 +75,7 @@ export default function Inventario() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [consistencia, setConsistencia] = useState<ConsistenciaInventario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,16 +92,18 @@ export default function Inventario() {
 
   async function cargarDatos() {
     try {
-      const [stockData, movsData, bodData, prodData] = await Promise.all([
+      const [stockData, movsData, bodData, prodData, consistenciaData] = await Promise.all([
         apiFetch<StockItem[]>("/api/inventario"),
         apiFetch<Movimiento[]>("/api/inventario/movimientos"),
         apiFetch<Bodega[]>("/api/bodegas"),
         apiFetch<{ data: { id: string; nombre: string; codigo: string }[] }>("/api/productos?limit=200").then((r) => r.data),
+        apiFetch<ConsistenciaInventario>("/api/inventario/consistencia"),
       ]);
       setStock(stockData);
       setMovimientos(movsData);
       setBodegas(bodData);
       setProductos(prodData);
+      setConsistencia(consistenciaData);
     } catch {
       setError("No se pudo cargar el inventario.");
     } finally {
@@ -180,6 +195,22 @@ export default function Inventario() {
       {error && (
         <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {consistencia && consistencia.con_desfase > 0 && (
+        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-medium">
+                {consistencia.con_desfase} producto{consistencia.con_desfase === 1 ? "" : "s"} con diferencia entre stock operativo y kardex.
+              </p>
+              <p className="mt-0.5 text-amber-800">
+                No se modificó ningún saldo. Revisa los movimientos históricos antes de realizar un ajuste.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

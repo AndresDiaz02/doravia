@@ -111,7 +111,7 @@ export default function Privacidad() {
                 propia política de privacidad.
               </li>
               <li>
-                <strong>Railway</strong> — proveedor de alojamiento en la nube donde se ejecuta la plataforma.
+                <strong>Render y Neon</strong> — proveedores de infraestructura y base de datos en la nube.
               </li>
               <li>
                 <strong>Resend</strong> — servicio de envío de correos electrónicos transaccionales.

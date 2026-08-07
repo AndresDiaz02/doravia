@@ -58,7 +58,7 @@ export default function SetupFundador() {
               type="password"
               value={form.pin}
               onChange={(e) => set("pin", e.target.value)}
-              placeholder="PIN configurado en Railway"
+              placeholder="PIN configurado en el servidor"
               className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/60"
               required
             />

@@ -585,7 +585,7 @@ export default function FundadorAdmin() {
                 </div>
               </>
             ) : (
-              <p className="px-6 py-8 text-center text-sm text-gray-400">Sin gastos. Agrega Railway, ALIADDO, dominio…</p>
+              <p className="px-6 py-8 text-center text-sm text-gray-400">Sin gastos. Agrega infraestructura, ALIADDO, dominio…</p>
             )}
           </Card>
         </div>

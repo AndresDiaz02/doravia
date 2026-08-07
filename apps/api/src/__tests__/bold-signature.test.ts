@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generarFirmaBold } from "../services/bold.service.js";
-import { verificarFirmaBold } from "../services/pagos/providers/bold.js";
+import { mapBoldStatus, verificarFirmaBold } from "../services/pagos/providers/bold.js";
 import { createHmac } from "node:crypto";
 
 describe("Bold: firma de integridad", () => {
@@ -16,5 +16,14 @@ describe("Bold: firma de integridad", () => {
 
     expect(verificarFirmaBold(payload, { "bold-signature": signature }, secret)).toBe(true);
     expect(verificarFirmaBold(payload, { "bold-signature": "firma-invalida" }, secret)).toBe(false);
+  });
+
+  it("conserva pendientes los estados en proceso y cierra los estados finales", () => {
+    expect(mapBoldStatus("PROCESSING")).toBe("pendiente");
+    expect(mapBoldStatus("PENDING")).toBe("pendiente");
+    expect(mapBoldStatus("APPROVED")).toBe("pagado");
+    expect(mapBoldStatus("REJECTED")).toBe("fallido");
+    expect(mapBoldStatus("FAILED")).toBe("fallido");
+    expect(mapBoldStatus("VOIDED")).toBe("fallido");
   });
 });

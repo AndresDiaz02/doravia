@@ -116,11 +116,12 @@ export function verificarFirmaBold(
   }
 }
 
-function mapBoldStatus(raw: string | undefined): "pendiente" | "pagado" | "expirado" | "fallido" | "reembolsado" {
+export function mapBoldStatus(raw: string | undefined): "pendiente" | "pagado" | "expirado" | "fallido" | "reembolsado" {
   switch (raw?.toUpperCase()) {
     case "APPROVED": return "pagado";
     case "REJECTED":
-    case "FAILED": return "fallido";
+    case "FAILED":
+    case "VOIDED": return "fallido";
     case "EXPIRED": return "expirado";
     case "REFUNDED": return "reembolsado";
     default: return "pendiente";

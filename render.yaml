@@ -4,6 +4,10 @@ services:
     runtime: node
     plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/api build
+    # Se ejecuta antes de reemplazar el servicio. migrate.ts es idempotente y
+    # además detiene el despliegue si detecta que el schema real tiene drift.
+    # Para una base nueva, inicializar primero con el procedimiento de OPERACIONES.md.
+    preDeployCommand: pnpm db:migrate
     startCommand: pnpm --filter @workspace/api start
     healthCheckPath: /health
     envVars:

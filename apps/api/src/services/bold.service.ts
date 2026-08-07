@@ -37,9 +37,18 @@ async function boldFetch(method: string, path: string): Promise<BoldResult> {
  * Genera la firma de integridad para el botón de pagos Bold.
  * Fórmula: SHA256(reference_id + amount + currency + secret_key)
  */
-export function generarFirma(reference_id: string, amount: number, currency = "COP"): string {
-  const raw = `${reference_id}${amount}${currency}${BOLD_SECRET_KEY}`;
+export function generarFirmaBold(
+  reference_id: string,
+  amount: number,
+  secretKey: string,
+  currency = "COP",
+): string {
+  const raw = `${reference_id}${amount}${currency}${secretKey}`;
   return createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
+export function generarFirma(reference_id: string, amount: number, currency = "COP"): string {
+  return generarFirmaBold(reference_id, amount, BOLD_SECRET_KEY, currency);
 }
 
 // La llave de identidad (API key) es pública — se embebe en el botón JS del cliente

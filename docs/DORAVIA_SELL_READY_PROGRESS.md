@@ -6,8 +6,8 @@
 | --- | --- | --- | --- | --- |
 | P0-01 | Secretos | Credenciales compartidas fuera del gestor de secretos | Bloqueado externo | Rotar en Plemsi, Bold, correo, DB, JWT y Sentry; revocar las anteriores. |
 | P0-02 | Inventario | Stock operativo y kardex pueden divergir | En progreso | Nuevas entradas/salidas/ajustes, recepciones, ensambles y salidas por factura actualizan ambas representaciones en transacción. Falta conciliación histórica auditable y cobertura E2E. |
-| P0-03 | Pagos/DIAN | Proveedor real no validado end-to-end | Bloqueado externo | Plemsi respondió al ping de pruebas. La prueba controlada de creación de enlace Bold fue rechazada con HTTP 403 y no generó cobro ni enlace: confirmar en Bold que la credencial tenga permisos para Payment Links y el ambiente/base URL correctos. Después validar firma, webhook, payload e idempotencia. |
-| P0-04 | Release | Render no aplica migraciones automáticamente | Pendiente | Crear procedimiento/migración controlada y smoke test. |
+| P0-03 | Pagos/DIAN | Proveedor real no validado end-to-end | Bloqueado externo | Plemsi respondió al ping de pruebas. Bold para suscripciones usa el botón oficial (llave de identidad + firma), no la API de Payment Links; la prueba HTTP 403 de esa API no evalúa este flujo. Falta registrar el webhook de Doravia en el panel Bold y completar una transacción de prueba para validar callback, estado e idempotencia. |
+| P0-04 | Release | Render no aplicaba migraciones automáticamente | Corregido en configuración | `preDeployCommand` ejecuta `pnpm db:migrate` antes de iniciar una versión. Falta ejecutar el smoke test posterior al próximo deploy. |
 
 ## P1
 

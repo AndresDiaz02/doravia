@@ -27,6 +27,11 @@ jobs:
         run: pnpm --filter @workspace/api build
       - name: API tests
         run: pnpm --filter @workspace/api test
+        env:
+          # Las pruebas unitarias inicializan el cliente Drizzle, aunque no se
+          # conectan a PostgreSQL. Evita que la ausencia de esta variable
+          # oculte fallos reales de la suite.
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test
       - name: ERP build
         run: pnpm --filter @workspace/web build
       - name: POS build

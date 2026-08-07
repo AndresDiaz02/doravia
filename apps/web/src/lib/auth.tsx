@@ -66,7 +66,7 @@ interface AuthCtx {
   isVendedor: boolean;
   isFundador: boolean;
   isContadorHub: boolean;
-  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string } | null>;
+  login: (accessToken: string, refreshToken: string) => Promise<{ nit: string; is_fundador: boolean } | null>;
   logout: () => Promise<void>;
   cambiarEmpresa: (tenantId: string) => Promise<void>;
 }
@@ -115,12 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadMe]);
 
   const login = useCallback(
-    async (accessToken: string, refreshToken: string): Promise<{ nit: string } | null> => {
+    async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean } | null> => {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       await loadMe();
       const data = await apiFetch<MeResponse>("/api/auth/me").catch(() => null);
-      return data ? { nit: data.tenant.nit } : null;
+      return data ? { nit: data.tenant.nit, is_fundador: data.user.is_fundador === true } : null;
     },
     [loadMe],
   );

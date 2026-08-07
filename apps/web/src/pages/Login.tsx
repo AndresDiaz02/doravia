@@ -48,8 +48,9 @@ export function Login() {
   const sessionExpired = searchParams.get("expired") === "1";
   const redirectAfterLogin = searchParams.get("redirect") ?? "";
 
-  function destino(nit: string | undefined) {
+  function destino(nit: string | undefined, isFundador = false) {
     if (redirectAfterLogin) return redirectAfterLogin;
+    if (isFundador) return "/fundador";
     return nit === "0000000001" ? "/contador" : "/dashboard";
   }
 
@@ -68,7 +69,7 @@ export function Login() {
         setSelectionToken(data.selectionToken);
       } else {
         const me = await login(data.accessToken, data.refreshToken);
-        navigate(destino(me?.nit), { replace: true });
+        navigate(destino(me?.nit, me?.is_fundador), { replace: true });
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado.");
@@ -86,7 +87,7 @@ export function Login() {
         body: JSON.stringify({ selectionToken, tenantId }),
       });
       const me = await login(data.accessToken, data.refreshToken);
-      navigate(destino(me?.nit), { replace: true });
+      navigate(destino(me?.nit, me?.is_fundador), { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al seleccionar empresa.");
       if (err instanceof ApiError && err.message.includes("expiró")) {

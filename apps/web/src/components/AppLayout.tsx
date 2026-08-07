@@ -94,7 +94,7 @@ const NAV_BROTE = [
 // nómina del tenant, no por plan.features) — se muestra siempre a admin/contador, la propia
 // página resuelve el estado "sin nómina activa" si el tenant no tiene un plan de nómina.
 const NAV_NOMINA = [
-  { to: "/nomina/empleados", label: "Nómina", icon: Wallet },
+  { to: "/nomina/empleados", label: "Nómina · pruebas", icon: Wallet },
 ];
 
 const NAV_COSECHA = [

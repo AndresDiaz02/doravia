@@ -12,6 +12,12 @@ import { generarPdfColillaConsolidada } from "../services/pdf.service.js";
 
 const router = Router();
 
+// La nómina se habilita inicialmente para preparación y validación interna. Hasta
+// que se configure explícitamente producción, ningún período puede emitirse ni
+// consumir documentos. El cálculo, la revisión y la generación de borradores sí
+// permanecen disponibles para el entorno de pruebas.
+const nominaModo = () => (process.env.NOMINA_MODO ?? "pruebas").trim().toLowerCase();
+
 // Columnas seguras para listados (nunca datos_bancarios_encrypted)
 const EMPLEADO_COLUMNAS_LISTADO = {
   id: empleados.id,
@@ -444,6 +450,12 @@ router.post("/periodos/:id/aprobar", requireNotContador, async (req, res) => {
 // Solo admin (no requireNotContador — DELETE-equivalente en impacto, restringido explícitamente).
 router.post("/periodos/:id/emitir", async (req, res) => {
   try {
+    if (nominaModo() !== "produccion") {
+      return res.status(403).json({
+        error: "Nómina está en modo de pruebas. Puedes calcular y revisar períodos, pero la emisión electrónica está deshabilitada.",
+        code: "NOMINA_TEST_MODE",
+      });
+    }
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede emitir nómina." });
     }

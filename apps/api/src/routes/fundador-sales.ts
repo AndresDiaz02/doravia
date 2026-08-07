@@ -6,6 +6,7 @@ import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 const router = Router();
 const stages = new Set<string>(SALES_STAGES);
 const quoteStatuses = new Set<string>(SALES_QUOTE_STATUSES);
+const DEFAULT_QUOTE_TERMS = `Esta propuesta tiene vigencia de 15 días calendario desde su emisión. Los valores están expresados en pesos colombianos (COP) e incluyen los impuestos indicados. La contratación queda sujeta a la aceptación de esta propuesta y a la confirmación del pago acordado. Las funcionalidades, límites y servicios corresponden al plan seleccionado. Cualquier implementación, migración o servicio adicional será definido por escrito antes de iniciar. Doravia podrá iniciar el proceso de activación una vez reciba la información requerida y se confirme el pago.`;
 
 async function event(accountId: string, opportunityId: string | null, actorId: string, tipo: string, payload: Record<string, unknown> = {}) {
   await db.insert(sales_timeline_events).values({ account_id: accountId, opportunity_id: opportunityId, actor_id: actorId, tipo, payload });
@@ -185,7 +186,7 @@ router.get("/quotes/:id", async (req, res, next) => {
 
 router.post("/quotes", async (req, res, next) => {
   try {
-    const body = req.body as { account_id?: string; contact_id?: string; opportunity_id?: string; valid_until?: string; terms?: string; notes?: string; tax_pct?: number; items?: Array<{ plan_id?: string; kind?: string; description?: string; quantity?: number; unit_price?: number; discount_pct?: number; billing_period?: string }> };
+    const body = req.body as { account_id?: string; contact_id?: string; opportunity_id?: string; valid_until?: string; payment_option?: string; installments?: number; terms?: string; notes?: string; tax_pct?: number; items?: Array<{ plan_id?: string; kind?: string; description?: string; quantity?: number; unit_price?: number; discount_pct?: number; billing_period?: string }> };
     if (!body.account_id || !Array.isArray(body.items) || body.items.length === 0) return res.status(400).json({ error: "account_id e items son requeridos." });
     const [account] = await db.select({ id: sales_accounts.id }).from(sales_accounts).where(eq(sales_accounts.id, body.account_id)).limit(1);
     if (!account) return res.status(404).json({ error: "Cuenta no encontrada." });
@@ -202,7 +203,9 @@ router.post("/quotes", async (req, res, next) => {
     const gross = items.reduce((sum, item) => sum + Number(item.unit_price) * item.quantity, 0);
     const tax = subtotal * Math.max(0, Number(body.tax_pct ?? 0)) / 100;
     const quoteNumber = `DOR-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomBytes(3).toString("hex").toUpperCase()}`;
-    const [quote] = await db.insert(sales_quotes).values({ quote_number: quoteNumber, account_id: account.id, contact_id: body.contact_id ?? null, opportunity_id: body.opportunity_id ?? null, seller_id: req.userId, subtotal: subtotal.toFixed(2), discount_total: (gross - subtotal).toFixed(2), tax_total: tax.toFixed(2), total: (subtotal + tax).toFixed(2), acv: subtotal.toFixed(2), valid_until: body.valid_until, terms: body.terms, notes: body.notes, public_token: randomBytes(32).toString("base64url") }).returning();
+    const paymentOption = body.payment_option === "installments" ? "installments" : "full"; const installments = paymentOption === "installments" ? Math.max(2, Math.min(12, Number(body.installments ?? 3))) : 1;
+    const validUntil = body.valid_until ?? new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+    const [quote] = await db.insert(sales_quotes).values({ quote_number: quoteNumber, account_id: account.id, contact_id: body.contact_id ?? null, opportunity_id: body.opportunity_id ?? null, seller_id: req.userId, subtotal: subtotal.toFixed(2), discount_total: (gross - subtotal).toFixed(2), tax_total: tax.toFixed(2), total: (subtotal + tax).toFixed(2), acv: subtotal.toFixed(2), valid_until: validUntil, payment_option: paymentOption, installments, terms: body.terms?.trim() || DEFAULT_QUOTE_TERMS, notes: body.notes, public_token: randomBytes(32).toString("base64url") }).returning();
     await db.insert(sales_quote_line_items).values(items.map((item) => ({ ...item, quote_id: quote.id })));
     await event(account.id, body.opportunity_id ?? null, req.userId, "quote_created", { quote_id: quote.id, quote_number: quote.quote_number });
     res.status(201).json(quote);

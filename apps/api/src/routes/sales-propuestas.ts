@@ -17,7 +17,7 @@ router.get("/:token", async (req, res, next) => {
       quote.contact_id ? db.select({ nombres: sales_contacts.nombres, apellidos: sales_contacts.apellidos }).from(sales_contacts).where(eq(sales_contacts.id, quote.contact_id)).limit(1) : Promise.resolve([]),
       db.select().from(sales_quote_line_items).where(eq(sales_quote_line_items.quote_id, quote.id)),
     ]);
-    res.json({ quote: { quote_number: quote.quote_number, currency: quote.currency, subtotal: quote.subtotal, discount_total: quote.discount_total, tax_total: quote.tax_total, total: quote.total, valid_until: quote.valid_until, terms: quote.terms, notes: quote.notes, status: quote.status, version: quote.version }, account: account ?? null, contact: contact ?? null, items });
+    res.json({ quote: { quote_number: quote.quote_number, currency: quote.currency, subtotal: quote.subtotal, discount_total: quote.discount_total, tax_total: quote.tax_total, total: quote.total, valid_until: quote.valid_until, payment_option: quote.payment_option, installments: quote.installments, terms: quote.terms, notes: quote.notes, status: quote.status, version: quote.version }, account: account ?? null, contact: contact ?? null, items });
   } catch (err) { next(err); }
 });
 

@@ -372,9 +372,6 @@ router.get("/me", authenticate, async (req, res) => {
 
   const plan = req.tenant.plan;
 
-  // Lista de todas las empresas a las que el usuario tiene acceso
-  const empresas = await getEmpresasUsuario(req.userId, req.tenantId);
-
   const fundadorList = (process.env.FUNDADOR_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
@@ -383,14 +380,20 @@ router.get("/me", authenticate, async (req, res) => {
   // El Hub de Contadores es exclusivo de cuentas que completaron el formulario
   // público de registro. Tener el rol contador o pertenecer al tenant hub no es
   // suficiente, pues un usuario normal puede compartir ese tenant técnico.
-  const [registroContador] = await db
-    .select({ id: contador_registrations.id })
-    .from(contador_registrations)
-    .where(and(
-      eq(contador_registrations.user_id, req.userId),
-      eq(contador_registrations.confirmado, true),
-    ))
-    .limit(1);
+  // Estas dos lecturas no dependen entre sí. Ejecutarlas en paralelo reduce
+  // la espera de la carga inicial después del inicio de sesión.
+  const [empresas, registrosContador] = await Promise.all([
+    getEmpresasUsuario(req.userId, req.tenantId),
+    db
+      .select({ id: contador_registrations.id })
+      .from(contador_registrations)
+      .where(and(
+        eq(contador_registrations.user_id, req.userId),
+        eq(contador_registrations.confirmado, true),
+      ))
+      .limit(1),
+  ]);
+  const [registroContador] = registrosContador;
 
   res.json({
     user: {

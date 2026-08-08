@@ -81,18 +81,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [empresas, setEmpresas] = useState<EmpresaAcceso[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadMe = useCallback(async () => {
+  const loadMe = useCallback(async (): Promise<MeResponse | null> => {
     try {
       const data = await apiFetch<MeResponse>("/api/auth/me");
       setUser(data.user);
       setPlan(data.plan);
       setTenant(data.tenant);
       setEmpresas(data.empresas ?? []);
+      return data;
     } catch {
       setUser(null);
       setPlan(null);
       setTenant(null);
       setEmpresas([]);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -119,8 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (accessToken: string, refreshToken: string): Promise<{ nit: string; is_fundador: boolean; is_contador_registrado: boolean; role: string } | null> => {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
-      await loadMe();
-      const data = await apiFetch<MeResponse>("/api/auth/me").catch(() => null);
+      const data = await loadMe();
       return data ? {
         nit: data.tenant.nit,
         is_fundador: data.user.is_fundador === true,

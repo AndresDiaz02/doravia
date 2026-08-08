@@ -1,30 +1,12 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/AppLayout";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
-import { Dashboard } from "./pages/Dashboard";
 import { Clientes } from "./pages/Clientes";
-import { ClienteDetalle } from "./pages/ClienteDetalle";
 import { Facturas } from "./pages/Facturas";
-import { FacturaNueva } from "./pages/FacturaNueva";
-import { FacturaDetalle } from "./pages/FacturaDetalle";
-import { Contabilidad } from "./pages/Contabilidad";
-import { Productos } from "./pages/Productos";
-import { Usuarios } from "./pages/Usuarios";
-import { ResolucionesDian } from "./pages/ResolucionesDian";
-import Bodegas from "./pages/Bodegas";
-import Inventario from "./pages/Inventario";
-import Kardex from "./pages/Kardex";
-import AsesorPedidos from "./pages/AsesorPedidos";
-import AlertasCobro from "./pages/AlertasCobro";
-import Recurrentes from "./pages/Recurrentes";
-import Cotizaciones from "./pages/Cotizaciones";
-import Gastos from "./pages/Gastos";
-import CentrosCostos from "./pages/CentrosCostos";
-import Ensamble from "./pages/Ensamble";
-import Cartera from "./pages/Cartera";
 import UpgradePlan from "./pages/UpgradePlan";
 import Retenciones from "./pages/Retenciones";
 import NotasCredito from "./pages/NotasCredito";
@@ -32,50 +14,70 @@ import NotaCreditoDetalle from "./pages/NotaCreditoDetalle";
 import NotasDebito from "./pages/NotasDebito";
 import NotaDebitoDetalle from "./pages/NotaDebitoDetalle";
 import PeriodosContables from "./pages/PeriodosContables";
-import ConfiguracionEmpresa from "./pages/ConfiguracionEmpresa";
-import AdminCajas from "./pages/AdminCajas";
 import CierreDian from "./pages/CierreDian";
 import BalancePrueba from "./pages/BalancePrueba";
 import Auxiliares from "./pages/Auxiliares";
 import ModulosAdicionales from "./pages/ModulosAdicionales";
 import ResultadoPago from "./pages/ResultadoPago";
-import Onboarding from "./pages/Onboarding";
 import AuditLog from "./pages/AuditLog";
 import FundadorLayout from "./components/FundadorLayout";
-import FundadorAdmin from "./pages/FundadorAdmin";
-import FundadorMarketing from "./pages/FundadorMarketing";
 import FundadorSales from "./pages/FundadorSales";
 import FundadorQuotes from "./pages/FundadorQuotes";
 import PropuestaPublica from "./pages/PropuestaPublica";
 import SetupFundador from "./pages/SetupFundador";
 import RecuperarPassword from "./pages/RecuperarPassword";
 import ReporteIVA from "./pages/ReporteIVA";
-import PlanCuentas from "./pages/PlanCuentas";
 import MiPlan from "./pages/MiPlan";
 import RegistroContador from "./pages/RegistroContador";
 import ContadorDashboard from "./pages/ContadorDashboard";
-import CajerosPOS from "./pages/CajerosPOS";
-import Remisiones from "./pages/Remisiones";
-import Proveedores from "./pages/Proveedores";
-import ProveedorDetalle from "./pages/ProveedorDetalle";
-import ConciliacionBancaria from "./pages/ConciliacionBancaria";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
 import Checkout from "./pages/Checkout";
 import RegistroPostPago from "./pages/RegistroPostPago";
-import ActivosFijos from "./pages/ActivosFijos";
-import DocumentosSoporte from "./pages/DocumentosSoporte";
-import AgendaServicios from "./pages/AgendaServicios";
-import CotizacionDetalle from "./pages/CotizacionDetalle";
 import ConfiguracionPagos from "./pages/ConfiguracionPagos";
 import PagoExito from "./pages/PagoExito";
 import PagoFallo from "./pages/PagoFallo";
-import NominaEmpleados from "./pages/NominaEmpleados";
-import NominaEmpleadoForm from "./pages/NominaEmpleadoForm";
-import NominaPeriodos from "./pages/NominaPeriodos";
-import NominaPeriodoNuevo from "./pages/NominaPeriodoNuevo";
-import NominaPeriodoDetalle from "./pages/NominaPeriodoDetalle";
 import NominaMiPlan from "./pages/NominaMiPlan";
+
+// Las pantallas operativas se descargan solo al abrirlas. Así la página de
+// ingreso no espera módulos como contabilidad, nómina o conciliación bancaria.
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const ClienteDetalle = lazy(() => import("./pages/ClienteDetalle").then((m) => ({ default: m.ClienteDetalle })));
+const FacturaNueva = lazy(() => import("./pages/FacturaNueva").then((m) => ({ default: m.FacturaNueva })));
+const FacturaDetalle = lazy(() => import("./pages/FacturaDetalle").then((m) => ({ default: m.FacturaDetalle })));
+const Contabilidad = lazy(() => import("./pages/Contabilidad").then((m) => ({ default: m.Contabilidad })));
+const Productos = lazy(() => import("./pages/Productos").then((m) => ({ default: m.Productos })));
+const Usuarios = lazy(() => import("./pages/Usuarios").then((m) => ({ default: m.Usuarios })));
+const ResolucionesDian = lazy(() => import("./pages/ResolucionesDian").then((m) => ({ default: m.ResolucionesDian })));
+const Bodegas = lazy(() => import("./pages/Bodegas"));
+const Inventario = lazy(() => import("./pages/Inventario"));
+const AsesorPedidos = lazy(() => import("./pages/AsesorPedidos"));
+const Recurrentes = lazy(() => import("./pages/Recurrentes"));
+const Cotizaciones = lazy(() => import("./pages/Cotizaciones"));
+const Gastos = lazy(() => import("./pages/Gastos"));
+const CentrosCostos = lazy(() => import("./pages/CentrosCostos"));
+const Ensamble = lazy(() => import("./pages/Ensamble"));
+const Cartera = lazy(() => import("./pages/Cartera"));
+const ConfiguracionEmpresa = lazy(() => import("./pages/ConfiguracionEmpresa"));
+const AdminCajas = lazy(() => import("./pages/AdminCajas"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const FundadorAdmin = lazy(() => import("./pages/FundadorAdmin"));
+const FundadorMarketing = lazy(() => import("./pages/FundadorMarketing"));
+const PlanCuentas = lazy(() => import("./pages/PlanCuentas"));
+const CajerosPOS = lazy(() => import("./pages/CajerosPOS"));
+const Remisiones = lazy(() => import("./pages/Remisiones"));
+const Proveedores = lazy(() => import("./pages/Proveedores"));
+const ProveedorDetalle = lazy(() => import("./pages/ProveedorDetalle"));
+const ConciliacionBancaria = lazy(() => import("./pages/ConciliacionBancaria"));
+const ActivosFijos = lazy(() => import("./pages/ActivosFijos"));
+const DocumentosSoporte = lazy(() => import("./pages/DocumentosSoporte"));
+const AgendaServicios = lazy(() => import("./pages/AgendaServicios"));
+const CotizacionDetalle = lazy(() => import("./pages/CotizacionDetalle"));
+const NominaEmpleados = lazy(() => import("./pages/NominaEmpleados"));
+const NominaEmpleadoForm = lazy(() => import("./pages/NominaEmpleadoForm"));
+const NominaPeriodos = lazy(() => import("./pages/NominaPeriodos"));
+const NominaPeriodoNuevo = lazy(() => import("./pages/NominaPeriodoNuevo"));
+const NominaPeriodoDetalle = lazy(() => import("./pages/NominaPeriodoDetalle"));
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -105,6 +107,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-sm text-slate-500">Cargando módulo…</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
@@ -197,6 +200,7 @@ export default function App() {
           <Route path="/terminos" element={<Terminos />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

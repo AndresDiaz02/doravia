@@ -172,10 +172,10 @@ export default function App() {
               <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
               <Route path="/agenda-servicios" element={<AgendaServicios />} />
               <Route path="/nomina/empleados" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleados /></>} />
-              <Route path="/nomina/empleados/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
+              <Route path="/nomina/empleados/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleadoForm /></>} />
               <Route path="/nomina/empleados/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleadoForm /></>} />
               <Route path="/nomina/periodos" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodos /></>} />
-              <Route path="/nomina/periodos/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><SoloEscritura to="/nomina/periodos" /><NominaPeriodoNuevo /></>} />
+              <Route path="/nomina/periodos/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoNuevo /></>} />
               <Route path="/nomina/periodos/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoDetalle /></>} />
               <Route path="/nomina/mi-plan" element={<><RequiereRol allow={["admin", "contador"]} /><NominaMiPlan /></>} />
             </Route>

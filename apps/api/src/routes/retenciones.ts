@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, retenciones_config, TIPOS_RETENCION } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/", async (req, res) => {
 });
 
 // POST /api/retenciones
-router.post("/", async (req, res) => {
+router.post("/", requireContableOperativo, async (req, res) => {
   try {
     const { nombre, tipo, porcentaje } = req.body as { nombre: string; tipo: string; porcentaje: number };
 
@@ -47,7 +48,7 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH /api/retenciones/:id
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", requireContableOperativo, async (req, res) => {
   try {
     const [ret] = await db
       .select()
@@ -77,7 +78,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 // DELETE /api/retenciones/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireContableOperativo, async (req, res) => {
   try {
     const [ret] = await db
       .select({ id: retenciones_config.id })

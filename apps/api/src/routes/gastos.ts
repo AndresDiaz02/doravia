@@ -64,7 +64,7 @@ router.get("/proveedores/:id", async (req, res) => {
   res.json({ ...prov, historial, totalCompras, totalPendiente });
 });
 
-router.patch("/proveedores/:id", async (req, res) => {
+router.patch("/proveedores/:id", requireContableOperativo, async (req, res) => {
   const [prov] = await db
     .select()
     .from(proveedores)

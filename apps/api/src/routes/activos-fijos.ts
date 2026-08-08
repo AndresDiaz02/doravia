@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, activos_fijos, depreciaciones_activo, asientos_contables, lineas_asiento, cuentas_contables } from "@workspace/db";
 import { eq, and, isNull, or, sql, count } from "drizzle-orm";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.get("/", async (req, res) => {
 });
 
 // ── POST / — crear activo (solo admin) ───────────────────────────────────────
-router.post("/", async (req, res) => {
+router.post("/", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede crear activos fijos." });
@@ -196,7 +197,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // ── PATCH /:id — editar campos básicos ───────────────────────────────────────
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede editar activos fijos." });
@@ -252,7 +253,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 // ── DELETE /:id — dar de baja (solo si no tiene depreciaciones) ───────────────
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede dar de baja activos fijos." });
@@ -292,7 +293,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // ── POST /:id/calcular-depreciacion — calcular y registrar depreciación del mes ──
-router.post("/:id/calcular-depreciacion", async (req, res) => {
+router.post("/:id/calcular-depreciacion", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede registrar depreciaciones." });

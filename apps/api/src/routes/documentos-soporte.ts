@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, documentos_soporte, items_documento_soporte } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.get("/", async (req, res) => {
 });
 
 // ── POST / — crear documento soporte ─────────────────────────────────────────
-router.post("/", async (req, res) => {
+router.post("/", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin" && req.userRole !== "contador") {
       return res.status(403).json({ error: "Solo administradores o contadores pueden crear documentos soporte." });
@@ -166,7 +167,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // ── DELETE /:id — anular documento (no borrar) ───────────────────────────────
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede anular documentos soporte." });

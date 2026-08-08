@@ -165,28 +165,29 @@
   </div>
 </section>
 
-<!-- TESTIMONIOS -->
+<!-- VALOR OPERATIVO -->
 <section class="testimonials-section">
   <div class="container">
     <div class="section-head">
-      <div class="section-eyebrow" style="color:var(--coral);">CASOS DE ÉXITO</div>
-      <h2 style="color:var(--navy);">Negocios que ya confían en Doravia</h2>
+      <div class="section-eyebrow" style="color:var(--coral);">HECHO PARA EL DÍA A DÍA</div>
+      <h2 style="color:var(--navy);">Menos tareas repetidas. Más control.</h2>
+      <p>Una operación clara desde la venta hasta el cierre, con cada módulo conectado cuando lo necesitas.</p>
     </div>
     <div class="testimonials-grid">
       <div class="testimonial-card">
-        <div class="testimonial-stars">★★★★★</div>
-        <div class="testimonial-quote">"Antes llevábamos el inventario en cuadernos. Con Doravia eso cambió desde el primer mes."</div>
-        <div class="testimonial-author"><div class="testimonial-avatar">JM</div><div><div class="testimonial-name">Juan Martínez</div><div class="testimonial-meta">Ferretería · Bogotá</div></div></div>
+        <div class="testimonial-stars">01</div>
+        <div class="testimonial-quote">Facturación, ventas y documentos reunidos en un flujo simple de seguir.</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">↗</div><div><div class="testimonial-name">Operación conectada</div><div class="testimonial-meta">Menos duplicación de información</div></div></div>
       </div>
       <div class="testimonial-card">
-        <div class="testimonial-stars">★★★★★</div>
-        <div class="testimonial-quote">"Lo que más valoro es el soporte. Hablo directo con alguien que entiende mi negocio, no con un chatbot."</div>
-        <div class="testimonial-author"><div class="testimonial-avatar">CR</div><div><div class="testimonial-name">Carolina Restrepo</div><div class="testimonial-meta">Comercio textil · Medellín</div></div></div>
+        <div class="testimonial-stars">02</div>
+        <div class="testimonial-quote">Inventario, caja y cartera con información disponible para tomar decisiones.</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">✓</div><div><div class="testimonial-name">Control visible</div><div class="testimonial-meta">Reportes y alertas accionables</div></div></div>
       </div>
       <div class="testimonial-card">
-        <div class="testimonial-stars">★★★★★</div>
-        <div class="testimonial-quote">"La implementación fue acompañada de principio a fin. No me sentí solo en ningún momento."</div>
-        <div class="testimonial-author"><div class="testimonial-avatar">DA</div><div><div class="testimonial-name">Daniel Acosta</div><div class="testimonial-meta">Minimercado · Cali</div></div></div>
+        <div class="testimonial-stars">03</div>
+        <div class="testimonial-quote">Puedes iniciar con un producto y sumar los demás sin perder el contexto de tu empresa.</div>
+        <div class="testimonial-author"><div class="testimonial-avatar">+</div><div><div class="testimonial-name">Crecimiento gradual</div><div class="testimonial-meta">Módulos independientes e integrados</div></div></div>
       </div>
     </div>
   </div>
@@ -267,7 +268,14 @@
 <script>
   const toggle = document.querySelector('.mobile-toggle');
   const nav = document.querySelector('nav');
-  if(toggle){ toggle.addEventListener('click',()=>{ const v=nav.style.display==='flex'; nav.style.display=v?'none':'flex'; nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;'; }); }
+  if(toggle && nav){
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click',()=>{
+      const abierto = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!abierto));
+      nav.style.cssText = abierto ? '' : 'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;';
+    });
+  }
   document.querySelectorAll('.faq-question').forEach(q=>{ q.addEventListener('click',()=>{ const item=q.closest('.faq-item'); const was=item.classList.contains('open'); document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open')); if(!was)item.classList.add('open'); }); });
 </script>
 </body>

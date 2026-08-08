@@ -56,6 +56,9 @@ const NAV_BASE = [
   { to: "/notas-credito", label: "Notas crédito", icon: FileX },
   { to: "/notas-debito",  label: "Notas débito",  icon: Receipt },
   { to: "/productos",    label: "Productos",    icon: Package },
+];
+
+const NAV_CONTABILIDAD = [
   { to: "/contabilidad", label: "Contabilidad", icon: BookOpen },
   { to: "/contabilidad/balance-prueba", label: "Balance de Prueba", icon: TrendingUp },
   { to: "/contabilidad/auxiliares",     label: "Auxiliares",        icon: BookOpen },
@@ -94,7 +97,9 @@ const NAV_BROTE = [
 // nómina del tenant, no por plan.features) — se muestra siempre a admin/contador, la propia
 // página resuelve el estado "sin nómina activa" si el tenant no tiene un plan de nómina.
 const NAV_NOMINA = [
-  { to: "/nomina/empleados", label: "Nómina · pruebas", icon: Wallet },
+  { to: "/nomina/empleados", label: "Empleados", icon: Users },
+  { to: "/nomina/periodos", label: "Períodos", icon: CalendarClock },
+  { to: "/nomina/mi-plan", label: "Plan de nómina", icon: Wallet },
 ];
 
 const NAV_COSECHA = [
@@ -341,7 +346,6 @@ export function AppLayout() {
             <SearchTrigger />
           </div>
           {NAV_BASE.map(({ to, label, icon: Icon, feature }) => {
-            if (to.startsWith("/contabilidad") && isVendedor) return null;
             if (feature) {
               const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
               if (!hasFeature && isContador) return null;
@@ -349,6 +353,20 @@ export function AppLayout() {
             }
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />;
           })}
+
+          {!isVendedor && (
+            <>
+              <NavSection label="Contabilidad" />
+              {NAV_CONTABILIDAD.map(({ to, label, icon: Icon, feature }) => {
+                if (feature) {
+                  const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
+                  if (!hasFeature && isContador) return null;
+                  return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
+                }
+                return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />;
+              })}
+            </>
+          )}
 
           {NAV_VENTAS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.cotizaciones === true;
@@ -387,9 +405,14 @@ export function AppLayout() {
             );
           })}
 
-          {!isVendedor && NAV_NOMINA.map(({ to, label, icon: Icon }) => (
-            <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to) || location.pathname.startsWith("/nomina/")} />
-          ))}
+          {!isVendedor && (
+            <>
+              <NavSection label="Nómina" />
+              {NAV_NOMINA.map(({ to, label, icon: Icon }) => (
+                <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
+              ))}
+            </>
+          )}
 
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
             if (isVendedor) return null;
@@ -876,6 +899,9 @@ function SoporteChat() {
   );
 }
 
+function NavSection({ label }: { label: string }) {
+  return <p className="mt-3 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>;
+}
 
 function NavItem({
   to,

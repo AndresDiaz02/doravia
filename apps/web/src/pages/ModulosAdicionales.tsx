@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShoppingCart, Receipt, Warehouse, TrendingUp, ToggleLeft, ToggleRight, Info, Monitor, Check, Zap } from "lucide-react";
+import { ShoppingCart, Receipt, Warehouse, TrendingUp, ToggleLeft, ToggleRight, Info, Monitor, Check, Zap, Wallet } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -60,6 +60,12 @@ const PLANES_POS: PlanPOS[] = [
     features: ["Multi-caja simultáneas", "Usuarios ilimitados", "3 bodegas", "Cuentas por pagar", "Libro diario y mayor"],
     destacado: true,
   },
+];
+
+const PLANES_NOMINA: PlanPOS[] = [
+  { slug: "nomina_semilla", nombre: "Nómina Semilla", precio: 99_000, features: ["36 documentos al año", "Empleados y contratos", "Períodos mensuales o quincenales", "Historial centralizado"] },
+  { slug: "nomina_raiz", nombre: "Nómina Raíz", precio: 230_000, features: ["120 documentos al año", "Cálculos por período", "Estado de emisión", "Soporte para crecer"], destacado: true },
+  { slug: "nomina_brote", nombre: "Nómina Brote", precio: 470_000, features: ["300 documentos al año", "Operación de nómina completa", "Documentos acumulables", "Conectada a tu empresa"] },
 ];
 
 interface CheckoutData {
@@ -229,6 +235,33 @@ export default function ModulosAdicionales() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-violet-600" />
+          <h2 className="font-semibold text-gray-800">Nómina electrónica</h2>
+        </div>
+        <p className="text-sm text-gray-500">
+          Contrátala sola o junto a ERP, POS o Facturación Electrónica. Conservas una sola empresa y los datos se conectan automáticamente.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PLANES_NOMINA.map((p) => (
+            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm ${p.destacado ? "border-violet-400 ring-1 ring-violet-200" : "border-gray-200"}`}>
+              {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
+              <div>
+                <p className="font-bold text-gray-900">{p.nombre}</p>
+                <p className="text-xl font-bold text-gray-800 mt-1">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1">/ año</span></p>
+              </div>
+              <ul className="flex-1 space-y-1.5">
+                {p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}
+              </ul>
+              <button onClick={() => void contratarPOS(p.slug)} disabled={pagando !== null} className="w-full rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 py-2.5 text-sm font-semibold text-white transition-colors">
+                {pagando === p.slug ? "Preparando pago…" : `Contratar ${p.nombre}`}
+              </button>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Add-ons ERP ─────────────────────────────────────────────────────── */}

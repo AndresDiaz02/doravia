@@ -1,6 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador } from "@workspace/db";
+import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador, pool_documentos_nomina_tenant } from "@workspace/db";
 import { completarRegistroPendiente } from "../services/auth.service.js";
 import { eq, sql, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
@@ -26,7 +26,7 @@ router.post("/checkout", authenticate, async (req, res) => {
     }
 
     // Protección de downgrade: solo se permiten upgrades o renovaciones del mismo plan
-    if (plan.product !== "pos") {
+    if (plan.product !== "pos" && plan.product !== "nomina") {
       const precioActual = req.tenant.plan.precio_anual_cop;
       if (plan.precio_anual_cop < precioActual) {
         return res.status(403).json({
@@ -165,6 +165,32 @@ router.post("/webhook", async (req, res) => {
       };
       await db.update(tenants).set({ addons }).where(eq(tenants.id, tenant.id));
       console.log(`POS addon activado (${planSlug}) para tenant ${tenant.id}`);
+    } else if (plan.product === "nomina") {
+      // Nómina es una suscripción independiente: no reemplaza el plan ERP, POS
+      // u Origen de la empresa. Todos los productos comparten el mismo tenant.
+      const documentosIncluidos = plan.document_limit ?? 999_999;
+      const fechaRenovacion = new Date(hoy);
+      fechaRenovacion.setFullYear(fechaRenovacion.getFullYear() + 1);
+
+      await db.insert(pool_documentos_nomina_tenant)
+        .values({
+          tenant_id: tenant.id,
+          plan_slug: planSlug,
+          documentos_incluidos: documentosIncluidos,
+          fecha_renovacion: fechaRenovacion.toISOString().slice(0, 10),
+          limite_acumulacion: documentosIncluidos * 2,
+        })
+        .onConflictDoUpdate({
+          target: pool_documentos_nomina_tenant.tenant_id,
+          set: {
+            plan_slug: planSlug,
+            documentos_incluidos: documentosIncluidos,
+            fecha_renovacion: fechaRenovacion.toISOString().slice(0, 10),
+            limite_acumulacion: documentosIncluidos * 2,
+            updated_at: new Date(),
+          },
+        });
+      console.log(`Nómina independiente activada (${planSlug}) para tenant ${tenant.id}`);
     } else {
       // Si ya tiene plan vigente, extender desde su fecha de vencimiento (no perder días)
       const inicioActual = new Date(tenant.plan_ends_at ?? hoy);

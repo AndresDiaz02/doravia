@@ -87,6 +87,7 @@ export const ventas_pos = pgTable("ventas_pos", {
   anulado_por: uuid("anulado_por"),
   anulado_en: timestamp("anulado_en", { withTimezone: true }),
   anulado_motivo: text("anulado_motivo"),
+  asiento_id: uuid("asiento_id").references(() => asientos_contables.id),
   observaciones: text("observaciones"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

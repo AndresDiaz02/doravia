@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos, facturas } from "@workspace/db";
+import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos, facturas, ventas_pos, items_venta_pos } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
 import { requireAccountingLevel, requireContableOperativo } from "../middleware/require-plan-feature.js";
-import { crearAsientoManual, crearAsientoFactura } from "../services/contabilidad.service.js";
+import { crearAsientoManual, crearAsientoFactura, crearAsientoVentaPOS } from "../services/contabilidad.service.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
@@ -43,7 +43,29 @@ router.post("/sincronizar-asientos", requireAccountingLevel(1), requireContableO
         errores.push({ factura_id: factura.id, numero: factura.numero, error: err instanceof Error ? err.message : "Error desconocido" });
       }
     }
-    res.json({ encontradas: pendientes.length, reparadas: reparadas.length, errores });
+    const condicionesPos = [eq(ventas_pos.tenant_id, req.tenantId), eq(ventas_pos.estado, "completada"), isNull(ventas_pos.asiento_id)];
+    if (desde) condicionesPos.push(gte(ventas_pos.created_at, new Date(desde)));
+    if (hasta) {
+      const fin = new Date(hasta);
+      fin.setHours(23, 59, 59, 999);
+      condicionesPos.push(lte(ventas_pos.created_at, fin));
+    }
+    const ventasPendientes = await db.select().from(ventas_pos).where(and(...condicionesPos)).limit(100);
+    for (const venta of ventasPendientes) {
+      try {
+        const [existente] = await db.select({ id: asientos_contables.id }).from(asientos_contables)
+          .where(and(eq(asientos_contables.tenant_id, req.tenantId), eq(asientos_contables.referencia_id, venta.id)))
+          .limit(1);
+        const [impuestosVenta] = await db.select({ impoconsumo: sum(items_venta_pos.impoconsumo_valor) })
+          .from(items_venta_pos).where(eq(items_venta_pos.venta_id, venta.id));
+        const asientoId = existente?.id ?? await crearAsientoVentaPOS(req.tenantId, venta, Number(impuestosVenta?.impoconsumo ?? 0));
+        await db.update(ventas_pos).set({ asiento_id: asientoId }).where(eq(ventas_pos.id, venta.id));
+        reparadas.push(venta.id);
+      } catch (err) {
+        errores.push({ factura_id: venta.id, numero: venta.numero, error: err instanceof Error ? err.message : "Error desconocido" });
+      }
+    }
+    res.json({ encontradas: pendientes.length + ventasPendientes.length, reparadas: reparadas.length, errores });
   } catch (err) {
     console.error("Error al sincronizar asientos:", err);
     res.status(500).json({ error: "No fue posible sincronizar los asientos automáticos." });
@@ -56,17 +78,19 @@ router.get("/cierre-mensual", async (req, res) => {
     const hoy = new Date().toISOString().slice(0, 10);
     const desde = (req.query.desde as string | undefined) ?? `${hoy.slice(0, 7)}-01`;
     const hasta = (req.query.hasta as string | undefined) ?? hoy;
-    const [pendientesPago, sinAsiento, facturasSinAsiento, periodosAbiertos] = await Promise.all([
+    const [pendientesPago, sinAsiento, facturasSinAsiento, ventasPosSinAsiento, periodosAbiertos] = await Promise.all([
       db.select({ id: gastos.id, descripcion: gastos.descripcion, total: gastos.total, fecha_vencimiento: gastos.fecha_vencimiento })
         .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.pagado_at))),
       db.select({ id: gastos.id, descripcion: gastos.descripcion, fecha: gastos.fecha })
         .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.asiento_id), gte(gastos.fecha, desde), lte(gastos.fecha, hasta))),
       db.select({ id: facturas.id, numero: facturas.numero, fecha_emision: facturas.fecha_emision })
         .from(facturas).where(and(eq(facturas.tenant_id, req.tenantId), eq(facturas.estado, "aceptada"), isNull(facturas.asiento_id), gte(facturas.fecha_emision, new Date(desde)), lte(facturas.fecha_emision, new Date(`${hasta}T23:59:59.999Z`)))),
+      db.select({ id: ventas_pos.id, numero: ventas_pos.numero, created_at: ventas_pos.created_at })
+        .from(ventas_pos).where(and(eq(ventas_pos.tenant_id, req.tenantId), eq(ventas_pos.estado, "completada"), isNull(ventas_pos.asiento_id), gte(ventas_pos.created_at, new Date(desde)), lte(ventas_pos.created_at, new Date(`${hasta}T23:59:59.999Z`)))),
       db.select({ id: periodos_contables.id, nombre: periodos_contables.nombre, fecha_inicio: periodos_contables.fecha_inicio, fecha_fin: periodos_contables.fecha_fin })
         .from(periodos_contables).where(and(eq(periodos_contables.tenant_id, req.tenantId), eq(periodos_contables.estado, "abierto"), lte(periodos_contables.fecha_inicio, hasta), gte(periodos_contables.fecha_fin, desde))),
     ]);
-    res.json({ periodo: { desde, hasta }, resumen: { cuentas_por_pagar: pendientesPago.length, gastos_sin_asiento: sinAsiento.length, facturas_sin_asiento: facturasSinAsiento.length, periodos_abiertos: periodosAbiertos.length }, pendientes_pago: pendientesPago, gastos_sin_asiento: sinAsiento, facturas_sin_asiento: facturasSinAsiento, periodos_abiertos: periodosAbiertos });
+    res.json({ periodo: { desde, hasta }, resumen: { cuentas_por_pagar: pendientesPago.length, gastos_sin_asiento: sinAsiento.length, facturas_sin_asiento: facturasSinAsiento.length, ventas_pos_sin_asiento: ventasPosSinAsiento.length, periodos_abiertos: periodosAbiertos.length }, pendientes_pago: pendientesPago, gastos_sin_asiento: sinAsiento, facturas_sin_asiento: facturasSinAsiento, ventas_pos_sin_asiento: ventasPosSinAsiento, periodos_abiertos: periodosAbiertos });
   } catch (err) {
     console.error("Error en GET /cierre-mensual:", err);
     res.status(500).json({ error: "Error interno del servidor." });

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { db, gastos, proveedores } from "@workspace/db";
 import { eq, and, desc, isNull, lt } from "drizzle-orm";
-import { crearAsientoGasto, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
-import { requireNotContador } from "../middleware/require-plan-feature.js";
+import { crearAsientoGasto, crearAsientoPagoProveedor, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.get("/proveedores", async (req, res) => {
   res.json(rows);
 });
 
-router.post("/proveedores", requireNotContador, async (req, res) => {
+router.post("/proveedores", requireContableOperativo, async (req, res) => {
   const { nombre, tipo_documento, nit, correo, telefono, direccion, ciudad, persona_contacto, terminos_pago, observaciones } = req.body;
   if (!nombre) return res.status(400).json({ error: "Campo requerido: nombre." });
 
@@ -180,7 +180,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST /api/gastos
-router.post("/", requireNotContador, async (req, res) => {
+router.post("/", requireContableOperativo, async (req, res) => {
   const {
     proveedor_id, categoria, descripcion, monto, iva,
     fecha, fecha_vencimiento, observaciones,
@@ -229,7 +229,7 @@ router.post("/", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/gastos/:id
-router.patch("/:id", requireNotContador, async (req, res) => {
+router.patch("/:id", requireContableOperativo, async (req, res) => {
   const [gasto] = await db
     .select()
     .from(gastos)
@@ -286,7 +286,7 @@ router.patch("/:id", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/gastos/:id/pagar
-router.patch("/:id/pagar", requireNotContador, async (req, res) => {
+router.patch("/:id/pagar", requireContableOperativo, async (req, res) => {
   const [gasto] = await db
     .select()
     .from(gastos)
@@ -296,6 +296,20 @@ router.patch("/:id/pagar", requireNotContador, async (req, res) => {
   if (!gasto) return res.status(404).json({ error: "Gasto no encontrado." });
   if (gasto.estado === "pagado") {
     return res.status(422).json({ error: "El gasto ya está marcado como pagado." });
+  }
+
+  if (gasto.estado !== "aprobado" || !gasto.asiento_id) {
+    return res.status(422).json({ error: "Primero aprueba el gasto y verifica que tenga su asiento de causación antes de pagarlo." });
+  }
+  if (!gasto.proveedor_id) {
+    return res.status(422).json({ error: "Este gasto fue registrado como pago directo; no tiene una cuenta por pagar a cancelar." });
+  }
+  const fechaPago = typeof req.body?.fecha === "string" ? req.body.fecha.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const medio = req.body?.medio === "efectivo" ? "efectivo" : "banco";
+  try {
+    await crearAsientoPagoProveedor(req.tenantId, gasto, fechaPago, medio);
+  } catch (err) {
+    return res.status((err as { status?: number })?.status ?? 422).json({ error: err instanceof Error ? err.message : "No fue posible registrar el pago." });
   }
 
   const [actualizado] = await db

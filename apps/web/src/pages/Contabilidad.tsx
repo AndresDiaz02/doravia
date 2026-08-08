@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Lock, FileDown } from "lucide-react";
 
-type Tab = "diario" | "mayor" | "balance" | "resultados" | "cierre";
+type Tab = "diario" | "mayor" | "balance" | "resultados" | "ajustes" | "control" | "cierre";
 
 interface Asiento {
   id: string;
@@ -27,6 +27,7 @@ interface Cuenta {
   nombre: string;
   tipo: string;
   naturaleza: string;
+  nivel?: number;
 }
 
 interface Movimiento {
@@ -72,6 +73,16 @@ interface EstadoResultadosResp {
   };
 }
 
+interface CierreMensualResp {
+  periodo: { desde: string; hasta: string };
+  resumen: { cuentas_por_pagar: number; gastos_sin_asiento: number; periodos_abiertos: number };
+  pendientes_pago: { id: string; descripcion: string; total: string; fecha_vencimiento: string | null }[];
+  gastos_sin_asiento: { id: string; descripcion: string; fecha: string }[];
+  periodos_abiertos: { id: string; nombre: string; fecha_inicio: string; fecha_fin: string }[];
+}
+
+type LineaAjuste = { cuenta_id: string; descripcion: string; debito: string; credito: string };
+
 export function Contabilidad() {
   const { plan } = useAuth();
   const hoy = new Date();
@@ -108,6 +119,18 @@ export function Contabilidad() {
   const [cierreMensaje, setCierreMensaje] = useState<string | null>(null);
   const [cierreError, setCierreError] = useState<string | null>(null);
   const [ejecutandoCierre, setEjecutandoCierre] = useState(false);
+
+  const [lineasAjuste, setLineasAjuste] = useState<LineaAjuste[]>([
+    { cuenta_id: "", descripcion: "", debito: "", credito: "" },
+    { cuenta_id: "", descripcion: "", debito: "", credito: "" },
+  ]);
+  const [fechaAjuste, setFechaAjuste] = useState(hoyStr);
+  const [descripcionAjuste, setDescripcionAjuste] = useState("");
+  const [ajusteMensaje, setAjusteMensaje] = useState<string | null>(null);
+  const [ajusteError, setAjusteError] = useState<string | null>(null);
+  const [guardandoAjuste, setGuardandoAjuste] = useState(false);
+  const [controlCierre, setControlCierre] = useState<CierreMensualResp | null>(null);
+  const [loadingControl, setLoadingControl] = useState(false);
 
   useEffect(() => {
     void apiFetch<Cuenta[]>("/api/contabilidad/cuentas").then(setCuentas);
@@ -161,6 +184,37 @@ export function Contabilidad() {
     }
   }
 
+  async function guardarAjuste() {
+    setAjusteMensaje(null);
+    setAjusteError(null);
+    setGuardandoAjuste(true);
+    try {
+      const resp = await apiFetch<{ mensaje: string }>("/api/contabilidad/asientos", {
+        method: "POST",
+        body: JSON.stringify({
+          fecha: fechaAjuste,
+          descripcion: descripcionAjuste,
+          lineas: lineasAjuste.map((l) => ({ ...l, debito: Number(l.debito || 0), credito: Number(l.credito || 0) })),
+        }),
+      });
+      setAjusteMensaje(resp.mensaje);
+      setDescripcionAjuste("");
+      setLineasAjuste([{ cuenta_id: "", descripcion: "", debito: "", credito: "" }, { cuenta_id: "", descripcion: "", debito: "", credito: "" }]);
+    } catch (err) {
+      setAjusteError(err instanceof ApiError ? err.message : "No fue posible guardar el ajuste.");
+    } finally {
+      setGuardandoAjuste(false);
+    }
+  }
+
+  function cargarControlCierre() {
+    setLoadingControl(true);
+    void apiFetch<CierreMensualResp>(`/api/contabilidad/cierre-mensual?desde=${desde}&hasta=${hasta}`)
+      .then(setControlCierre)
+      .catch(() => setControlCierre(null))
+      .finally(() => setLoadingControl(false));
+  }
+
   useEffect(() => {
     if (tab === "diario") cargarDiario();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,6 +265,12 @@ export function Contabilidad() {
         >
           Estado de resultados
         </TabBtn>
+        <TabBtn active={tab === "ajustes"} onClick={() => setTab("ajustes")}>
+          Ajuste manual
+        </TabBtn>
+        <TabBtn active={tab === "control"} onClick={() => setTab("control")}>
+          Control de cierre
+        </TabBtn>
         <TabBtn
           active={tab === "cierre"}
           onClick={() => hasLevel2 && setTab("cierre")}
@@ -222,7 +282,7 @@ export function Contabilidad() {
 
       {/* Filtros de fecha comunes */}
       <div className="flex items-end gap-3 flex-wrap">
-        {tab === "balance" ? (
+        {tab === "ajustes" ? null : tab === "balance" ? (
           <>
             <div className="space-y-1.5">
               <Label>Corte</Label>
@@ -275,6 +335,11 @@ export function Contabilidad() {
             {tab === "resultados" && (
               <Button variant="secondary" onClick={cargarEstadoResultados} disabled={loadingEstado}>
                 {loadingEstado ? "Calculando…" : "Consultar"}
+              </Button>
+            )}
+            {tab === "control" && (
+              <Button variant="secondary" onClick={cargarControlCierre} disabled={loadingControl}>
+                {loadingControl ? "Revisando…" : "Revisar pendientes"}
               </Button>
             )}
           </>
@@ -477,6 +542,58 @@ export function Contabilidad() {
         </div>
       )}
 
+      {/* Ajustes manuales */}
+      {tab === "ajustes" && (
+        <Card>
+          <CardHeader><CardTitle>Nuevo ajuste contable</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-500">Registra únicamente ajustes con soporte. Doravia valida la partida doble y bloquea periodos cerrados.</p>
+            <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+              <div className="space-y-1.5"><Label>Fecha</Label><Input type="date" value={fechaAjuste} onChange={(e) => setFechaAjuste(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Descripción</Label><Input value={descripcionAjuste} onChange={(e) => setDescripcionAjuste(e.target.value)} placeholder="Ej. Ajuste de depreciación con soporte" maxLength={250} /></div>
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="bg-gray-50 text-gray-500"><tr><th className="p-2 text-left">Cuenta</th><th className="p-2 text-left">Detalle</th><th className="p-2 text-right">Débito</th><th className="p-2 text-right">Crédito</th><th /></tr></thead>
+                <tbody>
+                  {lineasAjuste.map((linea, index) => (
+                    <tr key={index} className="border-t">
+                      <td className="p-2"><select value={linea.cuenta_id} onChange={(e) => setLineasAjuste((prev) => prev.map((l, i) => i === index ? { ...l, cuenta_id: e.target.value } : l))} className="w-full rounded border px-2 py-1.5"><option value="">Seleccionar</option>{cuentas.filter((c) => Number((c as Cuenta & { nivel?: number }).nivel ?? 3) >= 3).map((c) => <option key={c.id} value={c.id}>{c.codigo} — {c.nombre}</option>)}</select></td>
+                      <td className="p-2"><Input value={linea.descripcion} onChange={(e) => setLineasAjuste((prev) => prev.map((l, i) => i === index ? { ...l, descripcion: e.target.value } : l))} /></td>
+                      <td className="p-2"><Input inputMode="decimal" value={linea.debito} onChange={(e) => setLineasAjuste((prev) => prev.map((l, i) => i === index ? { ...l, debito: e.target.value, credito: e.target.value ? "" : l.credito } : l))} /></td>
+                      <td className="p-2"><Input inputMode="decimal" value={linea.credito} onChange={(e) => setLineasAjuste((prev) => prev.map((l, i) => i === index ? { ...l, credito: e.target.value, debito: e.target.value ? "" : l.debito } : l))} /></td>
+                      <td className="p-2">{lineasAjuste.length > 2 && <button className="text-red-600" onClick={() => setLineasAjuste((prev) => prev.filter((_, i) => i !== index))}>Quitar</button>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center justify-between gap-3"><Button variant="secondary" onClick={() => setLineasAjuste((prev) => [...prev, { cuenta_id: "", descripcion: "", debito: "", credito: "" }])}>Agregar línea</Button><Button onClick={() => void guardarAjuste()} disabled={guardandoAjuste}>{guardandoAjuste ? "Guardando…" : "Registrar ajuste"}</Button></div>
+            {ajusteMensaje && <p className="rounded bg-green-50 p-3 text-sm text-green-800">{ajusteMensaje}</p>}
+            {ajusteError && <p className="rounded bg-red-50 p-3 text-sm text-red-700">{ajusteError}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lista de control mensual */}
+      {tab === "control" && (
+        <div className="space-y-4">
+          {!controlCierre && !loadingControl && <p className="text-sm text-gray-500">Selecciona el periodo y presiona «Revisar pendientes».</p>}
+          {controlCierre && <>
+            <div className="grid gap-3 md:grid-cols-3">
+              <ControlCard label="Cuentas por pagar" value={controlCierre.resumen.cuentas_por_pagar} />
+              <ControlCard label="Gastos sin asiento" value={controlCierre.resumen.gastos_sin_asiento} />
+              <ControlCard label="Periodos abiertos" value={controlCierre.resumen.periodos_abiertos} />
+            </div>
+            <Card><CardHeader><CardTitle>Pendientes para el cierre</CardTitle></CardHeader><CardContent className="space-y-4 text-sm">
+              <ControlList title="Cuentas por pagar" items={controlCierre.pendientes_pago.map((p) => `${p.descripcion} — ${cop(p.total)}${p.fecha_vencimiento ? ` · vence ${p.fecha_vencimiento}` : ""}`)} />
+              <ControlList title="Gastos aprobados sin asiento" items={controlCierre.gastos_sin_asiento.map((g) => `${g.fecha} — ${g.descripcion}`)} />
+              <ControlList title="Periodos abiertos" items={controlCierre.periodos_abiertos.map((p) => `${p.nombre}: ${p.fecha_inicio} a ${p.fecha_fin}`)} />
+            </CardContent></Card>
+          </>}
+        </div>
+      )}
+
       {/* Cierre Anual */}
       {tab === "cierre" && !hasLevel2 && <PlanUpgradeNotice feature="Cierre de ejercicio anual" />}
       {tab === "cierre" && hasLevel2 && (
@@ -549,6 +666,14 @@ function CuentasSaldoTable({ filas, total }: { filas: CuentaSaldo[]; total: numb
       </tfoot>
     </table>
   );
+}
+
+function ControlCard({ label, value }: { label: string; value: number }) {
+  return <Card><CardContent className="p-4"><p className="text-sm text-gray-500">{label}</p><p className={"mt-1 text-2xl font-semibold " + (value ? "text-amber-700" : "text-green-700")}>{value}</p></CardContent></Card>;
+}
+
+function ControlList({ title, items }: { title: string; items: string[] }) {
+  return <div><p className="font-medium text-gray-800">{title}</p>{items.length ? <ul className="mt-1 list-disc space-y-1 pl-5 text-gray-600">{items.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className="mt-1 text-green-700">Sin pendientes.</p>}</div>;
 }
 
 function PlanUpgradeNotice({ feature }: { feature: string }) {

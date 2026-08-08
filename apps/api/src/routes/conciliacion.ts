@@ -11,7 +11,7 @@ import {
   cuentas_contables,
 } from "@workspace/db";
 import { eq, and, between, sql } from "drizzle-orm";
-import { requireNotContador } from "../middleware/require-plan-feature.js";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -27,8 +27,7 @@ router.get("/cuentas", async (req, res) => {
   res.json(cuentas);
 });
 
-router.post("/cuentas", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden crear cuentas bancarias." });
+router.post("/cuentas", requireContableOperativo, async (req, res) => {
   const { nombre, banco, numero_cuenta, cuenta_contable_id } = req.body as {
     nombre: string; banco: string; numero_cuenta?: string; cuenta_contable_id?: string;
   };
@@ -45,8 +44,7 @@ router.post("/cuentas", requireNotContador, async (req, res) => {
   res.status(201).json(nueva);
 });
 
-router.patch("/cuentas/:id", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden editar cuentas bancarias." });
+router.patch("/cuentas/:id", requireContableOperativo, async (req, res) => {
   const { nombre, banco, numero_cuenta, cuenta_contable_id, activa } = req.body as {
     nombre?: string; banco?: string; numero_cuenta?: string; cuenta_contable_id?: string; activa?: boolean;
   };
@@ -84,8 +82,7 @@ router.get("/", async (req, res) => {
   res.json(lista);
 });
 
-router.post("/", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden crear conciliaciones." });
+router.post("/", requireContableOperativo, async (req, res) => {
   const { cuenta_bancaria_id, fecha_desde, fecha_hasta, saldo_inicial_banco, saldo_final_banco } = req.body as {
     cuenta_bancaria_id: string; fecha_desde: string; fecha_hasta: string;
     saldo_inicial_banco: number; saldo_final_banco: number;
@@ -134,7 +131,7 @@ router.get("/:id/movimientos", async (req, res) => {
 });
 
 // POST /api/conciliacion/:id/movimientos — agregar movimiento manual
-router.post("/:id/movimientos", requireNotContador, async (req, res) => {
+router.post("/:id/movimientos", requireContableOperativo, async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación está cerrada." });
@@ -158,9 +155,7 @@ router.post("/:id/movimientos", requireNotContador, async (req, res) => {
 });
 
 // POST /api/conciliacion/:id/importar — CSV/Excel con mapeo de columnas
-router.post("/:id/importar", requireNotContador, upload.single("archivo"), async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden importar extractos." });
-
+router.post("/:id/importar", requireContableOperativo, upload.single("archivo"), async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación está cerrada." });
@@ -253,8 +248,7 @@ router.post("/:id/importar", requireNotContador, upload.single("archivo"), async
 });
 
 // DELETE movimiento (solo si pendiente)
-router.delete("/:id/movimientos/:movId", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden eliminar movimientos." });
+router.delete("/:id/movimientos/:movId", requireContableOperativo, async (req, res) => {
   const [mov] = await db.select().from(movimientos_banco)
     .where(and(eq(movimientos_banco.id, req.params.movId), eq(movimientos_banco.conciliacion_id, req.params.id)));
   if (!mov) return res.status(404).json({ error: "Movimiento no encontrado." });
@@ -357,9 +351,7 @@ router.get("/:id/sugerencias", async (req, res) => {
 });
 
 // POST /api/conciliacion/:id/match — confirmar pareja
-router.post("/:id/match", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden confirmar matches." });
-
+router.post("/:id/match", requireContableOperativo, async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación está cerrada." });
@@ -397,9 +389,7 @@ router.post("/:id/match", requireNotContador, async (req, res) => {
 });
 
 // DELETE /api/conciliacion/:id/match/:movId — deshacer match
-router.delete("/:id/match/:movId", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden deshacer matches." });
-
+router.delete("/:id/match/:movId", requireContableOperativo, async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación está cerrada." });
@@ -507,9 +497,7 @@ router.get("/:id/resumen", async (req, res) => {
 });
 
 // PATCH /api/conciliacion/:id/cerrar — bloquea cambios
-router.patch("/:id/cerrar", requireNotContador, async (req, res) => {
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden cerrar conciliaciones." });
-
+router.patch("/:id/cerrar", requireContableOperativo, async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación ya está cerrada." });

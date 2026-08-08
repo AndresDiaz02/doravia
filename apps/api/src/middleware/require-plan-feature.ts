@@ -19,6 +19,21 @@ export function requireNotContador(req: Request, res: Response, next: NextFuncti
 }
 
 /**
+ * Permite que el administrador y el contador trabajen en procesos contables.
+ * Se usa solamente en rutas financieras: no concede acceso a usuarios,
+ * suscripciones, configuración DIAN ni acciones comerciales.
+ */
+export function requireContableOperativo(req: Request, res: Response, next: NextFunction) {
+  if (!["admin", "contador"].includes(req.userRole)) {
+    return res.status(403).json({
+      error: "Esta operación requiere el rol Administrador o Contador.",
+      code: "ACCOUNTING_ROLE_REQUIRED",
+    });
+  }
+  next();
+}
+
+/**
  * Mecanismo 1 — bloqueo de módulos completos.
  *
  * Uso en rutas:

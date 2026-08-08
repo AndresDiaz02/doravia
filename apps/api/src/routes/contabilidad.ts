@@ -1,10 +1,43 @@
 import { Router } from "express";
-import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
+import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
-import { requireAccountingLevel, requireNotContador } from "../middleware/require-plan-feature.js";
+import { requireAccountingLevel, requireContableOperativo } from "../middleware/require-plan-feature.js";
+import { crearAsientoManual } from "../services/contabilidad.service.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
+
+// POST /api/contabilidad/asientos — ajustes manuales con partida doble.
+router.post("/asientos", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
+  try {
+    const id = await crearAsientoManual(req.tenantId, req.body);
+    res.status(201).json({ id, mensaje: "Asiento manual registrado correctamente." });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "No fue posible registrar el asiento.";
+    res.status((err as { status?: number })?.status ?? 422).json({ error: message });
+  }
+});
+
+// GET /api/contabilidad/cierre-mensual — lista de control, no cierra ni altera información.
+router.get("/cierre-mensual", async (req, res) => {
+  try {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const desde = (req.query.desde as string | undefined) ?? `${hoy.slice(0, 7)}-01`;
+    const hasta = (req.query.hasta as string | undefined) ?? hoy;
+    const [pendientesPago, sinAsiento, periodosAbiertos] = await Promise.all([
+      db.select({ id: gastos.id, descripcion: gastos.descripcion, total: gastos.total, fecha_vencimiento: gastos.fecha_vencimiento })
+        .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.pagado_at))),
+      db.select({ id: gastos.id, descripcion: gastos.descripcion, fecha: gastos.fecha })
+        .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.asiento_id), gte(gastos.fecha, desde), lte(gastos.fecha, hasta))),
+      db.select({ id: periodos_contables.id, nombre: periodos_contables.nombre, fecha_inicio: periodos_contables.fecha_inicio, fecha_fin: periodos_contables.fecha_fin })
+        .from(periodos_contables).where(and(eq(periodos_contables.tenant_id, req.tenantId), eq(periodos_contables.estado, "abierto"), lte(periodos_contables.fecha_inicio, hasta), gte(periodos_contables.fecha_fin, desde))),
+    ]);
+    res.json({ periodo: { desde, hasta }, resumen: { cuentas_por_pagar: pendientesPago.length, gastos_sin_asiento: sinAsiento.length, periodos_abiertos: periodosAbiertos.length }, pendientes_pago: pendientesPago, gastos_sin_asiento: sinAsiento, periodos_abiertos: periodosAbiertos });
+  } catch (err) {
+    console.error("Error en GET /cierre-mensual:", err);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
 
 // Libro diario — todos los asientos del periodo con sus líneas
 router.get("/diario", async (req, res) => {
@@ -339,7 +372,7 @@ router.get("/periodos", async (req, res) => {
 });
 
 // POST /api/contabilidad/periodos
-router.post("/periodos", requireNotContador, async (req, res) => {
+router.post("/periodos", requireContableOperativo, async (req, res) => {
   try {
     const { nombre, tipo, fecha_inicio, fecha_fin } = req.body;
     if (!nombre || !fecha_inicio || !fecha_fin) {
@@ -366,7 +399,7 @@ router.post("/periodos", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/contabilidad/periodos/:id/cerrar
-router.patch("/periodos/:id/cerrar", requireNotContador, async (req, res) => {
+router.patch("/periodos/:id/cerrar", requireContableOperativo, async (req, res) => {
   try {
     const [periodo] = await db
       .select()
@@ -391,7 +424,7 @@ router.patch("/periodos/:id/cerrar", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/contabilidad/periodos/:id/reabrir
-router.patch("/periodos/:id/reabrir", requireNotContador, async (req, res) => {
+router.patch("/periodos/:id/reabrir", requireContableOperativo, async (req, res) => {
   try {
     const [periodo] = await db
       .select()
@@ -722,7 +755,7 @@ router.get("/plan-cuentas", requireAccountingLevel(1), async (req, res) => {
 
 // POST /api/contabilidad/plan-cuentas
 // Crea una cuenta propia del tenant (nivel 4+ recomendado)
-router.post("/plan-cuentas", requireAccountingLevel(1), requireNotContador, async (req, res) => {
+router.post("/plan-cuentas", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { codigo, nombre, tipo, naturaleza, nivel, padre_id } = req.body as {
       codigo?: string;
@@ -782,7 +815,7 @@ router.post("/plan-cuentas", requireAccountingLevel(1), requireNotContador, asyn
 
 // PATCH /api/contabilidad/plan-cuentas/:id
 // Edita nombre o activo — solo para cuentas propias del tenant
-router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireNotContador, async (req, res) => {
+router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const [cuenta] = await db
       .select()
@@ -821,7 +854,7 @@ router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireNotContador,
 // POST /api/contabilidad/cierre-anual
 // Cierra el ejercicio anual: crea asiento de cierre de cuentas de resultado.
 // Solo admins. El año debe tener todos los períodos mensuales cerrados.
-router.post("/cierre-anual", requireNotContador, async (req, res) => {
+router.post("/cierre-anual", requireContableOperativo, async (req, res) => {
   try {
     const { ano } = req.body as { ano?: number };
     if (!ano || isNaN(Number(ano))) {
@@ -830,7 +863,7 @@ router.post("/cierre-anual", requireNotContador, async (req, res) => {
     const anoNum = Number(ano);
 
     // Solo admin puede hacer cierre anual
-    if (req.userRole !== "admin") {
+    if (!["admin", "contador"].includes(req.userRole)) {
       return res.status(403).json({ error: "Solo el administrador puede realizar el cierre anual." });
     }
 

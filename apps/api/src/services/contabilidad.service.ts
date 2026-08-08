@@ -1,5 +1,5 @@
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
-import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
 /**
@@ -104,6 +104,87 @@ async function getConsecutivoAsiento(tenantId: string, anio: number): Promise<st
 
   const seq = String(Number(value) + 1).padStart(5, "0");
   return `AC-${anio}-${seq}`;
+}
+
+export type LineaManualContable = {
+  cuenta_id: string;
+  descripcion?: string;
+  debito?: number;
+  credito?: number;
+};
+
+/** Crea un ajuste de partida doble validado antes de persistirlo. */
+export async function crearAsientoManual(
+  tenantId: string,
+  datos: { fecha: string; descripcion: string; lineas: LineaManualContable[] },
+): Promise<string> {
+  const fecha = datos.fecha?.slice(0, 10);
+  if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw new Error("La fecha del asiento no es válida.");
+  if (!datos.descripcion?.trim()) throw new Error("La descripción del asiento es obligatoria.");
+  if (!Array.isArray(datos.lineas) || datos.lineas.length < 2) throw new Error("El asiento debe tener al menos dos líneas.");
+
+  const lineas = datos.lineas.map((linea) => ({
+    cuenta_id: linea.cuenta_id,
+    descripcion: linea.descripcion?.trim() || null,
+    debito: Number(linea.debito ?? 0),
+    credito: Number(linea.credito ?? 0),
+  }));
+  if (lineas.some((l) => !l.cuenta_id || !Number.isFinite(l.debito) || !Number.isFinite(l.credito) || l.debito < 0 || l.credito < 0 || (l.debito === 0 && l.credito === 0) || (l.debito > 0 && l.credito > 0))) {
+    throw new Error("Cada línea debe tener una cuenta y un único valor en débito o crédito.");
+  }
+  const totalDebito = lineas.reduce((total, l) => total + l.debito, 0);
+  const totalCredito = lineas.reduce((total, l) => total + l.credito, 0);
+  if (Math.abs(totalDebito - totalCredito) > 0.009) throw new Error("El total débito debe ser igual al total crédito.");
+
+  await verificarPeriodoCerrado(tenantId, fecha);
+  const cuentas = await db.select().from(cuentas_contables).where(and(
+    inArray(cuentas_contables.id, lineas.map((l) => l.cuenta_id)),
+    eq(cuentas_contables.activo, true),
+    or(eq(cuentas_contables.tenant_id, tenantId), isNull(cuentas_contables.tenant_id)),
+  ));
+  if (cuentas.length !== new Set(lineas.map((l) => l.cuenta_id)).size) throw new Error("Una o más cuentas no existen, no pertenecen a la empresa o están inactivas.");
+  if (cuentas.some((cuenta) => cuenta.nivel < 3)) throw new Error("Selecciona cuentas auxiliares o de detalle para registrar movimientos.");
+
+  const numero = await getConsecutivoAsiento(tenantId, Number(fecha.slice(0, 4)));
+  return db.transaction(async (tx) => {
+    const [asiento] = await tx.insert(asientos_contables).values({
+      tenant_id: tenantId,
+      numero,
+      fecha,
+      descripcion: `Ajuste manual: ${datos.descripcion.trim()}`.slice(0, 300),
+      origen: "manual",
+    }).returning();
+    await tx.insert(lineas_asiento).values(lineas.map((linea) => ({
+      asiento_id: asiento.id,
+      cuenta_id: linea.cuenta_id,
+      descripcion: linea.descripcion?.slice(0, 200) ?? null,
+      debito: linea.debito.toFixed(2),
+      credito: linea.credito.toFixed(2),
+    })));
+    return asiento.id;
+  });
+}
+
+/** Registra el pago de una cuenta por pagar ya causada contra caja o bancos. */
+export async function crearAsientoPagoProveedor(tenantId: string, gasto: Gasto, fecha: string, medio = "banco"): Promise<string> {
+  await verificarPeriodoCerrado(tenantId, fecha);
+  if (!gasto.proveedor_id) throw new Error("Solo los gastos asociados a un proveedor pueden pagarse como cuenta por pagar.");
+  const cuentaPagoCodigo = medio === "efectivo" ? CODIGOS.CAJA : CODIGOS.BANCOS;
+  const [proveedoresCuenta, cuentaPago] = await Promise.all([
+    getCuenta(tenantId, CODIGOS.PROVEEDORES),
+    getCuenta(tenantId, cuentaPagoCodigo),
+  ]);
+  const numero = await getConsecutivoAsiento(tenantId, Number(fecha.slice(0, 4)));
+  const [asiento] = await db.insert(asientos_contables).values({
+    tenant_id: tenantId, numero, fecha,
+    descripcion: `Pago a proveedor: ${gasto.descripcion}`.slice(0, 300),
+    origen: "pago", referencia_id: gasto.id,
+  }).returning();
+  await db.insert(lineas_asiento).values([
+    { asiento_id: asiento.id, cuenta_id: proveedoresCuenta.id, descripcion: "Cancelación cuenta por pagar", debito: String(gasto.total), credito: "0" },
+    { asiento_id: asiento.id, cuenta_id: cuentaPago.id, descripcion: medio === "efectivo" ? "Pago desde caja" : "Pago desde bancos", debito: "0", credito: String(gasto.total) },
+  ]);
+  return asiento.id;
 }
 
 /**

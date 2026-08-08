@@ -4,7 +4,7 @@ import {
   centros_costos, tenants, nomina_config_global, documentos_soporte_nomina,
 } from "@workspace/db";
 import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
-import { requireNotContador } from "../middleware/require-plan-feature.js";
+import { requireContableOperativo } from "../middleware/require-plan-feature.js";
 import { encrypt, decrypt } from "../services/encryption.js";
 import { TIPOS_CONTRATO, ESTADOS_EMPLEADO } from "@workspace/db";
 import { calcularPeriodo, aprobarPeriodo, emitirPeriodo, NominaEstadoError } from "../services/nomina.service.js";
@@ -82,7 +82,7 @@ router.get("/empleados/:id", async (req, res) => {
 });
 
 // POST /api/nomina/empleados
-router.post("/empleados", requireNotContador, async (req, res) => {
+router.post("/empleados", requireContableOperativo, async (req, res) => {
   try {
     const {
       cedula, nombres, apellidos, cargo, fecha_ingreso,
@@ -143,7 +143,7 @@ router.post("/empleados", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/nomina/empleados/:id
-router.patch("/empleados/:id", requireNotContador, async (req, res) => {
+router.patch("/empleados/:id", requireContableOperativo, async (req, res) => {
   try {
     const [row] = await db.select({ id: empleados.id }).from(empleados)
       .where(and(eq(empleados.id, req.params.id), eq(empleados.tenant_id, req.tenantId))).limit(1);
@@ -183,7 +183,7 @@ router.patch("/empleados/:id", requireNotContador, async (req, res) => {
 });
 
 // PATCH /api/nomina/empleados/:id/retirar
-router.patch("/empleados/:id/retirar", requireNotContador, async (req, res) => {
+router.patch("/empleados/:id/retirar", requireContableOperativo, async (req, res) => {
   try {
     const { fecha_retiro } = req.body as { fecha_retiro?: string };
     if (!fecha_retiro) return res.status(400).json({ error: "fecha_retiro es requerida." });
@@ -210,7 +210,7 @@ router.patch("/empleados/:id/retirar", requireNotContador, async (req, res) => {
 });
 
 // DELETE /api/nomina/empleados/:id — solo si no tiene nóminas procesadas
-router.delete("/empleados/:id", requireNotContador, async (req, res) => {
+router.delete("/empleados/:id", requireContableOperativo, async (req, res) => {
   try {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede eliminar empleados." });
@@ -259,7 +259,7 @@ router.get("/empleados/:empleadoId/contratos", async (req, res) => {
 });
 
 // POST /api/nomina/empleados/:empleadoId/contratos — nuevo contrato, cierra el vigente
-router.post("/empleados/:empleadoId/contratos", requireNotContador, async (req, res) => {
+router.post("/empleados/:empleadoId/contratos", requireContableOperativo, async (req, res) => {
   try {
     const [emp] = await db.select({ id: empleados.id }).from(empleados)
       .where(and(eq(empleados.id, req.params.empleadoId), eq(empleados.tenant_id, req.tenantId))).limit(1);
@@ -367,7 +367,7 @@ router.get("/periodos/:id", async (req, res) => {
 });
 
 // POST /api/nomina/periodos — crea el período en borrador
-router.post("/periodos", requireNotContador, async (req, res) => {
+router.post("/periodos", requireContableOperativo, async (req, res) => {
   try {
     const { ano, mes, quincena } = req.body as { ano?: number; mes?: number; quincena?: number | null };
     if (!ano || !mes) return res.status(400).json({ error: "Campos requeridos: ano, mes." });
@@ -411,7 +411,7 @@ function manejarErrorEstado(err: unknown, res: import("express").Response): bool
 
 // POST /api/nomina/periodos/:id/calcular — calcula/recalcula la nómina de todos los
 // empleados activos del período. No consume pool (chequeo de saldo es solo en /emitir).
-router.post("/periodos/:id/calcular", requireNotContador, async (req, res) => {
+router.post("/periodos/:id/calcular", requireContableOperativo, async (req, res) => {
   try {
     const { ajustes } = req.body as { ajustes?: Record<string, {
       horas_extras_valor?: number; recargos_valor?: number; comisiones_valor?: number; otras_deducciones?: number;
@@ -431,7 +431,7 @@ router.post("/periodos/:id/calcular", requireNotContador, async (req, res) => {
 });
 
 // POST /api/nomina/periodos/:id/aprobar
-router.post("/periodos/:id/aprobar", requireNotContador, async (req, res) => {
+router.post("/periodos/:id/aprobar", requireContableOperativo, async (req, res) => {
   try {
     const [periodoCheck] = await db.select({ id: nominas_periodo.id }).from(nominas_periodo)
       .where(and(eq(nominas_periodo.id, req.params.id), eq(nominas_periodo.tenant_id, req.tenantId))).limit(1);

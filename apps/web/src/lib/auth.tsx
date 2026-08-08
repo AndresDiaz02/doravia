@@ -164,11 +164,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isContador = useMemo(() => user?.role === "contador", [user?.role]);
   const isVendedor = useMemo(() => user?.role === "vendedor", [user?.role]);
   const isFundador = useMemo(() => user?.is_fundador === true, [user?.is_fundador]);
-  // El NIT interno identifica al tenant del hub de contadores, no al rol de
-  // todos sus usuarios. Un administrador de ese tenant debe poder usar el ERP.
+  // El acceso al Hub se concede exclusivamente tras confirmar el registro de
+  // contador. No depende de un NIT técnico ni de que otro usuario comparta
+  // empresa con el contador.
   const isContadorHub = useMemo(
-    () => tenant?.nit === "0000000001" && user?.role === "contador" && user?.is_contador_registrado === true,
-    [tenant?.nit, user?.role, user?.is_contador_registrado],
+    () => user?.role === "contador" && user?.is_contador_registrado === true,
+    [user?.role, user?.is_contador_registrado],
   );
 
   return (

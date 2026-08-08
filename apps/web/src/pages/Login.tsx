@@ -48,10 +48,10 @@ export function Login() {
   const sessionExpired = searchParams.get("expired") === "1";
   const redirectAfterLogin = searchParams.get("redirect") ?? "";
 
-  function destino(nit: string | undefined, isFundador = false, role = "", isContadorRegistrado = false) {
+  function destino(_nit: string | undefined, isFundador = false, role = "", isContadorRegistrado = false) {
     if (redirectAfterLogin) return redirectAfterLogin;
     if (isFundador) return "/fundador";
-    return nit === "0000000001" && role === "contador" && isContadorRegistrado ? "/contador" : "/dashboard";
+    return role === "contador" && isContadorRegistrado ? "/contador" : "/dashboard";
   }
 
   async function handleSubmit(e: FormEvent) {

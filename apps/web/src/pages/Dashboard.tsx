@@ -79,6 +79,16 @@ interface PrimerosPasos {
   facturas: boolean;
 }
 
+interface PreparacionOperativa {
+  items: {
+    id: string;
+    estado: "listo" | "pendiente" | "informativo";
+    titulo: string;
+    detalle: string;
+    ruta: string;
+  }[];
+}
+
 interface GastosMes {
   periodo: { anio: number; mes: number };
   cantidad: number;
@@ -104,6 +114,7 @@ export function Dashboard() {
   const [sinStock, setSinStock] = useState<ProductosSinStock | null>(null);
   const [loading, setLoading] = useState(true);
   const [primerosPasos, setPrimerosPasos] = useState<PrimerosPasos | null>(null);
+  const [preparacion, setPreparacion] = useState<PreparacionOperativa | null>(null);
   const hasComparativo = (plan?.accounting_level ?? 1) >= 3;
   const hasGastos = (plan?.features as Record<string, boolean> | undefined)?.gastos === true;
   const hasInventario = (plan?.features as Record<string, boolean> | undefined)?.inventario === true;
@@ -112,6 +123,9 @@ export function Dashboard() {
     if (user?.role === "admin") {
       void apiFetch<PrimerosPasos>("/api/reportes/primeros-pasos")
         .then((d) => { if (!d.empresa || !d.resolucion || !d.clientes || !d.facturas) setPrimerosPasos(d); })
+        .catch(() => {});
+      void apiFetch<PreparacionOperativa>("/api/reportes/preparacion-operativa")
+        .then(setPreparacion)
         .catch(() => {});
     }
   }, [user?.role]);
@@ -229,6 +243,34 @@ export function Dashboard() {
                     ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                     : <Circle className="h-4 w-4 text-blue-400 flex-shrink-0" />}
                   <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {preparacion && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+            <p className="text-sm font-semibold text-slate-900">Preparación operativa</p>
+          </div>
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+            {preparacion.items.map((item) => {
+              const listo = item.estado === "listo";
+              const pendiente = item.estado === "pendiente";
+              return (
+                <Link
+                  key={item.id}
+                  to={item.ruta}
+                  className="rounded-lg border border-slate-100 p-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40"
+                >
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    {listo ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : pendiente ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Circle className="h-4 w-4 text-slate-400" />}
+                    {item.titulo}
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.detalle}</p>
                 </Link>
               );
             })}

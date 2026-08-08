@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { db, facturas, clientes, tenants, resoluciones_dian, gastos, productos } from "@workspace/db";
+import { db, facturas, clientes, tenants, resoluciones_dian, gastos, productos, cuentas_bancarias, conciliaciones } from "@workspace/db";
 import { eq, and, gte, lt, lte, sum, count, desc, isNull, inArray, asc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { requireAccountingLevel } from "../middleware/require-plan-feature.js";
+import { requireAccountingLevel, requireRole } from "../middleware/require-plan-feature.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
@@ -505,6 +505,121 @@ router.get("/primeros-pasos", async (req, res) => {
   } catch (err) {
     console.error("primeros-pasos:", err);
     res.status(500).json({ error: "Error al obtener el estado inicial." });
+  }
+});
+
+// GET /api/reportes/preparacion-operativa
+// Lista controles de preparación sin exponer credenciales ni ejecutar trámites externos.
+router.get("/preparacion-operativa", requireRole(["admin"]), async (req, res) => {
+  try {
+    const tid = req.tenantId;
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    const [empresa] = await db
+      .select({
+        direccion: tenants.direccion,
+        ciudad: tenants.ciudad,
+        correo: tenants.correo,
+        representante_legal: tenants.representante_legal,
+        actividad_economica: tenants.actividad_economica,
+        facturacion_electronica: tenants.facturacion_electronica,
+        plemsi_habilitado: tenants.plemsi_habilitado,
+        plemsi_empresa_id: tenants.plemsi_empresa_id,
+        plemsi_api_key_encrypted: tenants.plemsi_api_key_encrypted,
+        plemsi_ambiente: tenants.plemsi_ambiente,
+      })
+      .from(tenants)
+      .where(eq(tenants.id, tid))
+      .limit(1);
+
+    const resoluciones = await db
+      .select({
+        activa: resoluciones_dian.activa,
+        fecha_hasta: resoluciones_dian.fecha_hasta,
+        consecutivo_actual: resoluciones_dian.consecutivo_actual,
+        consecutivo_hasta: resoluciones_dian.consecutivo_hasta,
+      })
+      .from(resoluciones_dian)
+      .where(eq(resoluciones_dian.tenant_id, tid));
+
+    const [{ cuentasActivas }] = await db
+      .select({ cuentasActivas: count(cuentas_bancarias.id) })
+      .from(cuentas_bancarias)
+      .where(and(eq(cuentas_bancarias.tenant_id, tid), eq(cuentas_bancarias.activa, true)));
+
+    const [{ conciliacionesAbiertas }] = await db
+      .select({ conciliacionesAbiertas: count(conciliaciones.id) })
+      .from(conciliaciones)
+      .where(and(eq(conciliaciones.tenant_id, tid), eq(conciliaciones.estado, "en_proceso")));
+
+    const empresaCompleta = Boolean(
+      empresa?.direccion && empresa.ciudad && empresa.correo &&
+      empresa.representante_legal && empresa.actividad_economica,
+    );
+    const resolucionVigente = resoluciones.some((r) =>
+      r.activa && r.fecha_hasta >= hoy && r.consecutivo_actual <= r.consecutivo_hasta,
+    );
+    const plemsiConfigurado = Boolean(
+      empresa?.plemsi_habilitado && empresa.plemsi_empresa_id && empresa.plemsi_api_key_encrypted,
+    );
+    const facturacionLista = Boolean(empresa?.facturacion_electronica && plemsiConfigurado && resolucionVigente);
+    const cuentas = Number(cuentasActivas);
+    const abiertas = Number(conciliacionesAbiertas);
+
+    res.json({
+      items: [
+        {
+          id: "empresa",
+          estado: empresaCompleta ? "listo" : "pendiente",
+          titulo: "Datos fiscales de la empresa",
+          detalle: empresaCompleta
+            ? "Los datos esenciales de identificación y contacto están completos."
+            : "Completa dirección, ciudad, correo, representante legal y actividad económica.",
+          ruta: "/configuracion/empresa",
+        },
+        {
+          id: "facturacion",
+          estado: facturacionLista ? "listo" : empresa?.facturacion_electronica ? "pendiente" : "informativo",
+          titulo: "Facturación electrónica",
+          detalle: facturacionLista
+            ? "Plemsi y una resolución DIAN vigente están configurados para esta empresa."
+            : empresa?.facturacion_electronica
+              ? "Revisa la habilitación de Plemsi y que la resolución DIAN esté vigente y con consecutivos disponibles."
+              : "Este módulo aún no está habilitado para la empresa. Actívalo solo cuando corresponda comercial y fiscalmente.",
+          ruta: "/configuracion/dian",
+        },
+        {
+          id: "nomina",
+          estado: process.env.NOMINA_MODO === "produccion" ? "pendiente" : "informativo",
+          titulo: "Nómina electrónica",
+          detalle: process.env.NOMINA_MODO === "produccion"
+            ? "Antes de emitir, valida el contrato, credenciales y una prueba aceptada con el proveedor."
+            : "Está en entorno de pruebas. No se enviarán documentos reales hasta habilitar el proveedor y producción.",
+          ruta: "/nomina",
+        },
+        {
+          id: "bancos",
+          estado: cuentas > 0 ? (abiertas > 0 ? "pendiente" : "listo") : "pendiente",
+          titulo: "Conciliación bancaria",
+          detalle: cuentas === 0
+            ? "Registra una cuenta bancaria y carga el extracto para conciliar. Doravia no se conecta automáticamente al banco."
+            : abiertas > 0
+              ? `Hay ${abiertas} conciliación${abiertas === 1 ? "" : "es"} en proceso por revisar.`
+              : "Las cuentas bancarias registradas no tienen conciliaciones abiertas.",
+          ruta: "/conciliacion",
+        },
+        {
+          id: "impuestos",
+          estado: "informativo",
+          titulo: "Impuestos y reportes",
+          detalle: "Genera reportes desde Doravia y valida declaraciones, exógena y presentación ante las autoridades con tu contador responsable.",
+          ruta: "/reportes",
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("preparacion-operativa:", err);
+    res.status(500).json({ error: "Error al obtener la preparación operativa." });
   }
 });
 

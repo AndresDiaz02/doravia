@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos } from "@workspace/db";
+import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos, facturas } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
 import { requireAccountingLevel, requireContableOperativo } from "../middleware/require-plan-feature.js";
-import { crearAsientoManual } from "../services/contabilidad.service.js";
+import { crearAsientoManual, crearAsientoFactura } from "../services/contabilidad.service.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
@@ -18,21 +18,55 @@ router.post("/asientos", requireAccountingLevel(1), requireContableOperativo, as
   }
 });
 
+// POST /api/contabilidad/sincronizar-asientos — recupera asientos automáticos pendientes.
+// Nunca modifica documentos aceptados; solo crea el asiento faltante y conserva el detalle de fallos.
+router.post("/sincronizar-asientos", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
+  try {
+    const desde = typeof req.body?.desde === "string" ? req.body.desde : undefined;
+    const hasta = typeof req.body?.hasta === "string" ? req.body.hasta : undefined;
+    const conditions = [eq(facturas.tenant_id, req.tenantId), eq(facturas.estado, "aceptada"), isNull(facturas.asiento_id)];
+    if (desde) conditions.push(gte(facturas.fecha_emision, new Date(desde)));
+    if (hasta) {
+      const fin = new Date(hasta);
+      fin.setHours(23, 59, 59, 999);
+      conditions.push(lte(facturas.fecha_emision, fin));
+    }
+    const pendientes = await db.select().from(facturas).where(and(...conditions)).limit(100);
+    const reparadas: string[] = [];
+    const errores: { factura_id: string; numero: string; error: string }[] = [];
+    for (const factura of pendientes) {
+      try {
+        const asientoId = await crearAsientoFactura(req.tenantId, factura);
+        await db.update(facturas).set({ asiento_id: asientoId }).where(eq(facturas.id, factura.id));
+        reparadas.push(factura.id);
+      } catch (err) {
+        errores.push({ factura_id: factura.id, numero: factura.numero, error: err instanceof Error ? err.message : "Error desconocido" });
+      }
+    }
+    res.json({ encontradas: pendientes.length, reparadas: reparadas.length, errores });
+  } catch (err) {
+    console.error("Error al sincronizar asientos:", err);
+    res.status(500).json({ error: "No fue posible sincronizar los asientos automáticos." });
+  }
+});
+
 // GET /api/contabilidad/cierre-mensual — lista de control, no cierra ni altera información.
 router.get("/cierre-mensual", async (req, res) => {
   try {
     const hoy = new Date().toISOString().slice(0, 10);
     const desde = (req.query.desde as string | undefined) ?? `${hoy.slice(0, 7)}-01`;
     const hasta = (req.query.hasta as string | undefined) ?? hoy;
-    const [pendientesPago, sinAsiento, periodosAbiertos] = await Promise.all([
+    const [pendientesPago, sinAsiento, facturasSinAsiento, periodosAbiertos] = await Promise.all([
       db.select({ id: gastos.id, descripcion: gastos.descripcion, total: gastos.total, fecha_vencimiento: gastos.fecha_vencimiento })
         .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.pagado_at))),
       db.select({ id: gastos.id, descripcion: gastos.descripcion, fecha: gastos.fecha })
         .from(gastos).where(and(eq(gastos.tenant_id, req.tenantId), eq(gastos.estado, "aprobado"), isNull(gastos.asiento_id), gte(gastos.fecha, desde), lte(gastos.fecha, hasta))),
+      db.select({ id: facturas.id, numero: facturas.numero, fecha_emision: facturas.fecha_emision })
+        .from(facturas).where(and(eq(facturas.tenant_id, req.tenantId), eq(facturas.estado, "aceptada"), isNull(facturas.asiento_id), gte(facturas.fecha_emision, new Date(desde)), lte(facturas.fecha_emision, new Date(`${hasta}T23:59:59.999Z`)))),
       db.select({ id: periodos_contables.id, nombre: periodos_contables.nombre, fecha_inicio: periodos_contables.fecha_inicio, fecha_fin: periodos_contables.fecha_fin })
         .from(periodos_contables).where(and(eq(periodos_contables.tenant_id, req.tenantId), eq(periodos_contables.estado, "abierto"), lte(periodos_contables.fecha_inicio, hasta), gte(periodos_contables.fecha_fin, desde))),
     ]);
-    res.json({ periodo: { desde, hasta }, resumen: { cuentas_por_pagar: pendientesPago.length, gastos_sin_asiento: sinAsiento.length, periodos_abiertos: periodosAbiertos.length }, pendientes_pago: pendientesPago, gastos_sin_asiento: sinAsiento, periodos_abiertos: periodosAbiertos });
+    res.json({ periodo: { desde, hasta }, resumen: { cuentas_por_pagar: pendientesPago.length, gastos_sin_asiento: sinAsiento.length, facturas_sin_asiento: facturasSinAsiento.length, periodos_abiertos: periodosAbiertos.length }, pendientes_pago: pendientesPago, gastos_sin_asiento: sinAsiento, facturas_sin_asiento: facturasSinAsiento, periodos_abiertos: periodosAbiertos });
   } catch (err) {
     console.error("Error en GET /cierre-mensual:", err);
     res.status(500).json({ error: "Error interno del servidor." });

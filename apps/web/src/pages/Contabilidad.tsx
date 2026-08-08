@@ -75,9 +75,10 @@ interface EstadoResultadosResp {
 
 interface CierreMensualResp {
   periodo: { desde: string; hasta: string };
-  resumen: { cuentas_por_pagar: number; gastos_sin_asiento: number; periodos_abiertos: number };
+  resumen: { cuentas_por_pagar: number; gastos_sin_asiento: number; facturas_sin_asiento: number; periodos_abiertos: number };
   pendientes_pago: { id: string; descripcion: string; total: string; fecha_vencimiento: string | null }[];
   gastos_sin_asiento: { id: string; descripcion: string; fecha: string }[];
+  facturas_sin_asiento: { id: string; numero: string; fecha_emision: string }[];
   periodos_abiertos: { id: string; nombre: string; fecha_inicio: string; fecha_fin: string }[];
 }
 
@@ -131,6 +132,7 @@ export function Contabilidad() {
   const [guardandoAjuste, setGuardandoAjuste] = useState(false);
   const [controlCierre, setControlCierre] = useState<CierreMensualResp | null>(null);
   const [loadingControl, setLoadingControl] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
 
   useEffect(() => {
     void apiFetch<Cuenta[]>("/api/contabilidad/cuentas").then(setCuentas);
@@ -213,6 +215,16 @@ export function Contabilidad() {
       .then(setControlCierre)
       .catch(() => setControlCierre(null))
       .finally(() => setLoadingControl(false));
+  }
+
+  async function sincronizarAsientos() {
+    setSincronizando(true);
+    try {
+      await apiFetch("/api/contabilidad/sincronizar-asientos", { method: "POST", body: JSON.stringify({ desde, hasta }) });
+      cargarControlCierre();
+    } finally {
+      setSincronizando(false);
+    }
   }
 
   useEffect(() => {
@@ -580,14 +592,16 @@ export function Contabilidad() {
         <div className="space-y-4">
           {!controlCierre && !loadingControl && <p className="text-sm text-gray-500">Selecciona el periodo y presiona «Revisar pendientes».</p>}
           {controlCierre && <>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               <ControlCard label="Cuentas por pagar" value={controlCierre.resumen.cuentas_por_pagar} />
               <ControlCard label="Gastos sin asiento" value={controlCierre.resumen.gastos_sin_asiento} />
+              <ControlCard label="Facturas sin asiento" value={controlCierre.resumen.facturas_sin_asiento} />
               <ControlCard label="Periodos abiertos" value={controlCierre.resumen.periodos_abiertos} />
             </div>
-            <Card><CardHeader><CardTitle>Pendientes para el cierre</CardTitle></CardHeader><CardContent className="space-y-4 text-sm">
+            <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>Pendientes para el cierre</CardTitle><Button variant="secondary" onClick={() => void sincronizarAsientos()} disabled={sincronizando}>{sincronizando ? "Sincronizando…" : "Reparar asientos automáticos"}</Button></div></CardHeader><CardContent className="space-y-4 text-sm">
               <ControlList title="Cuentas por pagar" items={controlCierre.pendientes_pago.map((p) => `${p.descripcion} — ${cop(p.total)}${p.fecha_vencimiento ? ` · vence ${p.fecha_vencimiento}` : ""}`)} />
               <ControlList title="Gastos aprobados sin asiento" items={controlCierre.gastos_sin_asiento.map((g) => `${g.fecha} — ${g.descripcion}`)} />
+              <ControlList title="Facturas aceptadas sin asiento" items={controlCierre.facturas_sin_asiento.map((f) => `${f.fecha_emision.slice(0, 10)} — ${f.numero}`)} />
               <ControlList title="Periodos abiertos" items={controlCierre.periodos_abiertos.map((p) => `${p.nombre}: ${p.fecha_inicio} a ${p.fecha_fin}`)} />
             </CardContent></Card>
           </>}

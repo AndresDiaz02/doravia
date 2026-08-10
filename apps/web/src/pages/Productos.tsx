@@ -15,6 +15,8 @@ interface Producto {
   codigo_barras: string | null;
   nombre: string;
   descripcion: string | null;
+  categoria: string | null;
+  imagen_url: string | null;
   tipo: "producto" | "servicio";
   precio_base: string;
   iva_pct: string;
@@ -27,6 +29,8 @@ const emptyForm = {
   codigo_barras: "",
   nombre: "",
   descripcion: "",
+  categoria: "",
+  imagen_url: "",
   tipo: "producto" as "producto" | "servicio",
   precio_base: "",
   iva_pct: "19",
@@ -71,6 +75,8 @@ export function Productos() {
       codigo_barras: p.codigo_barras ?? "",
       nombre: p.nombre,
       descripcion: p.descripcion ?? "",
+      categoria: p.categoria ?? "",
+      imagen_url: p.imagen_url ?? "",
       tipo: p.tipo,
       precio_base: p.precio_base,
       iva_pct: p.iva_pct,
@@ -91,6 +97,8 @@ export function Productos() {
           body: JSON.stringify({
             nombre: form.nombre,
             descripcion: form.descripcion || null,
+            categoria: form.categoria || null,
+            imagen_url: form.imagen_url || null,
             precio_base: form.precio_base,
             iva_pct: form.iva_pct,
             impoconsumo_pct: form.impoconsumo_pct,
@@ -247,6 +255,7 @@ export function Productos() {
                   <td className="px-6 py-3">
                     <p className="font-medium text-gray-900">{p.nombre}</p>
                     {p.descripcion && <p className="text-xs text-gray-400">{p.descripcion}</p>}
+                    {p.categoria && <p className="mt-1 text-xs font-medium text-violet-600 dark:text-violet-400">{p.categoria}</p>}
                   </td>
                   <td className="px-6 py-3">
                     <Badge variant={p.tipo === "producto" ? "blue" : "gray"}>
@@ -326,9 +335,31 @@ export function Productos() {
             <Label htmlFor="desc_p">Descripción</Label>
             <Input
               id="desc_p"
-              value={form.descripcion}
+                value={form.descripcion}
               onChange={(e) => set("descripcion", e.target.value)}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="cat_p">Categoría</Label>
+              <Input
+                id="cat_p"
+                placeholder="Ej. Bebidas, Aseo, Servicios"
+                value={form.categoria}
+                onChange={(e) => set("categoria", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="img_p">URL de imagen</Label>
+              <Input
+                id="img_p"
+                type="url"
+                placeholder="https://..."
+                value={form.imagen_url}
+                onChange={(e) => set("imagen_url", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

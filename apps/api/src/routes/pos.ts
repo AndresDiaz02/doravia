@@ -278,6 +278,8 @@ router.get("/productos", async (req, res) => {
       id: productos.id,
       codigo: productos.codigo,
       nombre: productos.nombre,
+      categoria: productos.categoria,
+      imagen_url: productos.imagen_url,
       precio_venta: productos.precio_venta,
       iva_pct: productos.iva_pct,
       tipo: productos.tipo,

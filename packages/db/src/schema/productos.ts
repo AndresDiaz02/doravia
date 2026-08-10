@@ -13,6 +13,8 @@ export const productos = pgTable("productos", {
   codigo: varchar("codigo", { length: 50 }).notNull(),
   nombre: varchar("nombre", { length: 300 }).notNull(),
   descripcion: varchar("descripcion", { length: 500 }),
+  categoria: varchar("categoria", { length: 100 }),
+  imagen_url: varchar("imagen_url", { length: 500 }),
   tipo: varchar("tipo", { length: 20 }).$type<TipoProducto>().notNull().default("producto"),
   unidad: varchar("unidad", { length: 30 }).default("und"),
   precio_base: numeric("precio_base", { precision: 14, scale: 2 }).notNull(),

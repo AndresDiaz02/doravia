@@ -110,6 +110,8 @@ const migrations = [
   // config por caja (grameras, impresoras, periféricos)
   `ALTER TABLE cajas_pos ADD COLUMN IF NOT EXISTS config jsonb`,
   `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS arqueo_efectivo jsonb`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS categoria varchar(100)`,
+  `ALTER TABLE productos ADD COLUMN IF NOT EXISTS imagen_url varchar(500)`,
   // gastos de caja chica durante el turno POS
   `CREATE TABLE IF NOT EXISTS gastos_caja_pos (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

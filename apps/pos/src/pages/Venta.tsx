@@ -18,6 +18,8 @@ interface Producto {
   stock_actual: string | null;
   unidad: string;
   tipo: "producto" | "servicio";
+  categoria: string | null;
+  imagen_url: string | null;
 }
 
 interface Cliente {
@@ -154,7 +156,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
   const [preCuentasReady, setPreCuentasReady] = useState(false);
   const [favoritos, setFavoritos] = useState<string[]>([]);
-  const [filtroCatalogo, setFiltroCatalogo] = useState<"todos" | "favoritos" | "producto" | "servicio">("todos");
+  const [filtroCatalogo, setFiltroCatalogo] = useState("todos");
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [clienteQuery, setClienteQuery] = useState("");
@@ -250,10 +252,12 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   useBarcodeScanner(productos, agregarProducto, () => setBusqueda(""), busquedaRef);
 
+  const categoriasCatalogo = [...new Set(productos.map((p) => p.categoria?.trim()).filter((categoria): categoria is string => Boolean(categoria)))].sort();
   const productosVisibles = productos.filter((p) => {
       if (filtroCatalogo === "favoritos" && !favoritos.includes(p.id)) return false;
-      if (filtroCatalogo === "producto" && p.tipo !== "producto") return false;
-      if (filtroCatalogo === "servicio" && p.tipo !== "servicio") return false;
+      if (filtroCatalogo === "tipo:producto" && p.tipo !== "producto") return false;
+      if (filtroCatalogo === "tipo:servicio" && p.tipo !== "servicio") return false;
+      if (filtroCatalogo.startsWith("categoria:") && p.categoria !== filtroCatalogo.slice("categoria:".length)) return false;
       if (busqueda.trim()) {
         const q = busqueda.toLowerCase();
         return p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
@@ -626,12 +630,13 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
           {[
             { id: "todos", label: "Todos" },
             { id: "favoritos", label: "Favoritos" },
-            { id: "producto", label: "Productos" },
-            { id: "servicio", label: "Servicios" },
+            { id: "tipo:producto", label: "Productos" },
+            { id: "tipo:servicio", label: "Servicios" },
+            ...categoriasCatalogo.map((categoria) => ({ id: `categoria:${categoria}`, label: categoria })),
           ].map((filtro) => (
             <button
               key={filtro.id}
-              onClick={() => setFiltroCatalogo(filtro.id as typeof filtroCatalogo)}
+              onClick={() => setFiltroCatalogo(filtro.id)}
               className={cn(
                 "flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 filtroCatalogo === filtro.id
@@ -689,11 +694,21 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                     >
                       <Star className="h-3.5 w-3.5" fill={favoritos.includes(p.id) ? "currentColor" : "none"} />
                     </button>
-                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-sm font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                      {p.nombre.trim().slice(0, 1).toUpperCase()}
-                    </div>
+                    {p.imagen_url ? (
+                      <img
+                        src={p.imagen_url}
+                        alt=""
+                        className="mb-2 h-10 w-10 rounded-xl border border-gray-100 object-cover dark:border-slate-700"
+                        onError={(event) => { event.currentTarget.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-sm font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                        {p.nombre.trim().slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
                     <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight line-clamp-2 pr-4">{p.nombre}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.codigo}</p>
+                    {p.categoria && <p className="mt-1 text-[11px] font-medium text-violet-600 dark:text-violet-400">{p.categoria}</p>}
                     <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2">{cop(p.precio_venta)}</p>
                     {stockBajo && (
                       <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-0.5">Stock: {p.stock_actual}</p>

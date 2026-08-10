@@ -52,7 +52,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/productos
 router.post("/", async (req, res) => {
-  const { codigo, nombre, descripcion, tipo, precio_base, iva_pct, impoconsumo_pct, codigo_barras } = req.body;
+  const { codigo, nombre, descripcion, categoria, imagen_url, tipo, precio_base, iva_pct, impoconsumo_pct, codigo_barras } = req.body;
 
   if (!codigo || !nombre || !tipo || precio_base == null) {
     return res.status(400).json({ error: "Campos requeridos: codigo, nombre, tipo, precio_base." });
@@ -68,6 +68,9 @@ router.post("/", async (req, res) => {
   }
 
   const impoconsumoPctNum = Number(impoconsumo_pct ?? 0);
+  if (imagen_url && !esUrlImagenValida(imagen_url)) {
+    return res.status(400).json({ error: "La imagen debe ser una URL http o https válida." });
+  }
 
   const [existente] = await db
     .select({ id: productos.id })
@@ -84,6 +87,8 @@ router.post("/", async (req, res) => {
       codigo,
       nombre,
       descripcion: descripcion ?? null,
+      categoria: categoria?.trim() || null,
+      imagen_url: imagen_url?.trim() || null,
       tipo,
       precio_base: String(precio_base),
       iva_pct: String(ivaPctNum),
@@ -105,10 +110,13 @@ router.patch("/:id", async (req, res) => {
 
   if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
 
-  const { nombre, descripcion, precio_base, iva_pct, impoconsumo_pct, codigo_barras, activo } = req.body;
+  const { nombre, descripcion, categoria, imagen_url, precio_base, iva_pct, impoconsumo_pct, codigo_barras, activo } = req.body;
 
   if (iva_pct !== undefined && !(TARIFAS_IVA as readonly number[]).includes(Number(iva_pct))) {
     return res.status(400).json({ error: `iva_pct debe ser ${TARIFAS_IVA.join(", ")}.` });
+  }
+  if (imagen_url && !esUrlImagenValida(imagen_url)) {
+    return res.status(400).json({ error: "La imagen debe ser una URL http o https válida." });
   }
 
   const [actualizado] = await db
@@ -116,6 +124,8 @@ router.patch("/:id", async (req, res) => {
     .set({
       ...(nombre !== undefined && { nombre }),
       ...(descripcion !== undefined && { descripcion }),
+      ...(categoria !== undefined && { categoria: categoria?.trim() || null }),
+      ...(imagen_url !== undefined && { imagen_url: imagen_url?.trim() || null }),
       ...(precio_base !== undefined && { precio_base: String(precio_base) }),
       ...(iva_pct !== undefined && { iva_pct: String(iva_pct) }),
       ...(impoconsumo_pct !== undefined && { impoconsumo_pct: String(Number(impoconsumo_pct)) }),
@@ -213,3 +223,13 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
 });
 
 export default router;
+
+function esUrlImagenValida(valor: unknown) {
+  if (typeof valor !== "string") return false;
+  try {
+    const url = new URL(valor);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}

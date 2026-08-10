@@ -74,6 +74,8 @@ const PLANES_NOMINA: PlanPOS[] = [
   { slug: "nomina_brote", nombre: "Nómina Brote", precio: 470_000, features: ["300 documentos al año", "Operación de nómina completa", "Documentos acumulables", "Conectada a tu empresa"] },
 ];
 
+const NOMINA_VENTAS_URL = "https://wa.me/573125587055?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20N%C3%B3mina%20Doravia";
+
 interface CheckoutData {
   public_key: string;
   currency: string;
@@ -164,23 +166,24 @@ export default function ModulosAdicionales() {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Módulos adicionales</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Amplía tu plan actual ({plan?.nombre}) con módulos extra.
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-action">Doravia · Productos conectados</p>
+        <h1 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">Planes y módulos</h1>
+        <p className="text-sm text-gray-500 mt-0.5 dark:text-slate-400">
+          Activa productos independientes o amplía tu plan actual ({plan?.nombre}). Todos comparten clientes, documentos y la misma empresa.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">{error}</div>
       )}
 
       {/* ── Punto de venta (POS) ─────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Monitor className="h-5 w-5 text-blue-600" />
-          <h2 className="font-semibold text-gray-800">Punto de venta (POS)</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-slate-100">Punto de venta (POS)</h2>
           {posActivo && (
-            <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full dark:bg-emerald-950 dark:text-emerald-300">
               {posProActivo ? "Punto Plus activo" : "Punto activo"}
             </span>
           )}
@@ -201,7 +204,7 @@ export default function ModulosAdicionales() {
             {PLANES_POS.map((p) => (
               <div
                 key={p.slug}
-                className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm ${
+                className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${
                   p.destacado ? "border-blue-400 ring-1 ring-blue-200" : "border-gray-200"
                 }`}
               >
@@ -247,17 +250,17 @@ export default function ModulosAdicionales() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Receipt className="h-5 w-5 text-emerald-600" />
-          <h2 className="font-semibold text-gray-800">Facturación Electrónica</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-slate-100">Facturación Electrónica</h2>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-slate-400">
           Contrátala como producto independiente o añádela a tu ERP y POS. Tu empresa conserva una sola base de clientes y documentos.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANES_FACTURACION.map((p) => (
-            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200" : "border-gray-200"}`}>
+            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200 dark:border-emerald-500 dark:ring-emerald-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
-              <div><p className="font-bold text-gray-900">{p.nombre}</p><p className="text-xl font-bold text-gray-800 mt-1">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1">/ año</span></p></div>
-              <ul className="flex-1 space-y-1.5">{p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}</ul>
+              <div><p className="font-bold text-gray-900 dark:text-white">{p.nombre}</p><p className="text-xl font-bold text-gray-800 mt-1 dark:text-slate-100">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1 dark:text-slate-500">/ año</span></p></div>
+              <ul className="flex-1 space-y-1.5">{p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}</ul>
               <button onClick={() => void contratarPOS(p.slug)} disabled={pagando !== null} className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 py-2.5 text-sm font-semibold text-white transition-colors">
                 {pagando === p.slug ? "Preparando pago…" : `Contratar ${p.nombre}`}
               </button>
@@ -269,25 +272,25 @@ export default function ModulosAdicionales() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-violet-600" />
-          <h2 className="font-semibold text-gray-800">Nómina electrónica</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-slate-100">Nómina electrónica</h2>
         </div>
-        <p className="text-sm text-gray-500">
-          Contrátala sola o junto a ERP, POS o Facturación Electrónica. Conservas una sola empresa y los datos se conectan automáticamente.
+        <p className="text-sm text-gray-500 dark:text-slate-400">
+          Contrátala sola o junto a ERP, POS o Facturación Electrónica. Conservas una sola empresa y los datos se conectan automáticamente. La disponibilidad de emisión se confirma durante la activación.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANES_NOMINA.map((p) => (
-            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm ${p.destacado ? "border-violet-400 ring-1 ring-violet-200" : "border-gray-200"}`}>
+            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${p.destacado ? "border-violet-400 ring-1 ring-violet-200 dark:border-violet-500 dark:ring-violet-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
               <div>
-                <p className="font-bold text-gray-900">{p.nombre}</p>
-                <p className="text-xl font-bold text-gray-800 mt-1">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1">/ año</span></p>
+                <p className="font-bold text-gray-900 dark:text-white">{p.nombre}</p>
+                <p className="text-xl font-bold text-gray-800 mt-1 dark:text-slate-100">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1 dark:text-slate-500">/ año</span></p>
               </div>
               <ul className="flex-1 space-y-1.5">
-                {p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}
+                {p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}
               </ul>
-              <button disabled className="w-full rounded-lg bg-slate-400 cursor-not-allowed py-2.5 text-sm font-semibold text-white transition-colors">
-                {pagando === p.slug ? "Preparando pago…" : `Contratar ${p.nombre}`}
-              </button>
+              <a href={NOMINA_VENTAS_URL} target="_blank" rel="noreferrer" className="w-full rounded-lg bg-violet-600 hover:bg-violet-700 py-2.5 text-center text-sm font-semibold text-white transition-colors">
+                Hablar con ventas
+              </a>
             </div>
           ))}
         </div>
@@ -296,10 +299,10 @@ export default function ModulosAdicionales() {
       {/* ── Add-ons ERP ─────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-gray-800">Módulos ERP</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-slate-100">Módulos ERP</h2>
         </div>
 
-        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2 text-sm text-blue-700">
+        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-2 text-sm text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-200">
           <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <p>Los módulos que ya incluye tu plan están disponibles sin costo adicional. Los que no incluye pueden activarse según el plan.</p>
         </div>

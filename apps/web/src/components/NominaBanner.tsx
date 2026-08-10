@@ -22,9 +22,9 @@ export function NominaBanner() {
   if (!config?.banner_activo) return null;
 
   return (
-    <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+    <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900/70 dark:bg-red-950/40">
       <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-      <p className="text-sm font-semibold text-red-800">{config.banner_mensaje}</p>
+      <p className="text-sm font-semibold text-red-800 dark:text-red-200">{config.banner_mensaje}</p>
     </div>
   );
 }

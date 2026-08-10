@@ -127,8 +127,8 @@ function AppInner() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-[#0B0E1A]">
-      <nav className="bg-white dark:bg-[#0B0E1A] border-b border-gray-200 dark:border-slate-800 px-4 flex items-center gap-1 flex-shrink-0 h-12">
-        <div className="flex items-center gap-2 mr-4">
+      <nav className="bg-white dark:bg-[#0B0E1A] border-b border-gray-200 dark:border-slate-800 px-3 sm:px-4 flex items-center gap-1 flex-shrink-0 h-12 overflow-x-auto">
+        <div className="flex items-center gap-2 mr-2 sm:mr-4 flex-shrink-0">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center">
             <span className="text-white text-xs font-black">D</span>
           </div>
@@ -139,7 +139,7 @@ function AppInner() {
           <button
             key={id}
             onClick={() => setVista(id)}
-            className={`flex items-center gap-1.5 px-3 h-full text-sm font-medium border-b-2 transition-colors ${
+            className={`flex flex-shrink-0 items-center gap-1.5 px-2.5 sm:px-3 h-full text-sm font-medium border-b-2 transition-colors ${
               vista === id
                 ? "border-violet-500 text-violet-600 dark:text-violet-400"
                 : "border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300"
@@ -150,7 +150,7 @@ function AppInner() {
           </button>
         ))}
 
-        <div className="flex-1" />
+        <div className="hidden sm:block flex-1" />
 
         {/* Campana in-app */}
         <div className="relative mr-1" ref={notifRef}>
@@ -183,10 +183,10 @@ function AppInner() {
 
         <button
           onClick={() => setShowCierre(true)}
-          className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+          className="flex flex-shrink-0 items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
         >
           <LogOut className="h-3.5 w-3.5" />
-          Cerrar turno
+          <span className="hidden sm:inline">Cerrar turno</span>
         </button>
       </nav>
 

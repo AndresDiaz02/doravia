@@ -72,6 +72,12 @@ const ActivosFijos = lazy(() => import("./pages/ActivosFijos"));
 const DocumentosSoporte = lazy(() => import("./pages/DocumentosSoporte"));
 const AgendaServicios = lazy(() => import("./pages/AgendaServicios"));
 const CotizacionDetalle = lazy(() => import("./pages/CotizacionDetalle"));
+const NominaEmpleados = lazy(() => import("./pages/NominaEmpleados"));
+const NominaEmpleadoForm = lazy(() => import("./pages/NominaEmpleadoForm"));
+const NominaPeriodos = lazy(() => import("./pages/NominaPeriodos"));
+const NominaPeriodoNuevo = lazy(() => import("./pages/NominaPeriodoNuevo"));
+const NominaPeriodoDetalle = lazy(() => import("./pages/NominaPeriodoDetalle"));
+const NominaMiPlan = lazy(() => import("./pages/NominaMiPlan"));
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -168,7 +174,14 @@ export default function App() {
               <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />
               <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
               <Route path="/agenda-servicios" element={<AgendaServicios />} />
-              <Route path="/nomina/*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/nomina/empleados" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleados /></>} />
+              <Route path="/nomina/empleados/nuevo" element={<><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
+              <Route path="/nomina/empleados/:id" element={<><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
+              <Route path="/nomina/periodos" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodos /></>} />
+              <Route path="/nomina/periodos/nuevo" element={<><SoloEscritura to="/nomina/periodos" /><NominaPeriodoNuevo /></>} />
+              <Route path="/nomina/periodos/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoDetalle /></>} />
+              <Route path="/nomina/mi-plan" element={<NominaMiPlan />} />
+              <Route path="/nomina/*" element={<Navigate to="/nomina/periodos" replace />} />
             </Route>
 
             {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}

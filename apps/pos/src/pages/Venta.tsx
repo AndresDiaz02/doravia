@@ -160,6 +160,9 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const busquedaRef = useRef<HTMLInputElement>(null);
+  // Se conserva durante los reintentos del mismo cobro para que una respuesta
+  // perdida de red nunca genere una segunda venta.
+  const ventaIdempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     void apiFetch<Producto[]>("/api/pos/productos").then(setProductos);
@@ -259,6 +262,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   function abrirPago() {
     if (carrito.length === 0) return;
+    ventaIdempotencyKeyRef.current = crypto.randomUUID();
     setMontoRecibido(metodoPago === "efectivo" ? String(Math.ceil(totalCarrito / 1000) * 1000) : "");
     setShowPago(true);
     setError(null);
@@ -293,8 +297,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
       const venta = await apiFetch<{ numero: string; total: string }>("/api/pos/ventas", {
         method: "POST",
-        // La misma llave puede reutilizarse si una capa de red reintenta esta compra.
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": ventaIdempotencyKeyRef.current ?? crypto.randomUUID() },
         body: JSON.stringify({
           turno_id: turnoId,
           caja_id: cajaId,
@@ -320,6 +323,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       setClienteId(null);
       setClienteQuery("");
       setObservaciones("");
+      ventaIdempotencyKeyRef.current = null;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al procesar la venta.");
     } finally {
@@ -468,7 +472,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
   }
 
   return (
-    <div className="h-full flex overflow-hidden bg-gray-50 dark:bg-[#0B0E1A]">
+    <div className="h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-[#0B0E1A]">
       {mostrarTutorial && (
         <TutorialOverlay
           slug="pos"
@@ -478,7 +482,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
         />
       )}
       {/* ── Panel izquierdo: catálogo ── */}
-      <div className="flex flex-col w-[58%] border-r border-gray-200 dark:border-slate-800">
+      <div className="flex min-h-[46vh] flex-col w-full lg:w-[58%] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-slate-800">
         {/* Buscador */}
         <div className="px-3 py-2.5 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-transparent">
           <div className="relative flex-1">
@@ -517,7 +521,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               <p className="text-sm">{busqueda ? "Sin resultados" : "No hay productos"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {productosVisibles.map((p) => {
                 const enCarrito = carrito.find((i) => i.producto.id === p.id);
                 const stockBajo = p.stock_actual !== null && Number(p.stock_actual) < 5;
@@ -552,7 +556,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
       </div>
 
       {/* ── Panel derecho: carrito ── */}
-      <div className="flex flex-col w-[42%] bg-gray-50 dark:bg-[#0B0E1A]">
+      <div className="flex min-h-[44vh] flex-col w-full lg:w-[42%] lg:min-h-0 bg-gray-50 dark:bg-[#0B0E1A]">
         {/* Campo cliente */}
         <div className="px-3 pt-2.5 pb-2 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-transparent relative">
           <div className="relative">

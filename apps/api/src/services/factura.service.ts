@@ -333,6 +333,11 @@ export async function enviarAPlemsiSiAplica(
   const plemsiCreds = await getPlemsiCredentials(tenant.id);
 
   const { apiKey, ambiente } = plemsiCreds;
+  // Tener credenciales de producción no acredita habilitación DIAN. El pase
+  // debe ser manual, sustentado en evidencia externa y nunca en tests internos.
+  if (ambiente === "produccion" && process.env.DIAN_HABILITATION_COMPLETE !== "true") {
+    return { ok: false, error: "Producción DIAN bloqueada: falta evidencia de habilitación aprobada. Usa el ambiente de pruebas hasta completar el checklist." };
+  }
 
   const buyerData = buildPersona({
     nit: cliente.numero_documento,

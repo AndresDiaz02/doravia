@@ -1,14 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp, TrendingDown, FileText, Users, AlertCircle, Minus, AlertTriangle, CheckCircle2, Circle, ShoppingBag, Package } from "lucide-react";
 import { apiFetch, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid,
-} from "recharts";
+
+const VentasTrendChart = lazy(() => import("../components/VentasTrendChart"));
 
 interface Comparativo {
   periodo: { anio: number; mes: number };
@@ -131,34 +129,50 @@ export function Dashboard() {
   }, [user?.role]);
 
   useEffect(() => {
+    let cancelado = false;
     setLoading(true);
-    const requests: Promise<void>[] = [
-      apiFetch<VentasMes>(`/api/reportes/ventas-mes?anio=${anio}&mes=${mes}`).then(setData),
-      apiFetch<TendenciaMes[]>("/api/reportes/tendencia-12").then(setTendencia).catch(() => {}),
-      apiFetch<CarteraVencida>("/api/reportes/cartera-vencida").then(setCartera).catch(() => {}),
-    ];
-    if (hasComparativo) {
-      requests.push(
+
+    // La cifra principal llega primero. Los análisis complementarios se cargan
+    // después de pintar el panel para que entrar nunca dependa de seis consultas.
+    void apiFetch<VentasMes>(`/api/reportes/ventas-mes?anio=${anio}&mes=${mes}`)
+      .then((resultado) => { if (!cancelado) setData(resultado); })
+      .catch(() => { if (!cancelado) setData(null); })
+      .finally(() => { if (!cancelado) setLoading(false); });
+
+    const secundarias = window.setTimeout(() => {
+      if (cancelado) return;
+      const requests: Promise<void>[] = [
+        apiFetch<TendenciaMes[]>("/api/reportes/tendencia-12").then((resultado) => { if (!cancelado) setTendencia(resultado); }).catch(() => {}),
+        apiFetch<CarteraVencida>("/api/reportes/cartera-vencida").then((resultado) => { if (!cancelado) setCartera(resultado); }).catch(() => {}),
+      ];
+      if (hasComparativo) {
+        requests.push(
         apiFetch<Comparativo>(`/api/reportes/comparativo?anio=${anio}&mes=${mes}`)
-          .then(setComparativo)
-          .catch(() => setComparativo(null)),
-      );
-    }
-    if (hasGastos) {
-      requests.push(
+          .then((resultado) => { if (!cancelado) setComparativo(resultado); })
+          .catch(() => { if (!cancelado) setComparativo(null); }),
+        );
+      }
+      if (hasGastos) {
+        requests.push(
         apiFetch<GastosMes>(`/api/reportes/gastos-mes?anio=${anio}&mes=${mes}`)
-          .then(setGastosMes)
+          .then((resultado) => { if (!cancelado) setGastosMes(resultado); })
           .catch(() => {}),
-      );
-    }
-    if (hasInventario) {
-      requests.push(
+        );
+      }
+      if (hasInventario) {
+        requests.push(
         apiFetch<ProductosSinStock>("/api/reportes/productos-sin-stock")
-          .then(setSinStock)
+          .then((resultado) => { if (!cancelado) setSinStock(resultado); })
           .catch(() => {}),
-      );
-    }
-    void Promise.all(requests).finally(() => setLoading(false));
+        );
+      }
+      void Promise.all(requests);
+    }, 250);
+
+    return () => {
+      cancelado = true;
+      window.clearTimeout(secundarias);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anio, mes]);
 
@@ -376,46 +390,9 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={tendencia} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradVentas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#16a34a" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="periodo"
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  tickFormatter={(v: string) => {
-                    const [y, m] = v.split("-");
-                    return `${["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][Number(m)]} ${y?.slice(2)}`;
-                  }}
-                  axisLine={false} tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  tickFormatter={(v: number) => v >= 1_000_000 ? `$${(v/1_000_000).toFixed(1)}M` : v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v}`}
-                  axisLine={false} tickLine={false} width={56}
-                />
-                <Tooltip
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: any) => [cop(v as number), "Ventas"]}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  labelFormatter={(label: any) => {
-                    const [y, m] = String(label).split("-");
-                    return `${["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][Number(m)]} ${y}`;
-                  }}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
-                />
-                <Area
-                  type="monotone" dataKey="total"
-                  stroke="#16a34a" strokeWidth={2}
-                  fill="url(#gradVentas)" dot={false} activeDot={{ r: 4 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="h-[200px] animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />}>
+              <VentasTrendChart data={tendencia} />
+            </Suspense>
           </CardContent>
         </Card>
       )}

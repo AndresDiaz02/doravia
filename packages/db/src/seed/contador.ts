@@ -17,6 +17,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import {
   asientos_contables,
   bodegas,
+  cajas_pos,
   cuentas_contables,
   db,
   facturas,
@@ -283,6 +284,16 @@ export async function seedContador() {
     .values({ tenant_id: TID, nombre: "Bodega Principal", descripcion: "Calle 72 #10-34", activo: true })
     .returning();
   const BID = bodega.id;
+
+  // Caja disponible para validar el flujo completo del POS. No se crea un
+  // turno: cada sesión de prueba debe abrir y cerrar el suyo para conservar
+  // el arqueo y la trazabilidad reales.
+  await db.insert(cajas_pos).values({
+    tenant_id: TID,
+    nombre: "Caja Principal de Pruebas",
+    descripcion: "Caja POS de la empresa demo; asociada a la Bodega Principal.",
+    activo: true,
+  });
 
   // ── Resolución DIAN ────────────────────────────────────────────────────────
   const [resolucion] = await db

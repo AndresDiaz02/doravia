@@ -12,6 +12,7 @@
     "seed:prod": "tsx src/seed/prod.ts",
     "seed:dian": "tsx src/seed/clientes-productos-dian.ts",
     "seed:contador": "tsx src/seed/contador.ts",
+    "seed:pos-demo": "tsx src/seed/sync-pos-demo.ts",
     "push": "drizzle-kit push --force",
     "migrate": "tsx src/migrate.ts",
     "studio": "drizzle-kit studio",

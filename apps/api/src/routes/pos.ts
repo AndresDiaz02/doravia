@@ -462,6 +462,24 @@ router.post("/ventas", async (req, res) => {
       for (const item of productosVenta) {
         if (item.producto.tipo === "servicio") continue;
         const permiteInventarioNegativo = req.tenant.pos_config?.permitir_inventario_negativo === true;
+        // El saldo se valida en la bodega del turno, no solo en el total de la
+        // empresa. El lock evita que dos cajas gasten el mismo saldo local.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`stock_${req.tenantId}_${bodegaIdParaInventario}_${item.producto.id}`}))`);
+        if (!permiteInventarioNegativo) {
+          const saldoRows = await tx.execute(sql`
+            SELECT COALESCE(SUM(CASE
+              WHEN tipo = 'salida' THEN -cantidad
+              ELSE cantidad
+            END), 0) AS saldo
+            FROM movimientos_inventario
+            WHERE tenant_id = ${req.tenantId}
+              AND bodega_id = ${bodegaIdParaInventario}
+              AND producto_id = ${item.producto.id}
+          `) as unknown as Array<{ saldo: number | string }>;
+          if (Number(saldoRows[0]?.saldo ?? 0) < Number(item.cantidad)) {
+            throw new Error(`Stock insuficiente para ${item.producto.nombre} en la bodega del turno.`);
+          }
+        }
         const condicionStock = permiteInventarioNegativo
           ? and(eq(productos.id, item.producto.id), eq(productos.tenant_id, req.tenantId))
           : and(

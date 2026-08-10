@@ -419,6 +419,22 @@ async function registrarMovimientoConSaldo(input: MovimientoConSaldo) {
   if (!Number.isFinite(delta) || delta === 0) throw new Error("Movimiento de inventario inválido.");
 
   return db.transaction(async (tx) => {
+    // Serializa salidas concurrentes del mismo producto en la misma bodega.
+    // El producto conserva el saldo global por compatibilidad, pero la fuente
+    // de disponibilidad para una salida es el kardex de esa bodega.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`stock_${input.tenantId}_${input.bodegaId}_${input.productoId}`}))`);
+    if (delta < 0) {
+      const saldoRows = await tx.execute(sql`
+        SELECT COALESCE(SUM(CASE WHEN tipo = 'salida' THEN -cantidad ELSE cantidad END), 0) AS saldo
+        FROM movimientos_inventario
+        WHERE tenant_id = ${input.tenantId}
+          AND bodega_id = ${input.bodegaId}
+          AND producto_id = ${input.productoId}
+      `) as unknown as Array<{ saldo: number | string }>;
+      if (Number(saldoRows[0]?.saldo ?? 0) < Math.abs(delta)) {
+        throw new StockInsuficienteError("Stock insuficiente en esta bodega.");
+      }
+    }
     const condiciones = [
       eq(productos.id, input.productoId),
       eq(productos.tenant_id, input.tenantId),

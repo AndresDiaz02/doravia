@@ -109,7 +109,7 @@ export function Facturas() {
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="text-xl font-semibold text-gray-900">Facturas</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Facturas</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <Button type="button" variant="secondary" size="sm" onClick={relanzarTutorial} title="Ver tutorial">
               <BookOpen className="h-4 w-4" />
@@ -133,7 +133,7 @@ export function Facturas() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por número, cliente o NIT…"
-              className="rounded-md border border-gray-300 pl-8 pr-7 py-1.5 text-sm w-64"
+              className="w-64 rounded-md border border-gray-300 bg-white pl-8 pr-7 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
             {busqueda && (
               <button onClick={() => setBusqueda("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -142,7 +142,7 @@ export function Facturas() {
             )}
           </div>
           <select value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
             <option value="">Todos los estados</option>
             <option value="aceptada">Aceptada</option>
             <option value="borrador">Borrador</option>
@@ -151,9 +151,9 @@ export function Facturas() {
             <option value="anulada">Anulada</option>
           </select>
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm" />
+            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
           <Button variant="secondary" size="sm" disabled={exportando} onClick={() => {
             setExportando(true);
             const qs = new URLSearchParams();
@@ -169,10 +169,10 @@ export function Facturas() {
 
       <Card>
         {loading ? (
-          <p className="px-6 py-8 text-center text-sm text-gray-400">Cargando...</p>
+          <p className="px-6 py-8 text-center text-sm text-gray-400 dark:text-gray-500">Cargando...</p>
         ) : facturasList.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {isContador ? "Aún no hay facturas registradas en el sistema." : "No hay facturas registradas."}
             </p>
             {!isContador && (
@@ -186,19 +186,19 @@ export function Facturas() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50">
+            <thead className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
               <tr>
-                <th className="px-6 py-3 text-left font-medium text-gray-500">Número</th>
-                <th className="px-6 py-3 text-left font-medium text-gray-500">Cliente</th>
-                <th className="px-6 py-3 text-left font-medium text-gray-500">Fecha</th>
-                <th className="px-6 py-3 text-left font-medium text-gray-500">Estado</th>
-                <th className="px-6 py-3 text-left font-medium text-gray-500">DIAN</th>
-                <th className="px-6 py-3 text-right font-medium text-gray-500">Total</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-300">Número</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-300">Cliente</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-300">Fecha</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-300">Estado</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500 dark:text-gray-300">DIAN</th>
+                <th className="px-6 py-3 text-right font-medium text-gray-500 dark:text-gray-300">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {facturasList.map((f) => (
-                <tr key={f.id} className="hover:bg-gray-50">
+                <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-6 py-3">
                     <Link
                       to={`/facturas/${f.id}`}
@@ -207,7 +207,7 @@ export function Facturas() {
                       {f.numero}
                     </Link>
                     {f.cufe && (
-                      <p className="truncate text-xs text-gray-400 max-w-[140px]" title={f.cufe}>
+                      <p className="truncate text-xs text-gray-400 dark:text-gray-500 max-w-[140px]" title={f.cufe}>
                         CUFE: {f.cufe.slice(0, 12)}…
                       </p>
                     )}
@@ -215,13 +215,13 @@ export function Facturas() {
                   <td className="px-6 py-3">
                     <Link
                       to={`/clientes/${f.cliente.id}`}
-                      className="text-gray-900 hover:underline"
+                      className="text-gray-900 hover:underline dark:text-gray-100"
                     >
                       {f.cliente.nombre}
                     </Link>
-                    <p className="text-xs text-gray-400">{f.cliente.numero_documento}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{f.cliente.numero_documento}</p>
                   </td>
-                  <td className="px-6 py-3 text-gray-600">{fecha(f.fecha_emision)}</td>
+                  <td className="px-6 py-3 text-gray-600 dark:text-gray-300">{fecha(f.fecha_emision)}</td>
                   <td className="px-6 py-3">
                     <Badge variant={ESTADO_BADGE[f.estado] ?? "gray"}>
                       {ESTADO_LABEL[f.estado] ?? f.estado}
@@ -237,10 +237,10 @@ export function Facturas() {
                         {DIAN_BADGE[f.estado_dian].label}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-300">—</span>
+                      <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-right font-semibold text-gray-900">
+                  <td className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
                     {cop(f.total)}
                   </td>
                 </tr>

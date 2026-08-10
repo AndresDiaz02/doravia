@@ -50,7 +50,9 @@ const Usuarios = lazy(() => import("./pages/Usuarios").then((m) => ({ default: m
 const ResolucionesDian = lazy(() => import("./pages/ResolucionesDian").then((m) => ({ default: m.ResolucionesDian })));
 const Bodegas = lazy(() => import("./pages/Bodegas"));
 const Inventario = lazy(() => import("./pages/Inventario"));
+const Kardex = lazy(() => import("./pages/Kardex"));
 const AsesorPedidos = lazy(() => import("./pages/AsesorPedidos"));
+const AlertasCobro = lazy(() => import("./pages/AlertasCobro"));
 const Recurrentes = lazy(() => import("./pages/Recurrentes"));
 const Cotizaciones = lazy(() => import("./pages/Cotizaciones"));
 const Gastos = lazy(() => import("./pages/Gastos"));

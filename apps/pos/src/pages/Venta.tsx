@@ -56,6 +56,17 @@ const METODOS = [
   { value: "daviplata",     label: "Daviplata" },
 ];
 
+/** El efectivo se captura como pesos COP enteros y se muestra con miles. */
+function formatearPesos(valor: string) {
+  const digitos = valor.replace(/\D/g, "");
+  if (!digitos) return "";
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Number(digitos));
+}
+
+function pesosAEntero(valor: string) {
+  return Number(valor.replace(/\D/g, "")) || 0;
+}
+
 const TUTORIAL_POS = [
   {
     titulo: "Bienvenido al Punto de Venta",
@@ -263,13 +274,13 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   function abrirPago() {
     if (carrito.length === 0) return;
     ventaIdempotencyKeyRef.current = crypto.randomUUID();
-    setMontoRecibido(metodoPago === "efectivo" ? String(Math.ceil(totalCarrito / 1000) * 1000) : "");
+    setMontoRecibido(metodoPago === "efectivo" ? formatearPesos(String(Math.ceil(totalCarrito / 1000) * 1000)) : "");
     setShowPago(true);
     setError(null);
   }
 
   const vuelto = metodoPago === "efectivo" && montoRecibido
-    ? Math.max(0, Number(montoRecibido) - totalCarrito)
+    ? Math.max(0, pesosAEntero(montoRecibido) - totalCarrito)
     : 0;
 
   async function procesarVenta() {
@@ -304,7 +315,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
           cliente_id: clienteId ?? undefined,
           nombre_cliente: clienteNombre || undefined,
           metodo_pago: metodoPago,
-          monto_recibido: metodoPago === "efectivo" ? Number(montoRecibido) : null,
+          monto_recibido: metodoPago === "efectivo" ? pesosAEntero(montoRecibido) : undefined,
           vuelto: metodoPago === "efectivo" ? vuelto : null,
           observaciones: observaciones.trim() || undefined,
           items,
@@ -314,7 +325,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       setUltimaVenta({
         numero: venta.numero, total: Number(venta.total), vuelto,
         items: [...carrito], clienteNombre, metodoPago,
-        montoRecibido: metodoPago === "efectivo" ? Number(montoRecibido) : Number(venta.total),
+        montoRecibido: metodoPago === "efectivo" ? pesosAEntero(montoRecibido) : Number(venta.total),
         subtotal: subtotalCarrito, iva: ivaCarrito, impo: impocarrito, cajaNombre,
       });
       setCarrito([]);
@@ -857,7 +868,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                   key={m.value}
                   onClick={() => {
                     setMetodoPago(m.value);
-                    setMontoRecibido(m.value === "efectivo" ? String(Math.ceil(totalCarrito / 1000) * 1000) : "");
+                    setMontoRecibido(m.value === "efectivo" ? formatearPesos(String(Math.ceil(totalCarrito / 1000) * 1000)) : "");
                   }}
                   className={cn(
                     "rounded-xl py-2.5 text-sm font-medium border transition-colors",
@@ -875,10 +886,12 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               <div className="space-y-1.5">
                 <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Recibido</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   autoFocus
                   value={montoRecibido}
-                  onChange={(e) => setMontoRecibido(e.target.value)}
+                  onChange={(e) => setMontoRecibido(formatearPesos(e.target.value))}
                   className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 text-2xl font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
                 />
                 <div className="flex justify-between text-sm bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5">
@@ -906,7 +919,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
             <button
               onClick={() => void procesarVenta()}
-              disabled={procesando || (metodoPago === "efectivo" && Number(montoRecibido) < totalCarrito)}
+              disabled={procesando || (metodoPago === "efectivo" && pesosAEntero(montoRecibido) < totalCarrito)}
               className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 py-4 text-lg font-bold text-white transition-colors"
             >
               {procesando ? "Procesando..." : "Confirmar venta"}

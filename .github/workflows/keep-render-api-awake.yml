@@ -1,0 +1,19 @@
+name: Keep Render API awake
+
+on:
+  schedule:
+    # Render Free suspende servicios inactivos. Este ping ligero mantiene
+    # disponible el inicio de sesión sin tocar datos ni ejecutar operaciones.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify API health
+        run: curl --fail --silent --show-error --max-time 60 https://doravia-api.onrender.com/health

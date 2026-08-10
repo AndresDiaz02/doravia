@@ -2,7 +2,7 @@
  * Entorno de simulación contable para revisión por contador externo.
  *
  * Empresa Demo Contador SAS — Régimen Ordinario — CIIU 4719
- * Plan: Brote (incluye comparativos y las funciones contables del plan).
+ * Plan: Cosecha (máximo nivel ERP, incluye centros de costos).
  *
  * Credenciales:
  *   Admin:    admin@demo-brote-contador.doraviasoft.com / Contador.2026!
@@ -241,15 +241,15 @@ export async function seedContador() {
   console.log("  Creando entorno de simulación para contador externo...");
   console.log("═══════════════════════════════════════════════════════════\n");
 
-  // ── Plan Brote (incluye reportes comparativos) ────────────────────────────
-  const [plan] = await db.select().from(plans).where(eq(plans.slug, "brote")).limit(1);
-  if (!plan) throw new Error("Plan 'brote' no encontrado. Ejecuta primero: pnpm db:seed");
+  // ── Plan Cosecha (máximo nivel ERP) ──────────────────────────────────────
+  const [plan] = await db.select().from(plans).where(eq(plans.slug, "cosecha")).limit(1);
+  if (!plan) throw new Error("Plan 'cosecha' no encontrado. Ejecuta primero: pnpm db:seed");
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
   const [tenant] = await db
     .insert(tenants)
     .values({
-      nombre: "Empresa Demo Contable Brote Pruebas SAS",
+      nombre: "Empresa Demo Contable Cosecha Pruebas SAS",
       nit: "901234570",                    // NIT ficticio exclusivo para este entorno
       plan_id: plan.id,
       plan_starts_at: new Date("2026-01-01"),
@@ -865,11 +865,11 @@ export async function seedContador() {
   console.log("\n═══════════════════════════════════════════════════════════");
   console.log("  ENTORNO DE SIMULACIÓN CREADO EXITOSAMENTE");
   console.log("═══════════════════════════════════════════════════════════\n");
-  console.log("  Empresa:     Empresa Demo Contable Brote Pruebas SAS");
+  console.log("  Empresa:     Empresa Demo Contable Cosecha Pruebas SAS");
   console.log("  NIT:         901.234.570 (ficticio)");
   console.log("  Régimen:     Ordinario (Responsable de IVA)");
   console.log("  CIIU:        4719 — Comercio al por menor no especializado");
-  console.log("  Plan:        Brote (incluye reportes comparativos)\n");
+  console.log("  Plan:        Cosecha (máximo nivel ERP)\n");
   console.log("  CREDENCIALES CONTADOR:");
   console.log(`  Email:       ${CONTADOR_EMAIL}`);
   console.log(`  Contraseña:  ${PASSWORD}`);
@@ -891,7 +891,7 @@ export async function seedContador() {
   console.log(`  Notas crédito:  5 (3 anulación + 1 devolución + 1 descuento)`);
   console.log(`  Gastos:         ${GASTOS_SPECS.length} (${gastosAprobados} aprobados, ${gastosPendientes} pendientes)`);
   console.log(`  Movimientos inv: ${entradas.length + salidas.length} (${entradas.length} entradas + ${salidas.length} salidas)\n`);
-  console.log("  ACCESO CONTABLE (plan Brote):");
+  console.log("  ACCESO CONTABLE (plan Cosecha):");
   console.log("  ✓ Libro diario                    → /api/contabilidad/diario");
   console.log("  ✓ Libro mayor por cuenta          → /api/contabilidad/mayor/:codigo");
   console.log("  ✓ Balance de prueba               → /api/contabilidad/balance-prueba");
@@ -903,7 +903,7 @@ export async function seedContador() {
   console.log("  ✓ Excel facturas                  → /api/exportar/facturas");
   console.log("  ✓ Excel clientes                  → /api/exportar/clientes");
   console.log("  ✓ Estado de resultados comparativo");
-  console.log("  ✗ Centros de costos               → requiere plan Cosecha (accounting_level 4)\n");
+  console.log("  ✓ Centros de costos               → disponible (accounting_level 4)\n");
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────

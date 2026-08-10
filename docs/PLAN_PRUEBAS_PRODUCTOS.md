@@ -3,7 +3,8 @@
 ## Entorno de simulacion contable
 
 La semilla `seed:contador` crea Empresa Demo Contador SAS, una empresa ficticia
-con plan Brote y actividad entre enero y junio de 2026. Nunca se debe usar para
+con ERP Cosecha, POS Punto Plus, Facturación Origen 300 y Nómina Pro, con actividad
+entre enero y junio de 2026. Nunca se debe usar para
 emitir documentos reales ni con datos de clientes reales.
 
 El entorno contiene ventas de contado y credito, cartera vencida, retenciones,

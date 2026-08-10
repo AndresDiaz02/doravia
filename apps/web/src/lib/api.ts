@@ -15,6 +15,27 @@ const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://do
 // Promesa compartida: evita múltiples refresh simultáneos en la misma pestaña
 let refreshPromise: Promise<boolean> | null = null;
 
+const API_TIMEOUT_MS = 30_000;
+
+async function fetchApi(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort();
+  options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError(408, "La conexión está tardando más de lo esperado. Intenta de nuevo en unos segundos.");
+    }
+    throw new ApiError(0, "No se pudo conectar con Doravia. Revisa tu conexión e intenta de nuevo.");
+  } finally {
+    window.clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abortFromCaller);
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -22,7 +43,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = localStorage.getItem("access_token");
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchApi(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -70,7 +91,7 @@ async function tryRefresh(oldRefreshToken: string): Promise<boolean> {
   const atAntes = localStorage.getItem("access_token");
 
   try {
-    const res = await fetch(`${BASE}/api/auth/refresh`, {
+    const res = await fetchApi(`${BASE}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: oldRefreshToken }),

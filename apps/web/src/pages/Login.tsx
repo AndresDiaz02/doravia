@@ -39,6 +39,7 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [slowLogin, setSlowLogin] = useState(false);
   const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
   const [selectionToken, setSelectionToken] = useState("");
   const [eligiendo, setEligiendo] = useState(false);
@@ -58,6 +59,8 @@ export function Login() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setSlowLogin(false);
+    const slowTimer = window.setTimeout(() => setSlowLogin(true), 3_000);
     try {
       const data = await apiFetch<LoginResponse>("/api/auth/login", {
         method: "POST",
@@ -69,11 +72,14 @@ export function Login() {
         setSelectionToken(data.selectionToken);
       } else {
         const me = await login(data.accessToken, data.refreshToken);
+        if (!me) throw new ApiError(0, "No pudimos preparar tu sesión. Intenta ingresar de nuevo.");
         navigate(destino(me?.nit, me?.is_fundador, me?.role, me?.is_contador_registrado), { replace: true });
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado.");
     } finally {
+      window.clearTimeout(slowTimer);
+      setSlowLogin(false);
       setLoading(false);
     }
   }
@@ -87,6 +93,7 @@ export function Login() {
         body: JSON.stringify({ selectionToken, tenantId }),
       });
       const me = await login(data.accessToken, data.refreshToken);
+      if (!me) throw new ApiError(0, "No pudimos preparar tu sesión. Intenta ingresar de nuevo.");
       navigate(destino(me?.nit, me?.is_fundador, me?.role, me?.is_contador_registrado), { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al seleccionar empresa.");
@@ -199,8 +206,11 @@ export function Login() {
             )}
 
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Ingresando..." : "Ingresar"}
+              {loading ? (slowLogin ? "Conectando con Doravia..." : "Ingresando...") : "Ingresar"}
             </Button>
+            {loading && slowLogin && (
+              <p className="text-center text-xs text-gray-500">Estamos preparando tu sesión. No cierres esta ventana.</p>
+            )}
           </form>
         </div>
 

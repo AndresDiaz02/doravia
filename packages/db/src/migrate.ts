@@ -27,6 +27,18 @@ if (!process.env.DATABASE_URL) {
 const sql = postgres(process.env.DATABASE_URL!);
 
 const migrations = [
+  // Reintentos seguros para operaciones que generan documentos o movimientos de dinero.
+  `CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    operacion varchar(80) NOT NULL,
+    clave varchar(200) NOT NULL,
+    estado varchar(20) NOT NULL DEFAULT 'procesando',
+    respuesta jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    completed_at timestamptz
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idempotency_keys_tenant_operacion_clave_unique ON idempotency_keys(tenant_id, operacion, clave)`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS en_prueba boolean NOT NULL DEFAULT true`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS prueba_ends_at timestamptz`,
   // permisos_contables en users y user_accesos (se omitió en el push inicial de Railway)

@@ -248,6 +248,8 @@ export function FacturaNueva() {
       interface FacturaResp { id: string }
       const factura = await apiFetch<FacturaResp>("/api/facturas", {
         method: "POST",
+        // Si el navegador o la red reintenta, el backend devuelve esta misma factura.
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify(body),
       });
       navigate(`/facturas/${factura.id}`);

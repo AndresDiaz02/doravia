@@ -293,6 +293,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
       const venta = await apiFetch<{ numero: string; total: string }>("/api/pos/ventas", {
         method: "POST",
+        // La misma llave puede reutilizarse si una capa de red reintenta esta compra.
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           turno_id: turnoId,
           caja_id: cajaId,

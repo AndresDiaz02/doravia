@@ -6,6 +6,7 @@ import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 
 const router = Router();
 const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
@@ -345,6 +346,12 @@ router.post("/ventas", async (req, res) => {
     return res.status(422).json({ error: (err as Error).message });
   }
 
+  const reserva = await reservarIdempotencia(req.tenantId, "pos.venta", req.header("Idempotency-Key"));
+  if (reserva?.estado === "completada") return res.status(201).json(reserva.respuesta);
+  if (reserva?.estado === "procesando") {
+    return res.status(409).json({ error: "Esta venta ya se está procesando. Espera unos segundos antes de reintentar.", code: "IDEMPOTENCY_IN_PROGRESS" });
+  }
+
   try {
 
   // Verifica turno abierto
@@ -507,6 +514,7 @@ router.post("/ventas", async (req, res) => {
     console.error("Error al crear asiento de venta POS:", err);
   }
 
+  await completarIdempotencia(req.tenantId, "pos.venta", reserva?.estado === "nueva" ? reserva.clave : undefined, result as unknown as Record<string, unknown>);
   res.status(201).json(result);
 
   } catch (err) {

@@ -10,6 +10,7 @@ import { PlanLimitError } from "@workspace/shared";
 import { generarPdfFactura } from "../services/pdf.service.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 import { enviarFacturaAceptada } from "../services/email.service.js";
+import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 
 const router = Router();
 
@@ -338,9 +339,16 @@ router.post("/", async (req, res) => {
   try {
     const fechaDoc = fecha ? new Date(fecha) : new Date();
     await verificarPeriodoAbierto(req.tenantId, fechaDoc);
+    const reserva = await reservarIdempotencia(req.tenantId, "factura.emitir", req.header("Idempotency-Key"));
+    if (reserva?.estado === "completada") return res.status(201).json(reserva.respuesta);
+    if (reserva?.estado === "procesando") {
+      return res.status(409).json({ error: "Esta factura ya se está procesando. Espera unos segundos antes de reintentar.", code: "IDEMPOTENCY_IN_PROGRESS" });
+    }
     const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha: fechaDoc, fecha_vencimiento, observaciones });
+    const respuesta = { ...factura, advertencias };
+    await completarIdempotencia(req.tenantId, "factura.emitir", reserva?.estado === "nueva" ? reserva.clave : undefined, respuesta);
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.creada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total, estado: factura.estado }, ip: req.ip });
-    res.status(201).json({ ...factura, advertencias });
+    res.status(201).json(respuesta);
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return res.status(403).json({ error: err.message, code: err.code });

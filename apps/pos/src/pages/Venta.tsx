@@ -40,6 +40,8 @@ interface PreCuenta {
   creadaAt: Date;
 }
 
+const PRECUENTAS_STORAGE_PREFIX = "doravia-pos-precuentas";
+
 interface Props {
   turnoId: string;
   cajaId: string;
@@ -148,6 +150,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [mostrarTutorial, setMostrarTutorial] = useState(false);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
+  const [preCuentasReady, setPreCuentasReady] = useState(false);
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [clienteQuery, setClienteQuery] = useState("");
@@ -182,6 +185,35 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       .then((est) => { if (!est.pos?.completado && !est.pos?.saltado) setMostrarTutorial(true); })
       .catch(() => {});
   }, []);
+
+  // Las ventas pausadas pertenecen a una caja. Se conservan localmente para que
+  // un cajero pueda continuar una atención incluso si el navegador se recarga.
+  useEffect(() => {
+    setPreCuentasReady(false);
+    try {
+      const raw = localStorage.getItem(`${PRECUENTAS_STORAGE_PREFIX}:${cajaId}`);
+      const guardadas = raw ? JSON.parse(raw) : [];
+      setPreCuentas(Array.isArray(guardadas)
+        ? guardadas.filter((pc): pc is Omit<PreCuenta, "creadaAt"> & { creadaAt: string } =>
+            pc && typeof pc.id === "string" && Array.isArray(pc.items)
+          ).map((pc) => ({ ...pc, creadaAt: new Date(pc.creadaAt) }))
+        : []);
+    } catch {
+      setPreCuentas([]);
+    } finally {
+      setPreCuentasReady(true);
+    }
+  }, [cajaId]);
+
+  useEffect(() => {
+    if (!preCuentasReady) return;
+    const key = `${PRECUENTAS_STORAGE_PREFIX}:${cajaId}`;
+    if (preCuentas.length === 0) {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify(preCuentas));
+  }, [cajaId, preCuentas, preCuentasReady]);
 
   const agregarProducto = useCallback((p: Producto) => {
     setCarrito((prev) => {
@@ -224,6 +256,15 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const totalCarrito = subtotalCarrito + ivaCarrito + impocarrito;
   const descuentoTotal = carrito.reduce((s, i) =>
     s + i.cantidad * i.precio_unitario * (i.descuento_pct / 100), 0);
+
+  const montosRapidos = [
+    { label: "Exacto", value: Math.ceil(totalCarrito) },
+    { label: "Redondear", value: Math.ceil(totalCarrito / 1000) * 1000 },
+    { label: "$20 mil", value: 20_000 },
+    { label: "$50 mil", value: 50_000 },
+  ].filter((m, index, all) =>
+    m.value >= totalCarrito && all.findIndex((other) => other.value === m.value) === index
+  );
 
   function cambiarCantidad(id: string, delta: number) {
     setCarrito((prev) =>
@@ -525,7 +566,11 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
         </div>
 
         {/* Grid de productos */}
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex items-center justify-between px-3 pt-3 pb-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">Catálogo</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500">{productosVisibles.length} productos</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 pt-2">
           {productosVisibles.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-600 gap-3">
               <Package className="h-12 w-12 opacity-40" />
@@ -894,6 +939,18 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                   onChange={(e) => setMontoRecibido(formatearPesos(e.target.value))}
                   className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 text-2xl font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
                 />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {montosRapidos.map((m) => (
+                    <button
+                      key={m.label}
+                      type="button"
+                      onClick={() => setMontoRecibido(formatearPesos(String(m.value)))}
+                      className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2 py-2 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:border-violet-400 hover:text-violet-700 dark:hover:border-violet-500 dark:hover:text-violet-300 transition-colors"
+                    >
+                      {m.label === "Exacto" ? `Exacto · ${cop(m.value)}` : m.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex justify-between text-sm bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5">
                   <span className="text-gray-500 dark:text-slate-400">Vuelto</span>
                   <span className={cn("font-bold text-lg", vuelto < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>

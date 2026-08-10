@@ -175,7 +175,7 @@ export default function Cuentas({ cajaId }: Props) {
   const saldo = (f: Cuenta) => Number(f.monto_total) - Number(f.monto_pagado);
 
   return (
-    <div className="flex h-full flex-col bg-gray-50">
+    <div className="pos-cartera flex h-full flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>

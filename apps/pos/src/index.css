@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Las pantallas históricas de POS usan utilidades claras. Este alcance permite
+   que Cartera respete el tema activo sin alterar sus estados funcionales. */
+.dark .pos-cartera .bg-white { background-color: rgb(15 23 42); }
+.dark .pos-cartera .bg-gray-50 { background-color: rgb(11 14 26); }
+.dark .pos-cartera .bg-gray-100 { background-color: rgb(30 41 59); }
+.dark .pos-cartera .border-gray-100,
+.dark .pos-cartera .border-gray-200,
+.dark .pos-cartera .border-gray-300 { border-color: rgb(51 65 85); }
+.dark .pos-cartera .text-gray-900 { color: rgb(248 250 252); }
+.dark .pos-cartera .text-gray-800,
+.dark .pos-cartera .text-gray-700 { color: rgb(226 232 240); }
+.dark .pos-cartera .text-gray-600,
+.dark .pos-cartera .text-gray-500 { color: rgb(148 163 184); }
+.dark .pos-cartera .text-gray-400,
+.dark .pos-cartera .text-gray-300 { color: rgb(100 116 139); }
+.dark .pos-cartera .hover\\:bg-gray-50:hover,
+.dark .pos-cartera .hover\\:bg-gray-100:hover { background-color: rgb(30 41 59); }

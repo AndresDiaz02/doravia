@@ -106,20 +106,20 @@ export default function Cartera() {
     if (tab === "aging" && !aging) cargarAging();
   }, [tab]);
 
-  if (loading) return <p className="p-8 text-gray-500">Cargando cartera…</p>;
+  if (loading) return <p className="p-8 text-gray-500 dark:text-gray-400">Cargando cartera…</p>;
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-900">Cartera</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Cartera</h1>
           <HelpTooltip text="Cartera son todas las facturas que aún no han sido pagadas por tus clientes. Aquí puedes ver cuánto te deben, quién debe más y hace cuánto tiempo." />
         </div>
-        <p className="text-sm text-gray-500 mt-1">Seguimiento de cuentas por cobrar y estado de clientes</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Seguimiento de cuentas por cobrar y estado de clientes</p>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error} <button className="ml-2 underline" onClick={() => setError(null)}>Cerrar</button>
         </div>
       )}
@@ -131,28 +131,28 @@ export default function Cartera() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-4 h-4 text-blue-500" />
-                <p className="text-xs text-gray-500">Total cartera</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total cartera</p>
               </div>
-              <p className="text-xl font-bold text-gray-900">{cop(resumen.total_cartera)}</p>
-              <p className="text-xs text-gray-400 mt-1">{resumen.facturas_pendientes} factura(s) pendiente(s)</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{cop(resumen.total_cartera)}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{resumen.facturas_pendientes} factura(s) pendiente(s)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-red-500" />
-                <p className="text-xs text-gray-500">Cartera vencida</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Cartera vencida</p>
                 <HelpTooltip text="Son las facturas cuya fecha de vencimiento ya pasó y todavía no han sido pagadas. Entre más alta sea, más urgente es gestionar el cobro." side="bottom" />
               </div>
               <p className="text-xl font-bold text-red-600">{cop(resumen.total_vencida)}</p>
-              <p className="text-xs text-gray-400 mt-1">{resumen.facturas_vencidas} factura(s) vencida(s)</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{resumen.facturas_vencidas} factura(s) vencida(s)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="w-4 h-4 text-amber-500" />
-                <p className="text-xs text-gray-500">% Cartera vencida</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">% Cartera vencida</p>
               </div>
               <p className="text-xl font-bold text-amber-600">
                 {resumen.total_cartera > 0
@@ -165,15 +165,15 @@ export default function Cartera() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Users className="w-4 h-4 text-green-500" />
-                <p className="text-xs text-gray-500">Top deudor</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Top deudor</p>
               </div>
               {resumen.top_deudores[0] ? (
                 <>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{resumen.top_deudores[0].nombre}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{cop(resumen.top_deudores[0].total_pendiente)}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{resumen.top_deudores[0].nombre}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{cop(resumen.top_deudores[0].total_pendiente)}</p>
                 </>
               ) : (
-                <p className="text-sm text-gray-400">Sin deudores</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Sin deudores</p>
               )}
             </CardContent>
           </Card>
@@ -181,13 +181,13 @@ export default function Cartera() {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
         {(["resumen", "aging", "estado_cuenta"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
+              tab === t ? "border-green-600 text-green-700 dark:text-green-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             {{ resumen: "Top deudores", aging: "Aging de cartera", estado_cuenta: "Estado de cuenta" }[t]}
@@ -197,27 +197,27 @@ export default function Cartera() {
 
       {/* Tab: Resumen / top deudores */}
       {tab === "resumen" && resumen && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           {resumen.top_deudores.length === 0 ? (
-            <div className="py-16 text-center text-gray-400">
+            <div className="py-16 text-center text-gray-400 dark:text-gray-500">
               <p>No hay cuentas por cobrar pendientes.</p>
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Cliente</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Total pendiente</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Facturas</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Cliente</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Total pendiente</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Facturas</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {resumen.top_deudores.map((d) => (
-                  <tr key={d.cliente_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{d.nombre}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{cop(d.total_pendiente)}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{d.facturas_pendientes}</td>
+                  <tr key={d.cliente_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{d.nombre}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{cop(d.total_pendiente)}</td>
+                    <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{d.facturas_pendientes}</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         className="text-xs text-green-600 hover:underline"
@@ -237,49 +237,49 @@ export default function Cartera() {
       {/* Tab: Aging */}
       {tab === "aging" && (
         <div className="space-y-4">
-          {loadingAging && <p className="text-sm text-gray-500">Cargando aging…</p>}
+          {loadingAging && <p className="text-sm text-gray-500 dark:text-gray-400">Cargando aging…</p>}
           {aging && (
             <>
               {/* Resumen por bucket */}
               {/* El aging clasifica la cartera según cuántos días lleva vencida */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {Object.entries(aging.resumen).map(([bucket, info]) => (
-                  <div key={bucket} className="rounded-lg border border-gray-200 bg-white p-3 text-center">
-                    <p className="text-xs text-gray-500 mb-1">{BUCKET_LABELS[bucket] ?? bucket}</p>
-                    <p className="font-semibold text-gray-900 text-sm">{cop(info.total)}</p>
-                    <p className="text-xs text-gray-400">{info.count} factura(s)</p>
+                  <div key={bucket} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{BUCKET_LABELS[bucket] ?? bucket}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{cop(info.total)}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{info.count} factura(s)</p>
                   </div>
                 ))}
               </div>
 
               {/* Tabla detalle */}
               {aging.facturas.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 py-12 text-center text-gray-400">No hay cartera pendiente.</div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-12 text-center text-gray-400 dark:text-gray-500">No hay cartera pendiente.</div>
               ) : (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium text-gray-600">Factura</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-600">Cliente</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-600">Vencimiento</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-600">
+                        <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Factura</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Cliente</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Vencimiento</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
                           <span className="flex items-center gap-1">
                             Antigüedad
                             <HelpTooltip text="Clasifica la deuda según cuántos días lleva vencida. 'Al día' = aún no vence. Más de 90 días = cobro urgente." side="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-600">Saldo</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Saldo</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {aging.facturas.map((f) => (
-                        <tr key={f.id} className="hover:bg-gray-50">
+                        <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-3">
                             <Link to={`/facturas/${f.id}`} className="font-medium text-green-700 hover:underline">{f.numero}</Link>
                           </td>
-                          <td className="px-4 py-3 text-gray-700">{f.cliente.nombre}</td>
-                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{f.fecha_vencimiento ? fecha(f.fecha_vencimiento) : "—"}</td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{f.cliente.nombre}</td>
+                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.fecha_vencimiento ? fecha(f.fecha_vencimiento) : "—"}</td>
                           <td className="px-4 py-3">
                             <Badge variant={BUCKET_COLOR[f.bucket] ?? "gray"}>{BUCKET_LABELS[f.bucket] ?? f.bucket}</Badge>
                           </td>
@@ -300,11 +300,11 @@ export default function Cartera() {
         <div className="space-y-4">
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Cliente</label>
               <select
                 value={clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
               >
                 <option value="">Selecciona un cliente</option>
                 {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -324,38 +324,38 @@ export default function Cartera() {
               {/* Resumen */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Total facturado", value: cop(estadoCuenta.resumen.total_facturado), color: "text-gray-900" },
+                  { label: "Total facturado", value: cop(estadoCuenta.resumen.total_facturado), color: "text-gray-900 dark:text-gray-100" },
                   { label: "Total pagado", value: cop(estadoCuenta.resumen.total_pagado), color: "text-green-700" },
-                  { label: "Saldo pendiente", value: cop(estadoCuenta.resumen.saldo_pendiente), color: estadoCuenta.resumen.saldo_pendiente > 0 ? "text-red-600" : "text-gray-900" },
+                  { label: "Saldo pendiente", value: cop(estadoCuenta.resumen.saldo_pendiente), color: estadoCuenta.resumen.saldo_pendiente > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100" },
                   { label: "Fact. pendientes", value: String(estadoCuenta.resumen.facturas_pendientes), color: "text-amber-600" },
                 ].map((k) => (
-                  <div key={k.label} className="rounded-lg border border-gray-200 bg-white p-3">
-                    <p className="text-xs text-gray-500 mb-1">{k.label}</p>
+                  <div key={k.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{k.label}</p>
                     <p className={`font-semibold text-base ${k.color}`}>{k.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Tabla facturas */}
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Factura</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Emisión</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Vencimiento</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Estado</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">Total</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Factura</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Emisión</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Vencimiento</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Estado</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {estadoCuenta.facturas.map((f) => (
-                      <tr key={f.id} className="hover:bg-gray-50">
+                      <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-3">
                           <Link to={`/facturas/${f.id}`} className="font-medium text-green-700 hover:underline">{f.numero}</Link>
                         </td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fecha(f.fecha_emision)}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{f.fecha_vencimiento ? fecha(f.fecha_vencimiento) : "—"}</td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{fecha(f.fecha_emision)}</td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.fecha_vencimiento ? fecha(f.fecha_vencimiento) : "—"}</td>
                         <td className="px-4 py-3">
                           {f.pagada_at ? (
                             <Badge variant="green">Pagada</Badge>

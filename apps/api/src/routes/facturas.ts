@@ -330,7 +330,7 @@ router.post("/:id/whatsapp-link", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { cliente_id, items, fecha, fecha_vencimiento, observaciones } = req.body;
+  const { cliente_id, items, fecha, fecha_vencimiento, observaciones, bodega_id } = req.body;
 
   if (!cliente_id || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Campos requeridos: cliente_id, items (array no vacío)." });
@@ -344,7 +344,7 @@ router.post("/", async (req, res) => {
     if (reserva?.estado === "procesando") {
       return res.status(409).json({ error: "Esta factura ya se está procesando. Espera unos segundos antes de reintentar.", code: "IDEMPOTENCY_IN_PROGRESS" });
     }
-    const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha: fechaDoc, fecha_vencimiento, observaciones });
+    const { factura, advertencias } = await crearFactura(req.tenant, { cliente_id, items, fecha: fechaDoc, fecha_vencimiento, observaciones, bodega_id });
     const respuesta = { ...factura, advertencias };
     await completarIdempotencia(req.tenantId, "factura.emitir", reserva?.estado === "nueva" ? reserva.clave : undefined, respuesta);
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "factura.creada", entidadTipo: "factura", entidadId: factura.id, detalle: { numero: factura.numero, total: factura.total, estado: factura.estado }, ip: req.ip });

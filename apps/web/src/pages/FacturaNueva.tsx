@@ -32,6 +32,8 @@ interface RetencionConfig {
   activo?: boolean;
 }
 
+interface Bodega { id: string; nombre: string; }
+
 interface RetencionAplicada {
   key: number;
   config_id: string;
@@ -106,6 +108,8 @@ export function FacturaNueva() {
   const [params] = useSearchParams();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
+  const [bodegaId, setBodegaId] = useState("");
   const [clienteId, setClienteId] = useState(params.get("cliente_id") ?? "");
   const [condicionPago, setCondicionPago] = useState<"contado" | "credito">("contado");
   const [formaPago, setFormaPago] = useState("efectivo");
@@ -122,10 +126,13 @@ export function FacturaNueva() {
       apiFetch<{ data: Cliente[] }>("/api/clientes?limit=200"),
       apiFetch<{ data: Producto[] }>("/api/productos?limit=200"),
       apiFetch<RetencionConfig[]>("/api/retenciones"),
-    ]).then(([c, p, r]) => {
+      apiFetch<Bodega[]>("/api/bodegas"),
+    ]).then(([c, p, r, b]) => {
       setClientes(c.data);
       setProductos(p.data);
       setRetencionesConfig(r.filter((x) => x.activo !== false));
+      setBodegas(b);
+      if (b.length === 1) setBodegaId(b[0].id);
     });
   }, []);
 
@@ -227,6 +234,7 @@ export function FacturaNueva() {
         forma_pago: formaPago,
         fecha_vencimiento: fechaVenc || undefined,
         observaciones: observaciones || undefined,
+        bodega_id: bodegaId || undefined,
         items: lineas.map((l) => ({
           producto_id: l.producto_id || undefined,
           descripcion: l.descripcion,
@@ -329,6 +337,14 @@ export function FacturaNueva() {
                 <option value="transferencia">Transferencia bancaria</option>
                 <option value="cheque">Cheque</option>
                 <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="bodega">Bodega de salida</Label>
+              <select id="bodega" value={bodegaId} onChange={(e) => setBodegaId(e.target.value)} className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                <option value="">Bodega principal automática</option>
+                {bodegas.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}
               </select>
             </div>
 

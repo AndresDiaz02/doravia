@@ -12,6 +12,7 @@ export async function registrarSalidaFactura(
   tenantId: string,
   factura: Factura,
   items: ItemFactura[],
+  bodegaIdFactura?: string | null,
 ): Promise<void> {
   const itemsConProducto = items.filter((i) => i.producto_id != null);
   if (itemsConProducto.length === 0) return;
@@ -19,7 +20,11 @@ export async function registrarSalidaFactura(
   const [bodega] = await db
     .select({ id: bodegas.id })
     .from(bodegas)
-    .where(and(eq(bodegas.tenant_id, tenantId), eq(bodegas.activo, true)))
+    .where(and(
+      eq(bodegas.tenant_id, tenantId),
+      eq(bodegas.activo, true),
+      ...(bodegaIdFactura ? [eq(bodegas.id, bodegaIdFactura)] : []),
+    ))
     .orderBy(bodegas.created_at)
     .limit(1);
 

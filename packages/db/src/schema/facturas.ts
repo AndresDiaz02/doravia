@@ -2,6 +2,7 @@ import { pgTable, uuid, varchar, integer, boolean, timestamp, numeric, text, ind
 import { tenants } from "./tenants.ts";
 import { clientes } from "./clientes.ts";
 import { resoluciones_dian } from "./resoluciones_dian.ts";
+import { bodegas } from "./bodegas.ts";
 
 export const ESTADOS_FACTURA = ["borrador", "enviada", "aceptada", "rechazada", "anulada"] as const;
 export type EstadoFactura = (typeof ESTADOS_FACTURA)[number];
@@ -20,6 +21,8 @@ export const facturas = pgTable("facturas", {
   tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
   cliente_id: uuid("cliente_id").notNull().references(() => clientes.id),
   resolucion_id: uuid("resolucion_id").notNull().references(() => resoluciones_dian.id),
+  // Bodega de la cual se descuenta el inventario asociado a la factura.
+  bodega_id: uuid("bodega_id").references(() => bodegas.id),
 
   // Numeracion DIAN: prefijo + consecutivo forman el numero visible (ej. FV-0001)
   prefijo: varchar("prefijo", { length: 10 }).notNull(),

@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura, tenants } from "@workspace/db";
+import { db, facturas, items_factura, resoluciones_dian, clientes, retenciones_factura, tenants, bodegas } from "@workspace/db";
 import type { ResolucionDian } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
@@ -47,6 +47,7 @@ export interface CrearFacturaInput {
   observaciones?: string;
   condicion_pago?: string;
   forma_pago?: string;
+  bodega_id?: string;
 }
 
 function calcularItem(item: ItemInput) {
@@ -110,6 +111,17 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
     .limit(1);
 
   if (!cliente) throw new Error("Cliente no encontrado.");
+
+  let bodegaId = input.bodega_id ?? null;
+  if (bodegaId) {
+    const [bodega] = await db.select({ id: bodegas.id }).from(bodegas)
+      .where(and(eq(bodegas.id, bodegaId), eq(bodegas.tenant_id, tenant.id), eq(bodegas.activo, true))).limit(1);
+    if (!bodega) throw new Error("La bodega seleccionada no pertenece a la empresa o está inactiva.");
+  } else {
+    const [bodegaPrincipal] = await db.select({ id: bodegas.id }).from(bodegas)
+      .where(and(eq(bodegas.tenant_id, tenant.id), eq(bodegas.activo, true))).orderBy(bodegas.created_at).limit(1);
+    bodegaId = bodegaPrincipal?.id ?? null;
+  }
 
   // Verificar que existe resolución activa ANTES de la transacción (falla rápido si no hay)
   const [resolucionPrev] = await db
@@ -175,6 +187,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
         tenant_id: tenant.id,
         cliente_id: input.cliente_id,
         resolucion_id: resolucion.id,
+        bodega_id: bodegaId,
         prefijo: resolucion.prefijo,
         consecutivo,
         numero,
@@ -260,7 +273,7 @@ export async function crearFactura(tenant: TenantWithPlan, input: CrearFacturaIn
       // Auto-descuento de inventario si el plan lo tiene activo
       const features = tenant.plan.features as Record<string, boolean>;
       if (features.inventario) {
-        await registrarSalidaFactura(tenant.id, factura, itemsParaDian);
+        await registrarSalidaFactura(tenant.id, factura, itemsParaDian, factura.bodega_id);
       }
 
       const [facturaFinal] = await db

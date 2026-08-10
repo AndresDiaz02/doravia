@@ -28,6 +28,17 @@ interface Props {
   onTurnoAbierto: (turnoId: string, cajaId: string, cajaNombre: string, cajaConfig: CajaConfig | null) => void;
 }
 
+/** Pesos colombianos no usan centavos en caja; se muestran con miles (100.000). */
+function formatearPesos(valor: string) {
+  const digitos = valor.replace(/\D/g, "");
+  if (!digitos) return "";
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Number(digitos));
+}
+
+function pesosAEntero(valor: string) {
+  return Number(valor.replace(/\D/g, "")) || 0;
+}
+
 export default function SeleccionCaja({ onTurnoAbierto }: Props) {
   const { user, logout } = useAuth();
   const [cajas, setCajas] = useState<Caja[]>([]);
@@ -78,7 +89,7 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
     try {
       const body: Record<string, unknown> = {
         caja_id: cajaSeleccionada.id,
-        monto_inicial: Number(montoInicial),
+        monto_inicial: pesosAEntero(montoInicial),
       };
       if (bodegaSeleccionada) body.bodega_id = bodegaSeleccionada;
       const turno = await apiFetch<TurnoActivo>("/api/pos/turnos", {
@@ -166,12 +177,15 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
               <div className="space-y-1.5">
                 <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Monto inicial en caja ($)</label>
                 <input
-                  type="number" min="0" step="1000"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={montoInicial}
-                  onChange={(e) => setMontoInicial(e.target.value)}
+                  onChange={(e) => setMontoInicial(formatearPesos(e.target.value))}
                   className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl px-4 py-3 text-2xl font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
                   autoFocus
                 />
+                <p className="text-center text-xs text-gray-400 dark:text-slate-500">Ejemplo: 100.000</p>
               </div>
 
               {/* Selector de bodega — solo aparece si el tenant tiene más de una bodega */}

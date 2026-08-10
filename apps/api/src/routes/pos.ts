@@ -231,14 +231,40 @@ router.post("/turnos", async (req, res) => {
 });
 
 router.patch("/turnos/:id/cerrar", async (req, res) => {
-  const { monto_final_declarado, notas_cierre } = req.body as { monto_final_declarado?: number; notas_cierre?: string };
+  const { monto_final_declarado, notas_cierre, arqueo_efectivo } = req.body as {
+    monto_final_declarado?: number;
+    notas_cierre?: string;
+    arqueo_efectivo?: Record<string, unknown>;
+  };
+  const denominacionesValidas = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50];
+  let totalArqueo: number | null = null;
+  let arqueoNormalizado: Record<string, number> | null = null;
+
+  if (arqueo_efectivo !== undefined) {
+    if (!arqueo_efectivo || typeof arqueo_efectivo !== "object" || Array.isArray(arqueo_efectivo)) {
+      return res.status(400).json({ error: "El arqueo de efectivo no es válido." });
+    }
+    arqueoNormalizado = {};
+    totalArqueo = 0;
+    for (const denominacion of denominacionesValidas) {
+      const cantidad = arqueo_efectivo[String(denominacion)] ?? 0;
+      if (!Number.isInteger(cantidad) || (cantidad as number) < 0) {
+        return res.status(400).json({ error: `La cantidad para $${denominacion} debe ser un entero igual o mayor que cero.` });
+      }
+      arqueoNormalizado[String(denominacion)] = cantidad as number;
+      totalArqueo += denominacion * (cantidad as number);
+    }
+  } else if (monto_final_declarado !== undefined && (!Number.isFinite(monto_final_declarado) || monto_final_declarado < 0)) {
+    return res.status(400).json({ error: "El monto final declarado no es válido." });
+  }
   const [turno] = await db.select().from(turnos_pos)
     .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId)));
   if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
   if (turno.estado === "cerrado") return res.status(400).json({ error: "El turno ya está cerrado." });
   const [cerrado] = await db.update(turnos_pos).set({
     estado: "cerrado", cierre_at: new Date(),
-    monto_final_declarado: monto_final_declarado !== undefined ? String(monto_final_declarado) : null,
+    monto_final_declarado: totalArqueo !== null ? String(totalArqueo) : monto_final_declarado !== undefined ? String(monto_final_declarado) : null,
+    arqueo_efectivo: arqueoNormalizado,
     notas_cierre: notas_cierre ?? null,
   }).where(eq(turnos_pos.id, turno.id)).returning();
   res.json(cerrado);

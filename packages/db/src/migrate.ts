@@ -109,6 +109,7 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
   // config por caja (grameras, impresoras, periféricos)
   `ALTER TABLE cajas_pos ADD COLUMN IF NOT EXISTS config jsonb`,
+  `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS arqueo_efectivo jsonb`,
   // gastos de caja chica durante el turno POS
   `CREATE TABLE IF NOT EXISTS gastos_caja_pos (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

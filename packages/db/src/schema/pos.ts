@@ -53,6 +53,9 @@ export const turnos_pos = pgTable("turnos_pos", {
   usuario_id: uuid("usuario_id").notNull(),
   monto_inicial: numeric("monto_inicial", { precision: 14, scale: 2 }).notNull().default("0"),
   monto_final_declarado: numeric("monto_final_declarado", { precision: 14, scale: 2 }),
+  // Conteo de efectivo al cierre: { "100000": 2, "50000": 1, ... }.
+  // Conserva el arqueo verificable además del valor total declarado.
+  arqueo_efectivo: jsonb("arqueo_efectivo").$type<Record<string, number>>(),
   total_ventas: numeric("total_ventas", { precision: 14, scale: 2 }).notNull().default("0"),
   estado: varchar("estado", { length: 20 }).notNull().default("abierto"),
   apertura_at: timestamp("apertura_at", { withTimezone: true }).notNull().defaultNow(),

@@ -280,6 +280,7 @@ router.get("/productos", async (req, res) => {
       nombre: productos.nombre,
       precio_venta: productos.precio_venta,
       iva_pct: productos.iva_pct,
+      tipo: productos.tipo,
       unidad: productos.unidad,
       stock_actual: productos.stock_actual,
     })

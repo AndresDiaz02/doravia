@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle, Scale, Wifi, WifiOff } from "lucide-react";
+import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle, Scale, Wifi, WifiOff, Star } from "lucide-react";
 import { TutorialOverlay } from "../components/TutorialOverlay";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
@@ -17,6 +17,7 @@ interface Producto {
   impoconsumo_pct: string;
   stock_actual: string | null;
   unidad: string;
+  tipo: "producto" | "servicio";
 }
 
 interface Cliente {
@@ -41,6 +42,7 @@ interface PreCuenta {
 }
 
 const PRECUENTAS_STORAGE_PREFIX = "doravia-pos-precuentas";
+const FAVORITOS_STORAGE_PREFIX = "doravia-pos-favoritos";
 
 interface Props {
   turnoId: string;
@@ -151,6 +153,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
   const [preCuentasReady, setPreCuentasReady] = useState(false);
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [filtroCatalogo, setFiltroCatalogo] = useState<"todos" | "favoritos" | "producto" | "servicio">("todos");
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [clienteQuery, setClienteQuery] = useState("");
@@ -215,6 +219,26 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     localStorage.setItem(key, JSON.stringify(preCuentas));
   }, [cajaId, preCuentas, preCuentasReady]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`${FAVORITOS_STORAGE_PREFIX}:${cajaId}`);
+      const ids = raw ? JSON.parse(raw) : [];
+      setFavoritos(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []);
+    } catch {
+      setFavoritos([]);
+    }
+  }, [cajaId]);
+
+  function alternarFavorito(productoId: string) {
+    setFavoritos((actual) => {
+      const siguiente = actual.includes(productoId)
+        ? actual.filter((id) => id !== productoId)
+        : [...actual, productoId];
+      localStorage.setItem(`${FAVORITOS_STORAGE_PREFIX}:${cajaId}`, JSON.stringify(siguiente));
+      return siguiente;
+    });
+  }
+
   const agregarProducto = useCallback((p: Producto) => {
     setCarrito((prev) => {
       const idx = prev.findIndex((i) => i.producto.id === p.id);
@@ -226,12 +250,16 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   useBarcodeScanner(productos, agregarProducto, () => setBusqueda(""), busquedaRef);
 
-  const productosVisibles = busqueda.trim()
-    ? productos.filter((p) => {
+  const productosVisibles = productos.filter((p) => {
+      if (filtroCatalogo === "favoritos" && !favoritos.includes(p.id)) return false;
+      if (filtroCatalogo === "producto" && p.tipo !== "producto") return false;
+      if (filtroCatalogo === "servicio" && p.tipo !== "servicio") return false;
+      if (busqueda.trim()) {
         const q = busqueda.toLowerCase();
         return p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
-      }).slice(0, 24)
-    : productos;
+      }
+      return true;
+    }).sort((a, b) => Number(favoritos.includes(b.id)) - Number(favoritos.includes(a.id))).slice(0, 36);
 
   const clientesFiltrados = clienteQuery.trim().length >= 2
     ? clientes.filter((c) =>
@@ -539,6 +567,31 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
       )}
       {/* ── Panel izquierdo: catálogo ── */}
       <div className="flex min-h-[46vh] flex-col w-full lg:w-[58%] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-slate-800">
+        {/* Pre-cuentas: cada pestaña representa una atención independiente. */}
+        <div className="flex items-end gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 pt-2 dark:border-slate-800 dark:bg-[#0B0E1A]">
+          <button className="flex-shrink-0 rounded-t-lg border-x border-t border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+            Venta actual {carrito.length > 0 ? `· ${carrito.length}` : ""}
+          </button>
+          {preCuentas.map((pc) => (
+            <button
+              key={pc.id}
+              onClick={() => retomarPreCuenta(pc)}
+              className="flex max-w-36 flex-shrink-0 items-center gap-1 rounded-t-lg border-x border-t border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              title={`Retomar ${pc.nombre}`}
+            >
+              <Pause className="h-3 w-3 text-violet-500" />
+              <span className="truncate">{pc.nombre}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => { if (carrito.length > 0) pausarVenta(); }}
+            disabled={carrito.length === 0}
+            title="Pausar esta venta y abrir una nueva"
+            className="mb-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-35 dark:text-violet-400 dark:hover:bg-violet-950/40"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
         {/* Buscador */}
         <div className="px-3 py-2.5 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-transparent">
           <div className="relative flex-1">
@@ -569,6 +622,28 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
           )}
         </div>
 
+        <div className="flex gap-2 overflow-x-auto border-b border-gray-100 bg-white px-3 py-2 dark:border-slate-800 dark:bg-[#0B0E1A]">
+          {[
+            { id: "todos", label: "Todos" },
+            { id: "favoritos", label: "Favoritos" },
+            { id: "producto", label: "Productos" },
+            { id: "servicio", label: "Servicios" },
+          ].map((filtro) => (
+            <button
+              key={filtro.id}
+              onClick={() => setFiltroCatalogo(filtro.id as typeof filtroCatalogo)}
+              className={cn(
+                "flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                filtroCatalogo === filtro.id
+                  ? "border-violet-500 bg-violet-600 text-white"
+                  : "border-gray-200 bg-gray-50 text-gray-600 hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-600 dark:hover:text-violet-300"
+              )}
+            >
+              {filtro.id === "favoritos" && <Star className="mr-1 inline h-3 w-3" fill={filtroCatalogo === "favoritos" ? "currentColor" : "none"} />}
+              {filtro.label}
+            </button>
+          ))}
+        </div>
         {/* Grid de productos */}
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">Catálogo</p>
@@ -601,6 +676,22 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                         {enCarrito.cantidad}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); alternarFavorito(p.id); }}
+                      className={cn(
+                        "absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-lg transition-colors",
+                        favoritos.includes(p.id)
+                          ? "bg-amber-100 text-amber-500 dark:bg-amber-500/20"
+                          : "text-gray-300 hover:bg-gray-100 hover:text-amber-500 dark:text-slate-600 dark:hover:bg-slate-700"
+                      )}
+                      title={favoritos.includes(p.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+                    >
+                      <Star className="h-3.5 w-3.5" fill={favoritos.includes(p.id) ? "currentColor" : "none"} />
+                    </button>
+                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-sm font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                      {p.nombre.trim().slice(0, 1).toUpperCase()}
+                    </div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight line-clamp-2 pr-4">{p.nombre}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.codigo}</p>
                     <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2">{cop(p.precio_venta)}</p>
@@ -662,9 +753,12 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
         {/* Header carrito */}
         <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between flex-shrink-0 bg-white dark:bg-transparent">
-          <span className="text-xs font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
-            Carrito {carrito.length > 0 && `· ${carrito.reduce((s, i) => s + i.cantidad, 0)} ítems`}
-          </span>
+          <div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">
+              Carrito {carrito.length > 0 && `· ${carrito.reduce((s, i) => s + i.cantidad, 0)} ítems`}
+            </span>
+            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-slate-500">Tiquete POS · {user?.nombre ?? "Cajero"}</p>
+          </div>
           {carrito.length > 0 && (
             <button onClick={() => setCarrito([])} className="text-xs text-gray-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 transition-colors">
               Vaciar

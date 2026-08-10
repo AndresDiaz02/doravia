@@ -161,9 +161,6 @@ const migrations = [
   `ALTER TABLE remisiones ALTER COLUMN fecha_entrega TYPE date USING fecha_entrega::date`,
   // TAREA 10 — bodega_id en turnos_pos para soporte multi-bodega en POS
   `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS bodega_id uuid REFERENCES bodegas(id)`,
-  `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS monto_esperado_cierre numeric(14,2)`,
-  `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS diferencia_cierre numeric(14,2)`,
-  `ALTER TABLE turnos_pos ADD COLUMN IF NOT EXISTS motivo_diferencia text`,
   // BOLD — tabla de pagos Bold para suscripciones
   `CREATE TABLE IF NOT EXISTS bold_payments (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

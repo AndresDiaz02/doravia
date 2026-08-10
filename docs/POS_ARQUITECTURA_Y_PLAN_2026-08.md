@@ -86,7 +86,7 @@ Tenant
  ├─ Catálogo: producto, servicio, categoría, variante, unidad, lista de precios
  ├─ Inventario: saldo por bodega, movimiento inmutable, lote, conversión
  ├─ Ventas POS: borrador, venta, ítems, pagos, devolución, documento fiscal
- ├─ Caja: turno, movimientos, arqueo ciego, diferencia
+ ├─ Caja: turno, movimientos y cierre de caja
  ├─ Compras: orden, recepción, proveedor, cuenta por pagar
  ├─ CRM: cliente, cartera, puntos, comunicaciones
  ├─ Add-ons: agenda, multi-sede, granel, hardware, IA, automatizaciones
@@ -112,7 +112,7 @@ Dependencias: ninguna nueva.
 
 1. Llaves de idempotencia y respuesta persistida para ventas, pagos, devoluciones y movimientos de caja.
 2. Tabla `pagos_venta_pos` y validación de pago único/mixto.
-3. Caja: arqueo ciego real, monto esperado/diferencia, motivo obligatorio y auditoría.
+3. Caja: conciliación y auditoría de los cierres de turno.
 4. Auditoría transaccional de operaciones POS y estado de contabilización pendiente/reintentable.
 5. Pruebas de multitenancy, doble envío, stock, cierre y pago mixto.
 

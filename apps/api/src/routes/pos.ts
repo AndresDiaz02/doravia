@@ -6,8 +6,6 @@ import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
-import { calcularArqueoCiego } from "../services/pos-cash.service.js";
-import { audit } from "../services/audit.service.js";
 
 const router = Router();
 const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
@@ -232,64 +230,17 @@ router.post("/turnos", async (req, res) => {
 });
 
 router.patch("/turnos/:id/cerrar", async (req, res) => {
-  const { monto_final_declarado, notas_cierre, motivo_diferencia } = req.body as {
-    monto_final_declarado?: number; notas_cierre?: string; motivo_diferencia?: string;
-  };
-  if (!Number.isFinite(monto_final_declarado) || monto_final_declarado! < 0) {
-    return res.status(400).json({ error: "Debes declarar un monto de cierre válido." });
-  }
-
-  try {
-    const resultado = await db.transaction(async (tx) => {
-      const [turno] = await tx.select().from(turnos_pos)
-        .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId))).limit(1);
-      if (!turno) throw new Error("TURN_NOT_FOUND");
-      if (turno.estado === "cerrado") throw new Error("TURN_CLOSED");
-
-      const [ventas, gastos, devoluciones] = await Promise.all([
-        tx.select({ total: ventas_pos.total }).from(ventas_pos)
-          .where(and(eq(ventas_pos.turno_id, turno.id), eq(ventas_pos.estado, "completada"), eq(ventas_pos.metodo_pago, "efectivo"))),
-        tx.select({ monto: gastos_caja_pos.monto }).from(gastos_caja_pos).where(eq(gastos_caja_pos.turno_id, turno.id)),
-        tx.select({ monto: devoluciones_pos.monto_devuelto }).from(devoluciones_pos)
-          .where(and(eq(devoluciones_pos.turno_id, turno.id), eq(devoluciones_pos.metodo_devolucion, "efectivo"))),
-      ]);
-      const arqueo = calcularArqueoCiego({
-        montoInicial: turno.monto_inicial,
-        ventasEfectivo: ventas.map((v) => v.total),
-        gastosCaja: gastos.map((g) => g.monto),
-        devolucionesEfectivo: devoluciones.map((d) => d.monto),
-        montoDeclarado: monto_final_declarado!,
-      });
-      if (arqueo.diferencia !== "0.00" && !motivo_diferencia?.trim()) throw new Error("DIFFERENCE_REASON_REQUIRED");
-
-      const [cerrado] = await tx.update(turnos_pos).set({
-        estado: "cerrado", cierre_at: new Date(), monto_final_declarado: arqueo.montoDeclarado,
-        monto_esperado_cierre: arqueo.montoEsperado, diferencia_cierre: arqueo.diferencia,
-        motivo_diferencia: arqueo.diferencia === "0.00" ? null : motivo_diferencia!.trim(),
-        notas_cierre: notas_cierre?.trim() || null,
-      }).where(and(eq(turnos_pos.id, turno.id), eq(turnos_pos.estado, "abierto"))).returning();
-      if (!cerrado) throw new Error("TURN_CLOSED");
-      return { cerrado, arqueo };
-    });
-
-    void audit({ tenantId: req.tenantId, userId: req.userId, accion: "pos.turno_cerrado", entidadTipo: "turno_pos", entidadId: resultado.cerrado.id, detalle: resultado.arqueo, ip: req.ip });
-    res.json({ ...resultado.cerrado, arqueo: resultado.arqueo });
-  } catch (err) {
-    if (err instanceof Error && err.message === "TURN_NOT_FOUND") return res.status(404).json({ error: "Turno no encontrado." });
-    if (err instanceof Error && err.message === "TURN_CLOSED") return res.status(409).json({ error: "El turno ya fue cerrado. Recarga antes de continuar." });
-    if (err instanceof Error && err.message === "DIFFERENCE_REASON_REQUIRED") return res.status(422).json({ error: "Debes registrar el motivo de la diferencia de caja." });
-    console.error("[PATCH turno cerrar]", err);
-    res.status(500).json({ error: "No fue posible cerrar el turno." });
-  }
-});
-
-// El cajero recibe solo el estado del turno; los valores esperados permanecen en servidor.
-router.get("/turnos/:id/cierre-ciego", async (req, res) => {
-  const [turno] = await db.select({ id: turnos_pos.id, caja_id: turnos_pos.caja_id, apertura_at: turnos_pos.apertura_at, estado: turnos_pos.estado })
-    .from(turnos_pos).where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId))).limit(1);
+  const { monto_final_declarado, notas_cierre } = req.body as { monto_final_declarado?: number; notas_cierre?: string };
+  const [turno] = await db.select().from(turnos_pos)
+    .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId)));
   if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
-  if (turno.estado !== "abierto") return res.status(409).json({ error: "El turno ya está cerrado." });
-  res.json({ turno });
+  if (turno.estado === "cerrado") return res.status(400).json({ error: "El turno ya está cerrado." });
+  const [cerrado] = await db.update(turnos_pos).set({
+    estado: "cerrado", cierre_at: new Date(),
+    monto_final_declarado: monto_final_declarado !== undefined ? String(monto_final_declarado) : null,
+    notas_cierre: notas_cierre ?? null,
+  }).where(eq(turnos_pos.id, turno.id)).returning();
+  res.json(cerrado);
 });
 
 // ── Productos (para el POS) ───────────────────────────────────────────────────

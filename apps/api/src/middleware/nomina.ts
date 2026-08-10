@@ -16,6 +16,16 @@ declare global {
  * asignado desde el Panel Fundador. Sin fila en esa tabla, el tenant no tiene nómina activa.
  */
 export async function requireNominaActivo(req: Request, res: Response, next: NextFunction) {
+  // Nómina electrónica aún no se comercializa ni se opera en producción. El
+  // proveedor no ha confirmado el contrato de emisión y habilitarla a un tenant
+  // por accidente tendría impacto laboral/fiscal. Conservamos el código para el
+  // roadmap, pero cerramos toda la superficie operativa hasta su lanzamiento.
+  return res.status(503).json({
+    error: "Nómina electrónica estará disponible próximamente. Aún no está habilitada para operación.",
+    code: "NOMINA_COMING_SOON",
+  });
+
+  /* c8 ignore next -- flujo reservado para la activación comercial futura
   try {
     const [pool] = await db
       .select()
@@ -34,5 +44,5 @@ export async function requireNominaActivo(req: Request, res: Response, next: Nex
     next();
   } catch (err) {
     next(err);
-  }
+  } */
 }

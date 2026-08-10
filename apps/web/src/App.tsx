@@ -37,7 +37,6 @@ import RegistroPostPago from "./pages/RegistroPostPago";
 import ConfiguracionPagos from "./pages/ConfiguracionPagos";
 import PagoExito from "./pages/PagoExito";
 import PagoFallo from "./pages/PagoFallo";
-import NominaMiPlan from "./pages/NominaMiPlan";
 
 // Las pantallas operativas se descargan solo al abrirlas. Así la página de
 // ingreso no espera módulos como contabilidad, nómina o conciliación bancaria.
@@ -73,11 +72,6 @@ const ActivosFijos = lazy(() => import("./pages/ActivosFijos"));
 const DocumentosSoporte = lazy(() => import("./pages/DocumentosSoporte"));
 const AgendaServicios = lazy(() => import("./pages/AgendaServicios"));
 const CotizacionDetalle = lazy(() => import("./pages/CotizacionDetalle"));
-const NominaEmpleados = lazy(() => import("./pages/NominaEmpleados"));
-const NominaEmpleadoForm = lazy(() => import("./pages/NominaEmpleadoForm"));
-const NominaPeriodos = lazy(() => import("./pages/NominaPeriodos"));
-const NominaPeriodoNuevo = lazy(() => import("./pages/NominaPeriodoNuevo"));
-const NominaPeriodoDetalle = lazy(() => import("./pages/NominaPeriodoDetalle"));
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
 function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
@@ -174,13 +168,7 @@ export default function App() {
               <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />
               <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
               <Route path="/agenda-servicios" element={<AgendaServicios />} />
-              <Route path="/nomina/empleados" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleados /></>} />
-              <Route path="/nomina/empleados/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleadoForm /></>} />
-              <Route path="/nomina/empleados/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleadoForm /></>} />
-              <Route path="/nomina/periodos" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodos /></>} />
-              <Route path="/nomina/periodos/nuevo" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoNuevo /></>} />
-              <Route path="/nomina/periodos/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoDetalle /></>} />
-              <Route path="/nomina/mi-plan" element={<><RequiereRol allow={["admin", "contador"]} /><NominaMiPlan /></>} />
+              <Route path="/nomina/*" element={<Navigate to="/dashboard" replace />} />
             </Route>
 
             {/* Módulo Fundadores — layout propio dentro del ProtectedRoute */}

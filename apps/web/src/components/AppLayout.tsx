@@ -405,15 +405,6 @@ export function AppLayout() {
             );
           })}
 
-          {!isVendedor && (
-            <>
-              <NavSection label="Nómina" />
-              {NAV_NOMINA.map(({ to, label, icon: Icon }) => (
-                <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
-              ))}
-            </>
-          )}
-
           {NAV_COSECHA.map(({ to, label, icon: Icon, feature }) => {
             if (isVendedor) return null;
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;

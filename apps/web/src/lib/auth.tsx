@@ -40,6 +40,7 @@ export interface TenantInfo {
   ultimo_pago_confirmado_at: string | null;
   onboarding_completado: boolean;
   facturacion_electronica: boolean;
+  addons?: Record<string, boolean>;
 }
 
 export interface EmpresaAcceso {

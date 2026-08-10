@@ -413,6 +413,9 @@ router.get("/me", authenticate, async (req, res) => {
       onboarding_completado: req.tenant.onboarding_completado,
       facturacion_electronica: req.tenant.facturacion_electronica,
       pos_config: req.tenant.pos_config ?? {},
+      // Los productos independientes (como POS) se habilitan como add-ons
+      // del tenant, aunque el plan principal sea ERP.
+      addons: req.tenant.addons ?? {},
     },
     plan: {
       slug: plan.slug,

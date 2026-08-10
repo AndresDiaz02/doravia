@@ -416,7 +416,7 @@ export function AppLayout() {
 
           <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
-          {(plan?.features as Record<string, boolean> | undefined)?.pos === true && (
+          {((plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true) && (
             <>
               {!isContador && <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />}
               {!isContador && <NavItem to="/pos/cajeros" label="Cajeros" icon={Users} isActive={active("/pos/cajeros")} />}
@@ -427,7 +427,7 @@ export function AppLayout() {
           )}
 
           {(() => {
-            const hasPos = (plan?.features as Record<string, boolean> | undefined)?.pos === true;
+            const hasPos = (plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true;
             const posUrl = import.meta.env.VITE_POS_URL ?? "http://localhost:5174";
             return hasPos ? (
               <a

@@ -33,6 +33,8 @@ export const tenants = pgTable("tenants", {
   pos_config: jsonb("pos_config").$type<{
     cartera_visible?: boolean;
     citas_visible?: boolean;
+    /** Permite vender aun cuando el saldo global del producto quede negativo. */
+    permitir_inventario_negativo?: boolean;
     fe_deshabilitada_en?: string;
   }>().default({}),
   // ── Plemsi multi-tenant ──────────────────────────────────────────────────────

@@ -454,20 +454,24 @@ router.post("/ventas", async (req, res) => {
     if (bodegaIdParaInventario) {
       for (const item of productosVenta) {
         if (item.producto.tipo === "servicio") continue;
+        const permiteInventarioNegativo = req.tenant.pos_config?.permitir_inventario_negativo === true;
+        const condicionStock = permiteInventarioNegativo
+          ? and(eq(productos.id, item.producto.id), eq(productos.tenant_id, req.tenantId))
+          : and(
+              eq(productos.id, item.producto.id),
+              eq(productos.tenant_id, req.tenantId),
+              sql`COALESCE(${productos.stock_actual}, 0) >= ${Number(item.cantidad)}`,
+            );
         const descontado = await tx
           .update(productos)
           .set({ stock_actual: sql`COALESCE(stock_actual, 0) - ${Number(item.cantidad)}` })
-          .where(and(
-            eq(productos.id, item.producto.id),
-            eq(productos.tenant_id, req.tenantId),
-            sql`COALESCE(${productos.stock_actual}, 0) >= ${Number(item.cantidad)}`,
-          ))
+          .where(condicionStock)
           .returning({ id: productos.id });
 
         // La condición forma parte del UPDATE (no de una lectura previa): dos
         // cajeros no pueden vender simultáneamente más unidades de las que hay.
         // Al lanzar dentro de la transacción se revierte también la venta e ítems.
-        if (descontado.length !== 1) {
+        if (!permiteInventarioNegativo && descontado.length !== 1) {
           throw new Error(`Stock insuficiente para ${item.producto.nombre}.`);
         }
 

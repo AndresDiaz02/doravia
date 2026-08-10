@@ -246,14 +246,18 @@ router.patch("/pos-config", requireNotContador, async (req, res) => {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede configurar módulos POS." });
     }
-    const { cartera_visible, citas_visible } = req.body as {
-      cartera_visible?: boolean; citas_visible?: boolean;
+    const { cartera_visible, citas_visible, permitir_inventario_negativo } = req.body as {
+      cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean;
     };
+    if (permitir_inventario_negativo !== undefined && typeof permitir_inventario_negativo !== "boolean") {
+      return res.status(400).json({ error: "permitir_inventario_negativo debe ser verdadero o falso." });
+    }
     const actual = (req.tenant.pos_config ?? {}) as Record<string, boolean>;
     const nuevo = {
       ...actual,
       ...(cartera_visible !== undefined && { cartera_visible }),
       ...(citas_visible   !== undefined && { citas_visible }),
+      ...(permitir_inventario_negativo !== undefined && { permitir_inventario_negativo }),
     };
     const [updated] = await db
       .update(tenants)

@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; }
+interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean; }
 
 interface EmpresaConfig {
   id: string;
@@ -372,6 +372,12 @@ export default function ConfiguracionEmpresa() {
                 desc: "Gestión de citas y servicios con hora y profesional asignado (ideal para estéticas, veterinarias, consultorios).",
                 default: false,
                 requiresPuntoPlus: true,
+              },
+              {
+                key: "permitir_inventario_negativo" as keyof PosConfig,
+                label: "Permitir inventario negativo",
+                desc: "Permite registrar ventas aunque no haya saldo disponible. Úsalo solo si luego regularizas compras, conteos o entregas pendientes.",
+                default: false,
               },
             ].map(({ key, label, desc, default: def, requiresPuntoPlus }) => {
               const activo = posConfig[key] !== undefined ? posConfig[key]! : def;

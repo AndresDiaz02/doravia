@@ -330,13 +330,22 @@ export async function enviarAPlemsiSiAplica(
   itemsDB: ItemFactura[],
   resolucion: ResolucionDian,
 ): Promise<ResultadoPlemsi> {
-  const plemsiCreds = await getPlemsiCredentials(tenant.id);
+  let plemsiCreds: { apiKey: string; ambiente: string };
+  try {
+    plemsiCreds = await getPlemsiCredentials(tenant.id);
+  } catch {
+    const resultado = { ok: false, error: "No se encontró una configuración activa de PLEMSI para esta empresa." };
+    await guardarResultadoPlemsi(factura, resultado);
+    return resultado;
+  }
 
   const { apiKey, ambiente } = plemsiCreds;
   // Tener credenciales de producción no acredita habilitación DIAN. El pase
   // debe ser manual, sustentado en evidencia externa y nunca en tests internos.
   if (ambiente === "produccion" && process.env.DIAN_HABILITATION_COMPLETE !== "true") {
-    return { ok: false, error: "Producción DIAN bloqueada: falta evidencia de habilitación aprobada. Usa el ambiente de pruebas hasta completar el checklist." };
+    const resultado = { ok: false, error: "Producción DIAN bloqueada: falta evidencia de habilitación aprobada. Usa el ambiente de pruebas hasta completar el checklist." };
+    await guardarResultadoPlemsi(factura, resultado);
+    return resultado;
   }
 
   const buyerData = buildPersona({
@@ -389,15 +398,7 @@ export async function enviarAPlemsiSiAplica(
     foot_note: tenant.pie_factura ?? "",
   });
 
-  await db
-    .update(facturas)
-    .set({
-      ...(resultado.cufe ? { cufe: resultado.cufe } : {}),
-      plemsi_id: resultado.plemsi_id ?? null,
-      estado_dian: resultado.ok ? "emitida" : "error",
-      error_dian: resultado.ok ? null : (resultado.error ?? null),
-    })
-    .where(eq(facturas.id, factura.id));
+  await guardarResultadoPlemsi(factura, resultado);
 
   if (resultado.ok) {
     // Incrementar contador mensual de facturas emitidas a la DIAN
@@ -427,4 +428,16 @@ export async function enviarAPlemsiSiAplica(
   }
 
   return resultado;
+}
+
+async function guardarResultadoPlemsi(factura: Factura, resultado: ResultadoPlemsi) {
+  await db
+    .update(facturas)
+    .set({
+      ...(resultado.cufe ? { cufe: resultado.cufe } : {}),
+      plemsi_id: resultado.plemsi_id ?? null,
+      estado_dian: resultado.ok ? "emitida" : "error",
+      error_dian: resultado.ok ? null : (resultado.error ?? null),
+    })
+    .where(eq(facturas.id, factura.id));
 }

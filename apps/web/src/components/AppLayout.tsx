@@ -153,6 +153,7 @@ export function AppLayout() {
   const [inAppNotifs, setInAppNotifs] = useState<InAppNotif[]>([]);
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const desktopNotifRef = useRef<HTMLDivElement>(null);
 
   const cargarNotificaciones = useCallback(() => {
     void apiFetch<Notificacion[]>("/api/notificaciones").then(setNotificaciones).catch(() => {});
@@ -169,7 +170,10 @@ export function AppLayout() {
   // Cerrar dropdown al hacer clic afuera
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickDentroDeNotificaciones =
+        notifRef.current?.contains(target) || desktopNotifRef.current?.contains(target);
+      if (!clickDentroDeNotificaciones) {
         setShowNotif(false);
       }
     }
@@ -506,7 +510,7 @@ export function AppLayout() {
               <p className="truncate text-xs text-gray-400">{user?.email}</p>
             </div>
             {/* Campana de notificaciones (desktop) */}
-            <div className="relative hidden md:block">
+            <div className="relative hidden md:block" ref={desktopNotifRef}>
               <button
                 onClick={() => setShowNotif((v) => !v)}
                 className="relative flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -520,9 +524,7 @@ export function AppLayout() {
                 )}
               </button>
               {showNotif && (
-                <div className="absolute bottom-full mb-2 right-0">
-                  <NotifDropdown notificaciones={notificaciones} inAppNotifs={inAppNotifs} onMarkRead={handleMarkRead} onClose={() => setShowNotif(false)} />
-                </div>
+                <NotifDropdown notificaciones={notificaciones} inAppNotifs={inAppNotifs} onMarkRead={handleMarkRead} onClose={() => setShowNotif(false)} />
               )}
             </div>
             <button
@@ -685,7 +687,7 @@ function NotifDropdown({
   const navigate = useNavigate();
   const total = notificaciones.length + inAppNotifs.length;
   return (
-    <div className="fixed inset-x-4 top-16 z-[60] max-h-[calc(100vh-5rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 md:absolute md:inset-auto md:bottom-full md:left-0 md:top-auto md:mb-2 md:w-80 md:max-w-[calc(100vw-18rem)]">
+    <div className="fixed inset-x-4 top-16 z-[70] max-h-[calc(100vh-5rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 md:inset-auto md:bottom-4 md:left-60 md:right-auto md:top-auto md:w-96 md:max-w-[calc(100vw-16rem)]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           Notificaciones

@@ -193,7 +193,32 @@ router.post("/:id/reenviar-dian", async (req, res) => {
   if (!resolucion) return res.status(422).json({ error: "Resolución DIAN de la factura no encontrada." });
 
   try {
-    await enviarAPlemsiSiAplica(req.tenant, factura, cliente, itemsDB, resolucion);
+    const resultado = await enviarAPlemsiSiAplica(req.tenant, factura, cliente, itemsDB, resolucion);
+    if (resultado.ok && factura.estado !== "aceptada") {
+      let asientoId = factura.asiento_id;
+      if (!asientoId) {
+        try {
+          asientoId = await crearAsientoFactura(req.tenantId, factura);
+        } catch (error) {
+          console.error(`[CONTABILIDAD] Asiento reintento DIAN factura ${factura.numero} fallido:`, error);
+        }
+      }
+
+      const features = req.tenant.plan.features as Record<string, boolean>;
+      if (features.inventario) {
+        await registrarSalidaFactura(req.tenantId, factura, itemsDB, factura.bodega_id);
+      }
+
+      await db.update(facturas).set({
+        estado: "aceptada",
+        cufe: resultado.cufe,
+        plemsi_id: resultado.plemsi_id ?? null,
+        estado_dian: "emitida",
+        error_dian: null,
+        asiento_id: asientoId,
+      }).where(eq(facturas.id, factura.id));
+    }
+
     const [actualizada] = await db.select().from(facturas).where(eq(facturas.id, factura.id)).limit(1);
     const act = actualizada as Record<string, unknown>;
     return res.json({ ok: act.estado_dian === "emitida", cufe: act.cufe, error: act.error_dian });

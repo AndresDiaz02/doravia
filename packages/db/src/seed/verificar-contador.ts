@@ -1,8 +1,8 @@
 import { db, asientos_contables, tenants, facturas, gastos, notas_credito } from "../index.js";
 import { eq, count, sql } from "drizzle-orm";
 
-const [t] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, "901234567")).limit(1);
-if (!t) throw new Error("Tenant 901234567 no encontrado");
+const [t] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, "901234570")).limit(1);
+if (!t) throw new Error("Tenant 901234570 no encontrado");
 const TID = t.id;
 
 const [{ numAsientos }] = await db.select({ numAsientos: count() }).from(asientos_contables).where(eq(asientos_contables.tenant_id, TID));

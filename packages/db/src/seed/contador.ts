@@ -5,8 +5,8 @@
  * Plan: Brote (incluye comparativos y las funciones contables del plan).
  *
  * Credenciales:
- *   Admin:    admin@demo-contador.doraviasoft.com   / Contador.2026!
- *   Contador: contador.externo@doraviasoft.com      / Contador.2026!
+ *   Admin:    admin@demo-brote-contador.doraviasoft.com / Contador.2026!
+ *   Contador: contador.brote@doraviasoft.com            / Contador.2026!
  *
  * Ejecución:
  *   pnpm --filter @workspace/db exec tsx src/seed/contador.ts
@@ -39,8 +39,8 @@ import {
 
 // ── Credenciales ──────────────────────────────────────────────────────────────
 
-const ADMIN_EMAIL    = "admin@demo-contador.doraviasoft.com";
-const CONTADOR_EMAIL = "contador.externo@doraviasoft.com";
+const ADMIN_EMAIL    = "admin@demo-brote-contador.doraviasoft.com";
+const CONTADOR_EMAIL = "contador.brote@doraviasoft.com";
 const PASSWORD       = "Contador.2026!";
 
 // ── Precios y tasas IVA de los 11 productos (índice 0–10) ────────────────────
@@ -248,8 +248,8 @@ export async function seedContador() {
   const [tenant] = await db
     .insert(tenants)
     .values({
-      nombre: "Empresa Demo Contador SAS",
-      nit: "901234567",                    // NIT ficticio — DV 7 → 901234567-7
+      nombre: "Empresa Demo Contable Brote Pruebas SAS",
+      nit: "901234570",                    // NIT ficticio exclusivo para este entorno
       plan_id: plan.id,
       plan_starts_at: new Date("2026-01-01"),
       plan_ends_at:   new Date("2027-12-31"),
@@ -470,7 +470,7 @@ export async function seedContador() {
         consecutivo: num,
         numero,
         estado: sp.extra === "anulada" ? "anulada" : "aceptada",
-        cufe: `STUB-SEED-${num}-DEMO-CONTABLE`,
+        cufe: `STUB-DEMO-${TID.slice(0, 8)}-${num}`,
         fecha_emision: fechaEmision,
         fecha_vencimiento: sp.vcto ? new Date(sp.vcto + "T23:59:59-05:00") : null,
         subtotal: String(subtotal),
@@ -854,8 +854,8 @@ export async function seedContador() {
   console.log("\n═══════════════════════════════════════════════════════════");
   console.log("  ENTORNO DE SIMULACIÓN CREADO EXITOSAMENTE");
   console.log("═══════════════════════════════════════════════════════════\n");
-  console.log("  Empresa:     Empresa Demo Contador SAS");
-  console.log("  NIT:         901.234.567-7");
+  console.log("  Empresa:     Empresa Demo Contable Brote Pruebas SAS");
+  console.log("  NIT:         901.234.570 (ficticio)");
   console.log("  Régimen:     Ordinario (Responsable de IVA)");
   console.log("  CIIU:        4719 — Comercio al por menor no especializado");
   console.log("  Plan:        Brote (incluye reportes comparativos)\n");

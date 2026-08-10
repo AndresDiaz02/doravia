@@ -62,6 +62,12 @@ const PLANES_POS: PlanPOS[] = [
   },
 ];
 
+const PLANES_FACTURACION: PlanPOS[] = [
+  { slug: "origen_24", nombre: "Facturación 24", precio: 99_900, features: ["24 facturas electrónicas al año", "DIAN y CUFE", "Cliente y catálogo básico", "Se conecta a tu ERP o POS"] },
+  { slug: "origen_60", nombre: "Facturación 60", precio: 169_900, features: ["60 facturas electrónicas al año", "Documentos electrónicos", "Historial centralizado", "Se conecta a tu ERP o POS"], destacado: true },
+  { slug: "origen_120", nombre: "Facturación 120", precio: 249_900, features: ["120 facturas electrónicas al año", "DIAN y CUFE", "Soporte para crecer", "Se conecta a tu ERP o POS"] },
+];
+
 const PLANES_NOMINA: PlanPOS[] = [
   { slug: "nomina_semilla", nombre: "Nómina Semilla", precio: 99_000, features: ["36 documentos al año", "Empleados y contratos", "Períodos mensuales o quincenales", "Historial centralizado"] },
   { slug: "nomina_raiz", nombre: "Nómina Raíz", precio: 230_000, features: ["120 documentos al año", "Cálculos por período", "Estado de emisión", "Soporte para crecer"], destacado: true },
@@ -237,6 +243,29 @@ export default function ModulosAdicionales() {
         )}
       </section>
 
+      {/* Facturación Electrónica independiente */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Receipt className="h-5 w-5 text-emerald-600" />
+          <h2 className="font-semibold text-gray-800">Facturación Electrónica</h2>
+        </div>
+        <p className="text-sm text-gray-500">
+          Contrátala como producto independiente o añádela a tu ERP y POS. Tu empresa conserva una sola base de clientes y documentos.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PLANES_FACTURACION.map((p) => (
+            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200" : "border-gray-200"}`}>
+              {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
+              <div><p className="font-bold text-gray-900">{p.nombre}</p><p className="text-xl font-bold text-gray-800 mt-1">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1">/ año</span></p></div>
+              <ul className="flex-1 space-y-1.5">{p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}</ul>
+              <button onClick={() => void contratarPOS(p.slug)} disabled={pagando !== null} className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 py-2.5 text-sm font-semibold text-white transition-colors">
+                {pagando === p.slug ? "Preparando pago…" : `Contratar ${p.nombre}`}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-violet-600" />
@@ -256,7 +285,7 @@ export default function ModulosAdicionales() {
               <ul className="flex-1 space-y-1.5">
                 {p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}
               </ul>
-              <button onClick={() => void contratarPOS(p.slug)} disabled={pagando !== null} className="w-full rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 py-2.5 text-sm font-semibold text-white transition-colors">
+              <button disabled className="w-full rounded-lg bg-slate-400 cursor-not-allowed py-2.5 text-sm font-semibold text-white transition-colors">
                 {pagando === p.slug ? "Preparando pago…" : `Contratar ${p.nombre}`}
               </button>
             </div>

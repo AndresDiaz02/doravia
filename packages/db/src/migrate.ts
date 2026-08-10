@@ -27,6 +27,17 @@ if (!process.env.DATABASE_URL) {
 const sql = postgres(process.env.DATABASE_URL!);
 
 const migrations = [
+  `CREATE TABLE IF NOT EXISTS product_subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    product varchar(20) NOT NULL, plan_id uuid NOT NULL REFERENCES plans(id), status varchar(20) NOT NULL DEFAULT 'active',
+    starts_at timestamptz NOT NULL DEFAULT now(), ends_at timestamptz NOT NULL,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS product_subscriptions_tenant_product_unique ON product_subscriptions(tenant_id, product)`,
+  `INSERT INTO product_subscriptions (tenant_id, product, plan_id, status, starts_at, ends_at)
+   SELECT t.id, CASE WHEN p.product = 'origen' THEN 'facturacion' ELSE p.product END, t.plan_id,
+          CASE WHEN t.activo THEN 'active' ELSE 'inactive' END, t.plan_starts_at, t.plan_ends_at
+   FROM tenants t INNER JOIN plans p ON p.id = t.plan_id ON CONFLICT (tenant_id, product) DO NOTHING`,
   // Reintentos seguros para operaciones que generan documentos o movimientos de dinero.
   `CREATE TABLE IF NOT EXISTS idempotency_keys (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

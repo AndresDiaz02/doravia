@@ -5,6 +5,7 @@ import { authenticate } from "../middleware/auth.js";
 import { verifyAccessToken } from "../services/auth.service.js";
 import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
 import { resolverMontoBold, type CicloPago } from "../lib/bold-monto.js";
+import { activarSuscripcionProducto } from "../services/product-subscription.service.js";
 
 const router = Router();
 
@@ -28,7 +29,20 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
       ...(planFeatures.pos_multi_caja ? { pos_multi_caja: true } : {}),
     };
     await db.update(tenants).set({ addons }).where(eq(tenants.id, tenantId));
+    await activarSuscripcionProducto(tenantId, planSlug);
     console.log(`[Bold] POS addon activado (${planSlug}) para tenant ${tenantId}`);
+    return;
+  }
+
+  if (plan.product === "origen") {
+    await activarSuscripcionProducto(tenantId, planSlug);
+    console.log(`[Bold] Facturación Electrónica activada (${planSlug}) para tenant ${tenantId}`);
+    return;
+  }
+
+  if (plan.product === "nomina") {
+    // El producto continúa en preparación: nunca debe reemplazar el ERP por error.
+    console.warn(`[Bold] Nómina no activada: integración aún no disponible (${planSlug}).`);
     return;
   }
 
@@ -54,6 +68,7 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
     ultimo_pago_confirmado_at: hoy,
     trial_ends_at: null,
   }).where(eq(tenants.id, tenantId));
+  await activarSuscripcionProducto(tenantId, planSlug);
 
   console.log(`[Bold] Plan ${planSlug} activado para tenant ${tenantId} → ${fin.toISOString()}`);
 

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, facturas, plans } from "@workspace/db";
+import { db, facturas, plans, product_subscriptions } from "@workspace/db";
 import { eq, and, gte, sql } from "drizzle-orm";
 
 const router = Router();
@@ -38,6 +38,12 @@ router.get("/", async (req, res) => {
       facturasUsadasAno = Number(row?.total ?? 0);
     }
 
+    const productos = await db
+      .select({ product: product_subscriptions.product, status: product_subscriptions.status, ends_at: product_subscriptions.ends_at, plan_slug: plans.slug, plan_nombre: plans.nombre })
+      .from(product_subscriptions)
+      .innerJoin(plans, eq(product_subscriptions.plan_id, plans.id))
+      .where(eq(product_subscriptions.tenant_id, req.tenantId));
+
     return res.json({
       plan: {
         slug: plan.slug,
@@ -66,6 +72,7 @@ router.get("/", async (req, res) => {
         limite_mes: null, // sin límite por ahora, extensible
         porcentaje_uso: null,
       },
+      productos,
     });
   } catch (err) {
     console.error("Error en GET /mi-plan:", err);

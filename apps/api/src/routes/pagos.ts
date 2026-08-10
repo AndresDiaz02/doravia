@@ -4,6 +4,7 @@ import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador, po
 import { completarRegistroPendiente } from "../services/auth.service.js";
 import { eq, sql, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
+import { activarSuscripcionProducto } from "../services/product-subscription.service.js";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.post("/checkout", authenticate, async (req, res) => {
     }
 
     // Protección de downgrade: solo se permiten upgrades o renovaciones del mismo plan
-    if (plan.product !== "pos" && plan.product !== "nomina") {
+    if (plan.product !== "pos" && plan.product !== "nomina" && plan.product !== "origen") {
       const precioActual = req.tenant.plan.precio_anual_cop;
       if (plan.precio_anual_cop < precioActual) {
         return res.status(403).json({
@@ -164,7 +165,12 @@ router.post("/webhook", async (req, res) => {
         ...(planFeatures.pos_multi_caja ? { pos_multi_caja: true } : {}),
       };
       await db.update(tenants).set({ addons }).where(eq(tenants.id, tenant.id));
+      await activarSuscripcionProducto(tenant.id, planSlug);
       console.log(`POS addon activado (${planSlug}) para tenant ${tenant.id}`);
+    } else if (plan.product === "origen") {
+      // Facturación Electrónica es un producto independiente: no sustituye ERP ni POS.
+      await activarSuscripcionProducto(tenant.id, planSlug);
+      console.log(`Facturación Electrónica activada (${planSlug}) para tenant ${tenant.id}`);
     } else if (plan.product === "nomina") {
       // Nómina es una suscripción independiente: no reemplaza el plan ERP, POS
       // u Origen de la empresa. Todos los productos comparten el mismo tenant.
@@ -205,6 +211,7 @@ router.post("/webhook", async (req, res) => {
         activo: true,
         ultimo_pago_confirmado_at: hoy,
       }).where(eq(tenants.id, tenant.id));
+      await activarSuscripcionProducto(tenant.id, planSlug);
 
       console.log(`Plan ${planSlug} activado para tenant ${tenant.id} → ${fin.toISOString()}`);
 

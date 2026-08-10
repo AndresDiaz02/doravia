@@ -1,4 +1,4 @@
-import { db, users, bodegas, facturas, uso_ia } from "@workspace/db";
+import { db, users, bodegas, facturas, uso_ia, product_subscriptions, plans } from "@workspace/db";
 import { eq, and, count, gte, lt } from "drizzle-orm";
 import { PlanLimitError } from "@workspace/shared";
 import type { TenantWithPlan } from "../lib/tenant.js";
@@ -89,7 +89,24 @@ export async function assertCanAddBodega(tenant: TenantWithPlan): Promise<void> 
 }
 
 export async function assertCanEmitirFactura(tenant: TenantWithPlan): Promise<void> {
-  const { max_facturas_mes, max_facturas_ano } = tenant.plan;
+  // En una cuenta POS, el cupo fiscal viene de su suscripción independiente de FE.
+  let planFacturacion = tenant.plan;
+  if (tenant.plan.product === "pos") {
+    const [suscripcion] = await db
+      .select({ plan: plans })
+      .from(product_subscriptions)
+      .innerJoin(plans, eq(product_subscriptions.plan_id, plans.id))
+      .where(and(
+        eq(product_subscriptions.tenant_id, tenant.id),
+        eq(product_subscriptions.product, "facturacion"),
+        eq(product_subscriptions.status, "active"),
+        gte(product_subscriptions.ends_at, new Date()),
+      ))
+      .limit(1);
+    if (!suscripcion) throw new PlanLimitError("Tu cuenta POS no tiene Facturación Electrónica activa.");
+    planFacturacion = suscripcion.plan;
+  }
+  const { max_facturas_mes, max_facturas_ano } = planFacturacion;
 
   // Límite mensual (Semilla: 50/mes)
   if (max_facturas_mes !== null) {

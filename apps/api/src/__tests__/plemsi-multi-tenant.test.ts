@@ -185,7 +185,7 @@ describe("RBAC — PATCH /empresa/plemsi", () => {
 
 // Espejo de getPlemsiBase en plemsi.service.ts
 const PLEMSI_URL_PRUEBAS = "https://pruebas.plemsi.com";
-const PLEMSI_URL_PRODUCCION = "https://app.plemsi.com";
+const PLEMSI_URL_PRODUCCION = "https://api.plemsi.com";
 
 function getPlemsiBase(ambiente?: string): string {
   return ambiente === "produccion" ? PLEMSI_URL_PRODUCCION : PLEMSI_URL_PRUEBAS;

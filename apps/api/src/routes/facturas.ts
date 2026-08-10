@@ -374,7 +374,7 @@ router.post("/sync-cude-plemsi", async (req, res) => {
   }
   const { apiKey, ambiente } = plemsiCreds;
   const plemsiBase = ambiente === "produccion"
-    ? (process.env.PLEMSI_URL_PRODUCCION ?? "https://app.plemsi.com")
+    ? (process.env.PLEMSI_URL_PRODUCCION ?? "https://api.plemsi.com")
     : "https://pruebas.plemsi.com";
 
   const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };

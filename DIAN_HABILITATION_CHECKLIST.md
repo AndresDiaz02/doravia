@@ -8,6 +8,7 @@ Estado actual: **pendiente**. Este archivo no certifica ni activa la habilitaci�
 2. Registrar por empresa, sin compartirlas entre tenants: identificador Plemsi, llave API de pruebas, ambiente `pruebas`, resolución/rango de prueba y certificado que corresponda al modelo acordado.
 3. No guardar certificados, contraseñas ni API keys en código, logs, tickets o evidencia.
 4. Configurar la resolución, prefijo, rango, vigencia y clave técnica de **pruebas**. Nunca reutilizar la resolución productiva.
+5. En el panel de habilitación DIAN seleccionar **Software de un proveedor tecnológico**, empresa proveedora **EMPRESA DE DIVULGACIONES Y ASESORÍAS ECA SAS** y software **Plemsi**. Copiar el `SetTestID` del set y registrarlo en Plemsi en Configuración > Integraciones > DIAN.
 
 ## Ejecución en habilitación
 
@@ -27,3 +28,9 @@ Solo evidencia verificable de que DIAN/Plemsi completó el set requerido permite
 2. Verificar un documento controlado, su CUFE, estado y representación gráfica.
 3. Monitorear rechazos, vencimiento de resolución/certificado y folios disponibles.
 4. Mantener POS core separado del Documento Equivalente Electrónico POS hasta su habilitación específica.
+
+## Referencias verificadas
+
+- [Habilitar documentos electrónicos DIAN — Plemsi](https://ayuda.plemsi.com/para-empezar/habilitar-documentos-electronicos-dian)
+- [Asociar resolución o numeración DIAN — Plemsi](https://ayuda.plemsi.com/para-empezar/asociar-una-resolucion-o-numeracion-dian)
+- [Numeración para notas crédito y débito — Plemsi](https://ayuda.plemsi.com/ventas/crear-una-numeracion-para-notas-credito-y-debito)

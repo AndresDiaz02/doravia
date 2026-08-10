@@ -83,9 +83,9 @@ La key debe ser exactamente 32 bytes (256 bits) en base64. Si el valor es invál
 ## URLs Plemsi
 
 - **Pruebas:** https://pruebas.plemsi.com
-- **Producción:** https://app.plemsi.com
+- **Producción API:** https://api.plemsi.com
 
-> Confirmar con Plemsi la URL de producción antes del go-live. La URL está en `PLEMSI_URL_PRODUCCION` env var (fallback: `https://app.plemsi.com`).
+> URL de producción confirmada por Plemsi: `https://api.plemsi.com`. La URL está en la variable `PLEMSI_URL_PRODUCCION`; el panel de aliados es independiente y usa `https://app.aliados.plemsi.com`.
 
 ---
 

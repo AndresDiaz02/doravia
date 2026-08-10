@@ -6,7 +6,7 @@
  */
 
 const PLEMSI_URL_PRUEBAS = "https://pruebas.plemsi.com";
-const PLEMSI_URL_PRODUCCION = process.env.PLEMSI_URL_PRODUCCION ?? "https://app.plemsi.com"; // confirmar URL exacta con Plemsi
+const PLEMSI_URL_PRODUCCION = process.env.PLEMSI_URL_PRODUCCION ?? "https://api.plemsi.com";
 
 function getPlemsiBase(ambiente?: string): string {
   return ambiente === "produccion" ? PLEMSI_URL_PRODUCCION : PLEMSI_URL_PRUEBAS;

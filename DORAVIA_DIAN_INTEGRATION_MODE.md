@@ -19,6 +19,8 @@
 - Pruebas: `plemsi_ambiente=pruebas`, destinado a habilitación.
 - Producción: bloqueada por defecto hasta evidencia real y activación manual de `DIAN_HABILITATION_COMPLETE=true`.
 
+El endpoint API productivo confirmado es `https://api.plemsi.com`; el panel de aliados es `https://app.aliados.plemsi.com` y no es un endpoint de transmisión.
+
 No reutilizar credenciales, rangos o resoluciones entre empresas/ambientes. Secretos y certificados nunca se registran en logs.
 
 ## Contingencia

@@ -685,7 +685,7 @@ function NotifDropdown({
   const navigate = useNavigate();
   const total = notificaciones.length + inAppNotifs.length;
   return (
-    <div className="w-80 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl z-50">
+    <div className="fixed inset-x-4 top-16 z-[60] max-h-[calc(100vh-5rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 md:absolute md:inset-auto md:bottom-full md:left-0 md:top-auto md:mb-2 md:w-80 md:max-w-[calc(100vw-18rem)]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           Notificaciones
@@ -702,7 +702,7 @@ function NotifDropdown({
           <p className="text-sm text-gray-400">Sin alertas activas</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto">
+        <ul className="max-h-[calc(100vh-10rem)] divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700 md:max-h-96">
           {/* Smart alerts (tiempo real) */}
           {notificaciones.map((n) => (
             <li key={`smart-${n.id}`}>

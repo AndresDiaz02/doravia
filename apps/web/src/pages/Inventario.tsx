@@ -150,10 +150,10 @@ export default function Inventario() {
     ajuste:  { label: "Ajuste",  variant: "blue" },
   };
 
-  if (loading) return <p className="p-8 text-gray-500">Cargando inventario…</p>;
+  if (loading) return <p className="p-8 text-gray-500 dark:text-slate-400">Cargando inventario…</p>;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
       {mostrarTutorial && (
         <TutorialOverlay
           slug="inventario"
@@ -165,8 +165,8 @@ export default function Inventario() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
-          <p className="text-sm text-gray-500 mt-1">Control de existencias por bodega</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Inventario</h1>
+          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">Control de existencias por bodega</p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={relanzarTutorial} title="Ver tutorial">
@@ -195,7 +195,7 @@ export default function Inventario() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </div>
       )}

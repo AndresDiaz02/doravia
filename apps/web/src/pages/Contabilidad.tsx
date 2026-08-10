@@ -234,9 +234,9 @@ export function Contabilidad() {
   }, [tab]);
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-6 dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-50]:border-slate-800 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-800]:text-slate-100 dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">Contabilidad</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Contabilidad</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {tab === "diario" && (
             <Button variant="secondary" onClick={() => void descargarExcel(`/api/contabilidad/exportar/diario?desde=${desde}&hasta=${hasta}`, `libro_diario_${desde}_${hasta}.xlsx`)}>

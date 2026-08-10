@@ -2,7 +2,7 @@
  * Entorno de simulación contable para revisión por contador externo.
  *
  * Empresa Demo Contador SAS — Régimen Ordinario — CIIU 4719
- * Plan: raíz (accounting_level=2 → balance general + estado de resultados)
+ * Plan: Brote (incluye comparativos y las funciones contables del plan).
  *
  * Credenciales:
  *   Admin:    admin@demo-contador.doraviasoft.com   / Contador.2026!
@@ -93,7 +93,7 @@ type FacturaSpec = {
   extra?: "anulada" | "nc_dev" | "nc_desc";
 };
 
-const SPECS: FacturaSpec[] = [
+const Q2_SPECS: FacturaSpec[] = [
   // ── ABRIL 2026 ────────────────────────────────────────────────────────────
   { cidx:7,  fecha:"2026-04-02", cond:"contado", vcto:null,         items:[[0,10],[5,5],[6,3]],     retes:[],  pagada:"2026-04-02" },
   { cidx:0,  fecha:"2026-04-03", cond:"credito", vcto:"2026-05-03", items:[[0,20],[3,10]],           retes:[0,2], pagada:"2026-05-05" },
@@ -163,7 +163,7 @@ type GastoSpec = {
   pagado:   string | null;  // fecha pagado_at
 };
 
-const GASTOS_SPECS: GastoSpec[] = [
+const Q2_GASTOS_SPECS: GastoSpec[] = [
   // Arrendamiento mensual (3 meses)
   { fecha:"2026-04-01", prov_idx:0, cat:"arrendamiento", desc:"Arriendo local comercial Calle 72 — Abril 2026",    monto:3200000, iva:0,      vcto:"2026-04-05", aprobado:true, pagado:"2026-04-04" },
   { fecha:"2026-05-01", prov_idx:0, cat:"arrendamiento", desc:"Arriendo local comercial Calle 72 — Mayo 2026",     monto:3200000, iva:0,      vcto:"2026-05-05", aprobado:true, pagado:"2026-05-03" },
@@ -195,6 +195,35 @@ const GASTOS_SPECS: GastoSpec[] = [
 
 // ── Función principal ─────────────────────────────────────────────────────────
 
+function desplazarMeses(fecha: string | null, meses: number) {
+  if (!fecha) return null;
+  const [ano, mes, dia] = fecha.split("-").map(Number);
+  const resultado = new Date(Date.UTC(ano, mes - 1 + meses, dia));
+  return resultado.toISOString().slice(0, 10);
+}
+
+// Repite los escenarios operativos en el primer trimestre para habilitar
+// comparativos de seis meses, conservando el segundo trimestre original.
+const SPECS: FacturaSpec[] = [
+  ...Q2_SPECS.map((spec) => ({
+    ...spec,
+    fecha: desplazarMeses(spec.fecha, -3)!,
+    vcto: desplazarMeses(spec.vcto, -3),
+    pagada: desplazarMeses(spec.pagada, -3),
+  })),
+  ...Q2_SPECS,
+];
+
+const GASTOS_SPECS: GastoSpec[] = [
+  ...Q2_GASTOS_SPECS.map((gasto) => ({
+    ...gasto,
+    fecha: desplazarMeses(gasto.fecha, -3)!,
+    vcto: desplazarMeses(gasto.vcto, -3),
+    pagado: desplazarMeses(gasto.pagado, -3),
+  })),
+  ...Q2_GASTOS_SPECS,
+];
+
 export async function seedContador() {
   const [existe] = await db
     .select({ id: users.id })
@@ -211,9 +240,9 @@ export async function seedContador() {
   console.log("  Creando entorno de simulación para contador externo...");
   console.log("═══════════════════════════════════════════════════════════\n");
 
-  // ── Plan raíz (accounting_level = 2) ──────────────────────────────────────
-  const [plan] = await db.select().from(plans).where(eq(plans.slug, "raiz")).limit(1);
-  if (!plan) throw new Error("Plan 'raiz' no encontrado. Ejecuta primero: pnpm db:seed");
+  // ── Plan Brote (incluye reportes comparativos) ────────────────────────────
+  const [plan] = await db.select().from(plans).where(eq(plans.slug, "brote")).limit(1);
+  if (!plan) throw new Error("Plan 'brote' no encontrado. Ejecuta primero: pnpm db:seed");
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
   const [tenant] = await db
@@ -265,7 +294,7 @@ export async function seedContador() {
       prefijo:           "FE",
       consecutivo_desde: 1,
       consecutivo_hasta: 5000,
-      consecutivo_actual: 51,   // 50 facturas ya emitidas
+      consecutivo_actual: 101,  // 100 facturas ya emitidas
       fecha_desde: "2025-01-01",
       fecha_hasta: "2027-12-31",
       activa: true,
@@ -619,7 +648,7 @@ export async function seedContador() {
       { desc: "Agenda ejecutiva 2026",               qty: 5,  price: PROD_PRICES[6], iva: PROD_IVAS[6] },
       { desc: "Servicio mensajería urbana",          qty: 1,  price: PROD_PRICES[10], iva: PROD_IVAS[10] },
     ],
-    "2026-04-23",
+    "2026-01-23",
   );
 
   // FE-0032 idx=31 — Industria Metal-Mecánica — 8×calculadora + 5×perforadora
@@ -629,7 +658,7 @@ export async function seedContador() {
       { desc: "Calculadora científica Casio FX-82MS", qty: 8, price: PROD_PRICES[7], iva: PROD_IVAS[7] },
       { desc: "Perforadora metálica 20 hojas",        qty: 5, price: PROD_PRICES[8], iva: PROD_IVAS[8] },
     ],
-    "2026-05-28",
+    "2026-02-28",
   );
 
   // FE-0049 idx=48 — Constructora Los Pinos — 50×papel + 30×bolígrafo
@@ -639,7 +668,7 @@ export async function seedContador() {
       { desc: "Resma papel bond carta 500 hojas",  qty: 50, price: PROD_PRICES[0], iva: PROD_IVAS[0] },
       { desc: "Bolígrafo BIC punta fina caja x12", qty: 30, price: PROD_PRICES[5], iva: PROD_IVAS[5] },
     ],
-    "2026-06-24",
+    "2026-03-24",
   );
 
   // NC de devolución parcial
@@ -647,7 +676,7 @@ export async function seedContador() {
   await criarNC(30, "devolucion",
     "5 unidades de café molido recibidas con empaque dañado — devolución parcial.",
     [{ desc: "Café molido 500g Sello Rojo", qty: 5, price: PROD_PRICES[2], iva: PROD_IVAS[2] }],
-    "2026-05-29",
+    "2026-02-20",
   );
 
   // NC de descuento (pronto pago)
@@ -655,7 +684,7 @@ export async function seedContador() {
   await criarNC(46, "descuento",
     "Descuento por pronto pago acordado con el cliente (5% sobre subtotal bolígrafos).",
     [{ desc: "Descuento por pronto pago — bolígrafos", qty: 1, price: 8500, iva: 19 }],
-    "2026-06-20",
+    "2026-03-20",
   );
 
   console.log(`✓ 5 notas crédito creadas (3 anulación, 1 devolución, 1 descuento)`);
@@ -829,7 +858,7 @@ export async function seedContador() {
   console.log("  NIT:         901.234.567-7");
   console.log("  Régimen:     Ordinario (Responsable de IVA)");
   console.log("  CIIU:        4719 — Comercio al por menor no especializado");
-  console.log("  Plan:        Raíz (balance general + estado de resultados)\n");
+  console.log("  Plan:        Brote (incluye reportes comparativos)\n");
   console.log("  CREDENCIALES CONTADOR:");
   console.log(`  Email:       ${CONTADOR_EMAIL}`);
   console.log(`  Contraseña:  ${PASSWORD}`);
@@ -838,11 +867,11 @@ export async function seedContador() {
   console.log(`  Email:       ${ADMIN_EMAIL}`);
   console.log(`  Contraseña:  ${PASSWORD}\n`);
   console.log("  DATOS GENERADOS:");
-  console.log(`  Período:     Abril 1 — Junio 25, 2026`);
+  console.log(`  Período:     Enero 1 — Junio 25, 2026`);
   console.log(`  Clientes:    13 (8 jurídicos + 5 naturales)`);
   console.log(`  Productos:   11 (IVA 0%: 3 | IVA 5%: 2 | IVA 19%: 6)`);
-  console.log(`  Facturas:    50 total`);
-  console.log(`    • Aceptadas/pendiente de pago:  ${50 - facturasAnuladas - facturasPagadas}`);
+  console.log(`  Facturas:    ${SPECS.length} total`);
+  console.log(`    • Aceptadas/pendiente de pago:  ${SPECS.length - facturasAnuladas - facturasPagadas}`);
   console.log(`    • Pagadas:                      ${facturasPagadas}`);
   console.log(`    • Anuladas (vía NC):            ${facturasAnuladas}`);
   console.log(`    • Vencidas sin pago:            ${facturasVencidas}`);
@@ -851,7 +880,7 @@ export async function seedContador() {
   console.log(`  Notas crédito:  5 (3 anulación + 1 devolución + 1 descuento)`);
   console.log(`  Gastos:         ${GASTOS_SPECS.length} (${gastosAprobados} aprobados, ${gastosPendientes} pendientes)`);
   console.log(`  Movimientos inv: ${entradas.length + salidas.length} (${entradas.length} entradas + ${salidas.length} salidas)\n`);
-  console.log("  ACCESO CONTABLE (plan Raíz):");
+  console.log("  ACCESO CONTABLE (plan Brote):");
   console.log("  ✓ Libro diario                    → /api/contabilidad/diario");
   console.log("  ✓ Libro mayor por cuenta          → /api/contabilidad/mayor/:codigo");
   console.log("  ✓ Balance de prueba               → /api/contabilidad/balance-prueba");
@@ -862,7 +891,7 @@ export async function seedContador() {
   console.log("  ✓ Cartera / aging                 → /api/cartera");
   console.log("  ✓ Excel facturas                  → /api/exportar/facturas");
   console.log("  ✓ Excel clientes                  → /api/exportar/clientes");
-  console.log("  ✗ Estado de resultados comparativo → requiere plan Brote (accounting_level 3)");
+  console.log("  ✓ Estado de resultados comparativo");
   console.log("  ✗ Centros de costos               → requiere plan Cosecha (accounting_level 4)\n");
 }
 

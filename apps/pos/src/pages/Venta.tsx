@@ -315,7 +315,9 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   function abrirPago() {
     if (carrito.length === 0) return;
     ventaIdempotencyKeyRef.current = crypto.randomUUID();
-    setMontoRecibido(metodoPago === "efectivo" ? formatearPesos(String(Math.ceil(totalCarrito / 1000) * 1000)) : "");
+    // El valor recibido solo es necesario cuando se desea calcular vuelto.
+    // Sin ese dato, el cobro se registra por el total de la venta.
+    setMontoRecibido("");
     setShowPago(true);
     setError(null);
   }
@@ -366,7 +368,9 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       setUltimaVenta({
         numero: venta.numero, total: Number(venta.total), vuelto,
         items: [...carrito], clienteNombre, metodoPago,
-        montoRecibido: metodoPago === "efectivo" ? pesosAEntero(montoRecibido) : Number(venta.total),
+        montoRecibido: metodoPago === "efectivo" && montoRecibido
+          ? pesosAEntero(montoRecibido)
+          : Number(venta.total),
         subtotal: subtotalCarrito, iva: ivaCarrito, impo: impocarrito, cajaNombre,
       });
       setCarrito([]);
@@ -913,7 +917,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                   key={m.value}
                   onClick={() => {
                     setMetodoPago(m.value);
-                    setMontoRecibido(m.value === "efectivo" ? formatearPesos(String(Math.ceil(totalCarrito / 1000) * 1000)) : "");
+                    setMontoRecibido("");
                   }}
                   className={cn(
                     "rounded-xl py-2.5 text-sm font-medium border transition-colors",
@@ -929,7 +933,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
             {metodoPago === "efectivo" && (
               <div className="space-y-1.5">
-                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Recibido</label>
+                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Recibido (opcional)</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -951,12 +955,16 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                     </button>
                   ))}
                 </div>
-                <div className="flex justify-between text-sm bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5">
-                  <span className="text-gray-500 dark:text-slate-400">Vuelto</span>
-                  <span className={cn("font-bold text-lg", vuelto < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
-                    {cop(vuelto)}
-                  </span>
-                </div>
+                {montoRecibido ? (
+                  <div className="flex justify-between text-sm bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5">
+                    <span className="text-gray-500 dark:text-slate-400">Vuelto</span>
+                    <span className={cn("font-bold text-lg", vuelto < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
+                      {cop(vuelto)}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-slate-500">Sin valor recibido, se registra el pago completo por {cop(totalCarrito)}.</p>
+                )}
               </div>
             )}
 
@@ -976,7 +984,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
             <button
               onClick={() => void procesarVenta()}
-              disabled={procesando || (metodoPago === "efectivo" && pesosAEntero(montoRecibido) < totalCarrito)}
+              disabled={procesando || (metodoPago === "efectivo" && montoRecibido !== "" && pesosAEntero(montoRecibido) < totalCarrito)}
               className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 py-4 text-lg font-bold text-white transition-colors"
             >
               {procesando ? "Procesando..." : "Confirmar venta"}

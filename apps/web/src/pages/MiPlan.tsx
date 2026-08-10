@@ -27,6 +27,13 @@ interface MiPlanData {
     facturas_usadas_ano: number;
     max_facturas_ano: number | null;
   };
+  productos: Array<{
+    product: "erp" | "pos" | "facturacion" | "nomina" | string;
+    status: "active" | "inactive" | string;
+    ends_at: string;
+    plan_slug: string;
+    plan_nombre: string;
+  }>;
 }
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -40,6 +47,14 @@ const FEATURE_LABELS: Record<string, string> = {
   ensamble:               "Ensamble (BOM)",
   pos:                    "Punto de venta (POS)",
   reportes_comparativos:  "Reportes comparativos",
+};
+
+const PRODUCT_LABELS: Record<string, string> = {
+  erp: "ERP y contabilidad",
+  pos: "Punto de venta",
+  facturacion: "Facturación electrónica",
+  origen: "Facturación electrónica",
+  nomina: "Nómina electrónica",
 };
 
 const cop = (n: number) =>
@@ -69,7 +84,7 @@ export default function MiPlan() {
 
   if (!data) return null;
 
-  const { plan, suscripcion, uso } = data;
+  const { plan, suscripcion, uso, productos } = data;
   const porcentajeUso = uso.max_facturas_ano
     ? Math.min(100, (uso.facturas_usadas_ano / uso.max_facturas_ano) * 100)
     : null;
@@ -150,6 +165,35 @@ export default function MiPlan() {
             </Button>
           </Link>
         )}
+      </Card>
+
+      {/* Productos independientes contratados por la empresa */}
+      <Card className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Productos Doravia</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Cada producto funciona por separado y comparte clientes, empresa y datos cuando los tienes juntos.</p>
+          </div>
+          <Link to="/modulos" className="text-xs font-medium text-action hover:underline">Gestionar</Link>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {productos.length > 0 ? productos.map((producto) => {
+            const activo = producto.status === "active" && new Date(producto.ends_at) >= new Date();
+            return (
+              <div key={`${producto.product}-${producto.plan_slug}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{PRODUCT_LABELS[producto.product] ?? producto.product}</p>
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">{producto.plan_nombre}</p>
+                </div>
+                <span className={`ml-3 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${activo ? "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300" : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"}`}>
+                  {activo ? "Activo" : "Inactivo"}
+                </span>
+              </div>
+            );
+          }) : (
+            <p className="rounded-lg bg-gray-50 px-3 py-4 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400">Aún no hay productos adicionales contratados.</p>
+          )}
+        </div>
       </Card>
 
       {/* Uso de documentos */}

@@ -24,6 +24,12 @@ interface CuentaBancaria {
   activa: boolean;
 }
 
+interface CuentaContable {
+  id: string;
+  codigo: string;
+  nombre: string;
+}
+
 interface Conciliacion {
   id: string;
   cuenta_bancaria_id: string;
@@ -98,7 +104,8 @@ export default function ConciliacionBancaria() {
 
   // Modal crear cuenta
   const [modalCuenta, setModalCuenta] = useState(false);
-  const [formCuenta, setFormCuenta] = useState({ nombre: "", banco: "", numero_cuenta: "" });
+  const [formCuenta, setFormCuenta] = useState({ nombre: "", banco: "", numero_cuenta: "", cuenta_contable_id: "" });
+  const [cuentasContables, setCuentasContables] = useState<CuentaContable[]>([]);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
 
   // Modal crear conciliación
@@ -119,6 +126,9 @@ export default function ConciliacionBancaria() {
 
   useEffect(() => {
     void cargarCuentas().finally(() => setLoading(false));
+    void apiFetch<CuentaContable[]>("/api/contabilidad/cuentas")
+      .then(setCuentasContables)
+      .catch(() => {});
   }, []);
 
   async function handleCrearCuenta(e: React.FormEvent) {
@@ -129,7 +139,7 @@ export default function ConciliacionBancaria() {
       await apiFetch("/api/conciliacion/cuentas", { method: "POST", body: JSON.stringify(formCuenta) });
       await cargarCuentas();
       setModalCuenta(false);
-      setFormCuenta({ nombre: "", banco: "", numero_cuenta: "" });
+      setFormCuenta({ nombre: "", banco: "", numero_cuenta: "", cuenta_contable_id: "" });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al crear la cuenta.");
     } finally {
@@ -274,6 +284,21 @@ export default function ConciliacionBancaria() {
                       value={formCuenta.numero_cuenta}
                       onChange={(e) => setFormCuenta({ ...formCuenta, numero_cuenta: e.target.value })}
                     />
+                  </div>
+                  <div>
+                    <Label>Cuenta contable asociada *</Label>
+                    <select
+                      className="w-full border rounded-md px-3 py-2 text-sm"
+                      value={formCuenta.cuenta_contable_id}
+                      onChange={(e) => setFormCuenta({ ...formCuenta, cuenta_contable_id: e.target.value })}
+                      required
+                    >
+                      <option value="">Selecciona la cuenta del PUC...</option>
+                      {cuentasContables.map((cuenta) => (
+                        <option key={cuenta.id} value={cuenta.id}>{cuenta.codigo} · {cuenta.nombre}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Se usa para comparar el extracto con los libros y permitir un cierre seguro.</p>
                   </div>
                   {error && <p className="text-sm text-red-600">{error}</p>}
                   <div className="flex gap-3 pt-2">
@@ -647,7 +672,7 @@ function DetalleConciliacion({
           <Badge variant={cerrada ? "secondary" : "default"}>{cerrada ? "Cerrada" : "En proceso"}</Badge>
         </div>
         {isAdmin && !cerrada && (
-          <Button variant="outline" className="text-red-600 border-red-300" onClick={handleCerrar} disabled={cerrando}>
+          <Button variant="outline" className="text-red-600 border-red-300" onClick={handleCerrar} disabled={cerrando || !resumen?.cuadrado} title={resumen?.cuadrado ? "Cerrar conciliación" : "Solo puedes cerrar cuando no haya diferencia pendiente"}>
             <Lock className="w-4 h-4 mr-2" /> {cerrando ? "Cerrando..." : "Cerrar conciliación"}
           </Button>
         )}

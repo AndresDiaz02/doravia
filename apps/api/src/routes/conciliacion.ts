@@ -502,6 +502,14 @@ router.patch("/:id/cerrar", requireContableOperativo, async (req, res) => {
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación ya está cerrada." });
 
+  const diferencia = await obtenerDiferenciaConciliacion(conc, req.tenantId);
+  if (diferencia === null) {
+    return res.status(422).json({ error: "Vincula una cuenta contable a esta cuenta bancaria antes de cerrar la conciliación." });
+  }
+  if (Math.abs(diferencia) >= 0.01) {
+    return res.status(422).json({ error: "No puedes cerrar una conciliación con diferencia pendiente. Registra o concilia los movimientos faltantes." });
+  }
+
   const [updated] = await db.update(conciliaciones)
     .set({ estado: "cerrada", cerrada_at: new Date() })
     .where(eq(conciliaciones.id, req.params.id))
@@ -515,6 +523,29 @@ async function getConciliacion(id: string, tenantId: string) {
   const [row] = await db.select().from(conciliaciones)
     .where(and(eq(conciliaciones.id, id), eq(conciliaciones.tenant_id, tenantId)));
   return row ?? null;
+}
+
+async function obtenerDiferenciaConciliacion(
+  conciliacion: typeof conciliaciones.$inferSelect,
+  tenantId: string,
+): Promise<number | null> {
+  const [cuenta] = await db
+    .select({ cuenta_contable_id: cuentas_bancarias.cuenta_contable_id })
+    .from(cuentas_bancarias)
+    .where(and(eq(cuentas_bancarias.id, conciliacion.cuenta_bancaria_id), eq(cuentas_bancarias.tenant_id, tenantId)));
+  if (!cuenta?.cuenta_contable_id) return null;
+
+  const [saldo] = await db
+    .select({ debito: sql<string>`COALESCE(SUM(${lineas_asiento.debito}), 0)`, credito: sql<string>`COALESCE(SUM(${lineas_asiento.credito}), 0)` })
+    .from(lineas_asiento)
+    .innerJoin(asientos_contables, eq(lineas_asiento.asiento_id, asientos_contables.id))
+    .where(and(
+      eq(asientos_contables.tenant_id, tenantId),
+      eq(lineas_asiento.cuenta_id, cuenta.cuenta_contable_id),
+      sql`${asientos_contables.fecha} <= ${conciliacion.fecha_hasta}`,
+    ));
+
+  return Number(conciliacion.saldo_final_banco) - (Number(saldo.debito) - Number(saldo.credito));
 }
 
 function daysBetween(a: string, b: string): number {

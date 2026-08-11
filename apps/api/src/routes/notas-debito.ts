@@ -13,6 +13,18 @@ import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-
 
 const router = Router();
 
+function requireOperadorVentas(req: { userRole: string }, res: { status: (code: number) => { json: (body: unknown) => unknown } }): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor") return true;
+  res.status(403).json({ error: "Solo administradores o vendedores pueden operar notas débito." });
+  return false;
+}
+
+function requireReintentoDian(req: { userRole: string; userDian?: boolean }, res: { status: (code: number) => { json: (body: unknown) => unknown } }): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian)) return true;
+  res.status(403).json({ error: "No tienes permisos para reintentar el envío DIAN de esta nota." });
+  return false;
+}
+
 // GET /api/notas-debito
 router.get("/", async (req, res) => {
   try {
@@ -71,6 +83,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/notas-debito/factura/:facturaId
 router.post("/factura/:facturaId", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   try {
     const { tipo, motivo, items: itemsInput } = req.body as {
       tipo: string;
@@ -299,6 +312,7 @@ router.post("/factura/:facturaId", async (req, res) => {
 
 // POST /api/notas-debito/:id/reenviar-dian
 router.post("/:id/reenviar-dian", async (req, res) => {
+  if (!requireReintentoDian(req, res)) return;
   try {
     const [nota] = await db
       .select()

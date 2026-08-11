@@ -4,7 +4,7 @@ import {
   asientos_contables, lineas_asiento, cuentas_contables, TIPOS_NOTA_CREDITO, resoluciones_dian,
 } from "@workspace/db";
 import { audit } from "../services/audit.service.js";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   buildPersona, buildItems, calcularTotalesPlemsi, emitirNotaCredito as plemsiEmitirNotaCredito,
 } from "../services/plemsi.service.js";
@@ -12,6 +12,18 @@ import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 
 const router = Router();
+
+function requireOperadorVentas(req: { userRole: string }, res: { status: (code: number) => { json: (body: unknown) => unknown } }): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor") return true;
+  res.status(403).json({ error: "Solo administradores o vendedores pueden operar notas crédito." });
+  return false;
+}
+
+function requireReintentoDian(req: { userRole: string; userDian?: boolean }, res: { status: (code: number) => { json: (body: unknown) => unknown } }): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian)) return true;
+  res.status(403).json({ error: "No tienes permisos para reintentar el envío DIAN de esta nota." });
+  return false;
+}
 
 // GET /api/notas-credito
 router.get("/", async (req, res) => {
@@ -67,6 +79,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/facturas/:facturaId/nota-credito
 router.post("/factura/:facturaId", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   try {
     const { tipo, motivo, items: itemsInput } = req.body as {
       tipo: string;
@@ -124,6 +137,20 @@ router.post("/factura/:facturaId", async (req, res) => {
     const fechaEmision = new Date();
 
     const nota = await db.transaction(async (tx) => {
+      // Serializa las notas de la misma factura para que dos solicitudes simultáneas
+      // no puedan exceder el total facturado de forma acumulada.
+      await tx.execute(sql`SELECT id FROM facturas WHERE id = ${factura.id} FOR UPDATE`);
+
+      const [{ totalNotasPrevias }] = await tx
+        .select({ totalNotasPrevias: sql<string>`coalesce(sum(${notas_credito.total}), 0)` })
+        .from(notas_credito)
+        .where(and(
+          eq(notas_credito.tenant_id, req.tenantId),
+          eq(notas_credito.factura_id, factura.id),
+        ));
+
+      if (total + Number(totalNotasPrevias) > Number(factura.total)) return null;
+
       const [n] = await tx
         .insert(notas_credito)
         .values({
@@ -208,6 +235,12 @@ router.post("/factura/:facturaId", async (req, res) => {
 
       return n;
     });
+
+    if (!nota) {
+      return res.status(422).json({
+        error: "El total acumulado de las notas crédito no puede superar el total de la factura.",
+      });
+    }
 
     void audit({ tenantId: req.tenantId, userId: req.userId, accion: "nota_credito.creada", entidadTipo: "nota_credito", entidadId: nota.id, detalle: { numero: nota.numero, tipo: nota.tipo, total: nota.total, factura_id: factura.id }, ip: req.ip });
 
@@ -311,6 +344,7 @@ router.post("/factura/:facturaId", async (req, res) => {
 
 // POST /api/notas-credito/:id/reenviar-dian — reintenta el envío a Plemsi
 router.post("/:id/reenviar-dian", async (req, res) => {
+  if (!requireReintentoDian(req, res)) return;
   const [row] = await db
     .select({ nota: notas_credito, factura: facturas })
     .from(notas_credito)

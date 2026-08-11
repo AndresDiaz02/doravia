@@ -93,7 +93,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     // DELETE nunca está permitido para el contador
     const url = req.originalUrl;
     const contableOk = req.method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
-    const reintentoDianAutorizado = req.userDian && req.method === "POST" && /^\/api\/facturas\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
+    const reintentoDianAutorizado = req.userDian && req.method === "POST"
+      && /^\/api\/(facturas|notas-credito|notas-debito)\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
     if (!contableOk && !reintentoDianAutorizado) {
       return res.status(403).json({
         error: "El contador no tiene permisos para modificar este módulo.",

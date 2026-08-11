@@ -121,7 +121,8 @@ function applyRbacRules(
     // Con permisos contables: solo contabilidad y gastos; el reintento DIAN
     // requiere una segunda autorización explícita y nunca habilita emisión/cobro.
     const contableOk = method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
-    const reintentoDianAutorizado = req.userDian && method === "POST" && /^\/api\/facturas\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
+    const reintentoDianAutorizado = req.userDian && method === "POST"
+      && /^\/api\/(facturas|notas-credito|notas-debito)\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
     if (!contableOk && !reintentoDianAutorizado) {
       (res.status as Mock)(403).json({ error: "El contador no tiene permisos para modificar este módulo.", code: "CONTADOR_READ_ONLY" });
       return;

@@ -3,6 +3,24 @@ import { eq, and, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
 /**
+ * Los procesos automáticos se pueden reintentar tras una caída de red. Antes de
+ * generar un comprobante se reutiliza el que ya corresponda al documento, para
+ * que un reintento no duplique ingresos ni impuestos en el libro diario.
+ */
+async function buscarAsientoAutomatico(tenantId: string, referenciaId: string, origen: "factura" | "pago" | "nomina") {
+  const [existente] = await db
+    .select({ id: asientos_contables.id })
+    .from(asientos_contables)
+    .where(and(
+      eq(asientos_contables.tenant_id, tenantId),
+      eq(asientos_contables.referencia_id, referenciaId),
+      eq(asientos_contables.origen, origen),
+    ))
+    .limit(1);
+  return existente?.id ?? null;
+}
+
+/**
  * Verifica que la fecha no caiga dentro de un período contable cerrado.
  * Lanza un Error si el período está cerrado — el llamador debe capturarlo y devolver 422.
  */
@@ -204,6 +222,9 @@ export async function crearAsientoFactura(
   ingresosCodigo: "4135" | "4175" = "4135",
   impoconsumoTotal = 0,
 ): Promise<string> {
+  const existente = await buscarAsientoAutomatico(tenantId, factura.id, "factura");
+  if (existente) return existente;
+
   const fecha = new Date(factura.fecha_emision);
   const numero = await getConsecutivoAsiento(tenantId, fecha.getFullYear());
 
@@ -369,6 +390,9 @@ export async function crearAsientoVentaPOS(
   impoconsumoTotal = 0,
   tx?: typeof db,
 ): Promise<string> {
+  const existente = await buscarAsientoAutomatico(tenantId, venta.id, "factura");
+  if (existente) return existente;
+
   const runner = tx ?? db;
   const fecha = venta.created_at.toISOString().split("T")[0];
   await verificarPeriodoCerrado(tenantId, fecha);

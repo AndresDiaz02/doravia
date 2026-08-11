@@ -611,18 +611,29 @@ router.get("/turnos/:id/resumen", async (req, res) => {
     // Ítems de todas las ventas del turno (para top productos)
     const ventaIds = ventasTurno.map((v) => v.id);
     let itemsTurno: Array<{ descripcion: string; cantidad: string; total: string; iva_valor: string; descuento_pct: string; precio_unitario: string; }> = [];
+    let pagosTurno: Array<{ venta_id: string; metodo_pago: string; monto: string }> = [];
     if (ventaIds.length > 0) {
-      itemsTurno = await db
-        .select({
-          descripcion: items_venta_pos.descripcion,
-          cantidad: items_venta_pos.cantidad,
-          total: items_venta_pos.total,
-          iva_valor: items_venta_pos.iva_valor,
-          descuento_pct: items_venta_pos.descuento_pct,
-          precio_unitario: items_venta_pos.precio_unitario,
-        })
-        .from(items_venta_pos)
-        .where(inArray(items_venta_pos.venta_id, ventaIds));
+      [itemsTurno, pagosTurno] = await Promise.all([
+        db
+          .select({
+            descripcion: items_venta_pos.descripcion,
+            cantidad: items_venta_pos.cantidad,
+            total: items_venta_pos.total,
+            iva_valor: items_venta_pos.iva_valor,
+            descuento_pct: items_venta_pos.descuento_pct,
+            precio_unitario: items_venta_pos.precio_unitario,
+          })
+          .from(items_venta_pos)
+          .where(inArray(items_venta_pos.venta_id, ventaIds)),
+        db
+          .select({
+            venta_id: pagos_venta_pos.venta_id,
+            metodo_pago: pagos_venta_pos.metodo_pago,
+            monto: pagos_venta_pos.monto,
+          })
+          .from(pagos_venta_pos)
+          .where(inArray(pagos_venta_pos.venta_id, ventaIds)),
+      ]);
     }
 
     // Agregar por producto
@@ -644,10 +655,21 @@ router.get("/turnos/:id/resumen", async (req, res) => {
     }
     const porHora = Object.entries(ventasPorHora).map(([h, d]) => ({ hora: Number(h), ...d })).sort((a, b) => a.hora - b.hora);
 
+    // Las ventas nuevas pueden tener pagos mixtos. Las anteriores a este
+    // desglose conservan su único método directamente en la venta.
+    const pagosPorVenta = new Map<string, Array<{ metodo_pago: string; monto: string }>>();
+    for (const pago of pagosTurno) {
+      const pagos = pagosPorVenta.get(pago.venta_id) ?? [];
+      pagos.push(pago);
+      pagosPorVenta.set(pago.venta_id, pagos);
+    }
+
     const porMetodo: Record<string, number> = {};
     for (const v of ventasTurno) {
-      const m = v.metodo_pago;
-      porMetodo[m] = (porMetodo[m] ?? 0) + Number(v.total);
+      const desglose = pagosPorVenta.get(v.id) ?? [{ metodo_pago: v.metodo_pago, monto: v.total }];
+      for (const pago of desglose) {
+        porMetodo[pago.metodo_pago] = (porMetodo[pago.metodo_pago] ?? 0) + Number(pago.monto);
+      }
     }
 
     const totalVentas = ventasTurno.reduce((s, v) => s + Number(v.total), 0);

@@ -432,7 +432,7 @@ export function AppLayout() {
 
           {(() => {
             const hasPos = (plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true;
-            const posUrl = import.meta.env.VITE_POS_URL ?? "http://localhost:5174";
+            const posUrl = import.meta.env.VITE_POS_URL ?? "https://pos.doraviasoft.com";
             return hasPos ? (
               <a
                 href={`${posUrl}#token=${encodeURIComponent(localStorage.getItem("access_token") ?? "")}`}

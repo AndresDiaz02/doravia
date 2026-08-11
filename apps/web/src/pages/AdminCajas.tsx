@@ -153,7 +153,7 @@ export default function AdminCajas() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={import.meta.env.VITE_POS_URL ?? "https://stirring-longma-af504d.netlify.app"}
+            href={import.meta.env.VITE_POS_URL ?? "https://pos.doraviasoft.com"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"

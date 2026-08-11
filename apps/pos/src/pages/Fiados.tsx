@@ -75,7 +75,7 @@ export default function Cuentas({ cajaId }: Props) {
   async function cargarCuentas() {
     setLoading(true);
     try {
-      const url = filtro === "todos" ? "/api/pos/cuentas" : `/api/pos/cuentas?estado=${filtro}`;
+      const url = filtro === "todos" ? "/api/pos/fiados" : `/api/pos/fiados?estado=${filtro}`;
       const data = await apiFetch<Cuenta[]>(url);
       setCuentas(data);
     } finally {
@@ -84,7 +84,7 @@ export default function Cuentas({ cajaId }: Props) {
   }
 
   async function abrirDetalle(id: string) {
-    const data = await apiFetch<CuentaDetalle>(`/api/pos/cuentas/${id}`);
+    const data = await apiFetch<CuentaDetalle>(`/api/pos/fiados/${id}`);
     setDetalle(data);
   }
 
@@ -120,7 +120,7 @@ export default function Cuentas({ cajaId }: Props) {
     setProcesando(true);
     setError(null);
     try {
-      await apiFetch("/api/pos/cuentas", {
+      await apiFetch("/api/pos/fiados", {
         method: "POST",
         body: JSON.stringify({
           nombre_cliente: nuevoForm.nombre_cliente,
@@ -151,7 +151,7 @@ export default function Cuentas({ cajaId }: Props) {
     setProcesando(true);
     setError(null);
     try {
-      await apiFetch<{ saldo: number; estado: string }>(`/api/pos/cuentas/${detalle.id}/abonos`, {
+      await apiFetch<{ saldo: number; estado: string }>(`/api/pos/fiados/${detalle.id}/abonos`, {
         method: "POST",
         body: JSON.stringify({ monto: Number(montoAbono), metodo_pago: metodoPagoAbono }),
       });
@@ -270,10 +270,10 @@ export default function Cuentas({ cajaId }: Props) {
       {/* Modal detalle */}
       {detalle && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-40">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
+          <div className="w-full max-h-[90vh] sm:max-w-md flex flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-700">
+            <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0 dark:border-slate-700">
               <div>
-                <p className="font-bold text-gray-900">{detalle.nombre_cliente}</p>
+                <p className="font-bold text-gray-900 dark:text-white">{detalle.nombre_cliente}</p>
                 {detalle.telefono_cliente && <p className="text-xs text-gray-400">{detalle.telefono_cliente}</p>}
               </div>
               <button onClick={() => setDetalle(null)} className="text-gray-400 hover:text-gray-600">
@@ -283,16 +283,16 @@ export default function Cuentas({ cajaId }: Props) {
 
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
               {/* Saldo */}
-              <div className="rounded-xl bg-gray-50 p-3 flex items-center justify-between">
+              <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3 dark:bg-slate-800">
                 <div>
                   <p className="text-xs text-gray-500">Saldo pendiente</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {cop(Number(detalle.monto_total) - Number(detalle.monto_pagado))}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Total cuenta</p>
-                  <p className="text-sm font-semibold text-gray-700">{cop(detalle.monto_total)}</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">{cop(detalle.monto_total)}</p>
                   <EstadoBadge estado={detalle.estado} />
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function Cuentas({ cajaId }: Props) {
             </div>
 
             {detalle.estado !== "pagado" && (
-              <div className="p-4 border-t flex-shrink-0">
+            <div className="border-t p-4 flex-shrink-0 dark:border-slate-700">
                 {showAbono ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-1.5">
@@ -394,9 +394,9 @@ export default function Cuentas({ cajaId }: Props) {
       {/* Modal nuevo cuenta */}
       {showNuevo && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-40">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg shadow-2xl max-h-[95vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
-              <p className="font-bold text-gray-900">Nueva cuenta</p>
+          <div className="w-full max-h-[95vh] sm:max-w-lg flex flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-700">
+            <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0 dark:border-slate-700">
+              <p className="font-bold text-gray-900 dark:text-white">Nueva cuenta</p>
               <button onClick={() => { setShowNuevo(false); setError(null); }} className="text-gray-400">
                 <X className="h-5 w-5" />
               </button>
@@ -502,7 +502,7 @@ export default function Cuentas({ cajaId }: Props) {
               {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
             </div>
 
-            <div className="p-4 border-t flex gap-3 flex-shrink-0">
+            <div className="border-t p-4 flex gap-3 flex-shrink-0 dark:border-slate-700">
               <button
                 onClick={() => { setShowNuevo(false); setError(null); }}
                 className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-medium text-gray-700"

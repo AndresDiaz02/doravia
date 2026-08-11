@@ -15,6 +15,7 @@ import helmet from "helmet";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { authenticate } from "./middleware/auth.js";
 import { requirePlanFeature, requireAccountingLevel } from "./middleware/require-plan-feature.js";
+import { requireProductoActivo } from "./middleware/product-access.js";
 import { PlanLimitError, PlanFeatureError } from "@workspace/shared";
 
 import authRouter from "./routes/auth.js";
@@ -226,7 +227,7 @@ app.use("/api/centros-costos", authenticate, requirePlanFeature("centros_costos"
 app.use("/api/ensamble",       authenticate, requirePlanFeature("ensamble"),        ensambleRouter);
 app.use("/api/cartera",        authenticate, requirePlanFeature("cartera_avanzada"), carteraRouter);
 app.use("/api/documentos",     authenticate, documentosRouter);
-app.use("/api/pos",            authenticate, requirePlanFeature("pos"), posRouter);
+app.use("/api/pos",            authenticate, requireProductoActivo("pos", "pos"), posRouter);
 app.use("/api/audit-log",      authenticate, auditLogRouter);
 app.use("/api/mi-plan",        authenticate, miPlanRouter);
 app.use("/api/soporte",        authenticate, soporteRouter);

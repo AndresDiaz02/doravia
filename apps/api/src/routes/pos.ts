@@ -596,7 +596,19 @@ router.post("/ventas", async (req, res) => {
 
   } catch (err) {
     console.error("[POS POST /ventas]", err);
-    res.status(500).json({ error: "Error al registrar la venta. Inténtalo de nuevo." });
+    // Las validaciones que dependen del estado transaccional (stock,
+    // disponibilidad del producto y suma de pagos) deben llegar al cajero
+    // como una corrección accionable, no como un error genérico del servidor.
+    const message = err instanceof Error ? err.message : "";
+    const esErrorOperativo = [
+      "Uno de los productos ya no está disponible para la venta.",
+      "La suma de los métodos de pago debe ser igual al total de la venta.",
+      "El monto recibido solo aplica para pagos únicos en efectivo.",
+      "El monto recibido no puede ser menor al total de la venta.",
+    ].includes(message) || message.startsWith("Stock insuficiente para ");
+    res.status(esErrorOperativo ? 422 : 500).json({
+      error: esErrorOperativo ? message : "Error al registrar la venta. Inténtalo de nuevo.",
+    });
   }
 });
 

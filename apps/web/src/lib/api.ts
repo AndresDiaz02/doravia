@@ -53,7 +53,16 @@ export async function apiFetch<T>(
   });
 
   // No intentar refrescar para endpoints públicos de auth (login, register, etc.)
-  const esEndpointPublico = path.startsWith("/api/auth/") || path.startsWith("/api/fundador/");
+  // /api/auth/me requiere sesión: allí sí se debe intentar renovar el token.
+  const esEndpointPublico = [
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/register-trial",
+    "/api/auth/refresh",
+    "/api/auth/logout",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+  ].some((endpoint) => path.startsWith(endpoint)) || path.startsWith("/api/fundador/");
 
   if (res.status === 401 && !_isRetry && !esEndpointPublico) {
     const rt = localStorage.getItem("refresh_token");

@@ -3,6 +3,7 @@ import { db, productos, TARIFAS_IVA, TIPOS_PRODUCTO } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import multer from "multer";
 import * as XLSX from "xlsx";
+import { ArchivoImportacionInvalido, leerFilasImportacion } from "../lib/spreadsheet-import.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -144,11 +145,12 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
 
   let rows: Record<string, unknown>[];
   try {
-    const wb = XLSX.read(req.file.buffer, { type: "buffer" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json(ws, { defval: "" }) as Record<string, unknown>[];
-  } catch {
-    return res.status(400).json({ error: "No se pudo leer el archivo. Asegúrate de que sea .xlsx o .csv válido." });
+    rows = leerFilasImportacion(req.file, 1000);
+  } catch (err) {
+    const error = err instanceof ArchivoImportacionInvalido
+      ? err.message
+      : "No se pudo leer el archivo. Asegúrate de que sea .xlsx o .csv válido.";
+    return res.status(400).json({ error });
   }
 
   if (rows.length === 0) return res.status(400).json({ error: "El archivo está vacío." });

@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { eq, and, between, sql } from "drizzle-orm";
 import { requireContableOperativo } from "../middleware/require-plan-feature.js";
+import { ArchivoImportacionInvalido, leerFilasImportacion } from "../lib/spreadsheet-import.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -164,11 +165,8 @@ router.post("/:id/importar", requireContableOperativo, upload.single("archivo"),
 
   let filas: Record<string, string>[];
   try {
-    const wb = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true }) as Record<string, unknown>[];
+    const raw = leerFilasImportacion(req.file, 5000);
     if (raw.length === 0) return res.status(400).json({ error: "El archivo está vacío." });
-    if (raw.length > 5000) return res.status(400).json({ error: "Máximo 5000 movimientos por importación." });
     filas = raw.map((r) =>
       Object.fromEntries(
         Object.entries(r).map(([k, v]) => {
@@ -183,8 +181,11 @@ router.post("/:id/importar", requireContableOperativo, upload.single("archivo"),
         })
       )
     );
-  } catch {
-    return res.status(400).json({ error: "No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido." });
+  } catch (err) {
+    const error = err instanceof ArchivoImportacionInvalido
+      ? err.message
+      : "No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.";
+    return res.status(400).json({ error });
   }
 
   // Auto-detección de formato si no hay mapeo

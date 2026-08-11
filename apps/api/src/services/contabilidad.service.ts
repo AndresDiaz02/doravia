@@ -1,4 +1,4 @@
-import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables } from "@workspace/db";
+import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, pagos_venta_pos } from "@workspace/db";
 import { eq, and, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
@@ -398,10 +398,18 @@ export async function crearAsientoVentaPOS(
   await verificarPeriodoCerrado(tenantId, fecha);
 
   const numero = await getConsecutivoAsiento(tenantId, venta.created_at.getFullYear());
-  const codigoCaja = METODO_PAGO_A_CUENTA[venta.metodo_pago] ?? "1105";
+  const pagosRegistrados = await runner
+    .select({ metodo_pago: pagos_venta_pos.metodo_pago, monto: pagos_venta_pos.monto })
+    .from(pagos_venta_pos)
+    .where(eq(pagos_venta_pos.venta_id, venta.id));
+  // Las ventas históricas pueden no tener desglose; las nuevas siempre lo tienen.
+  const pagos = pagosRegistrados.length > 0
+    ? pagosRegistrados.map((p) => ({ metodo_pago: p.metodo_pago, monto: Number(p.monto) }))
+    : [{ metodo_pago: venta.metodo_pago, monto: Number(venta.total) }];
+  const codigosPago = [...new Set(pagos.map((p) => METODO_PAGO_A_CUENTA[p.metodo_pago] ?? CODIGOS.CAJA))];
 
-  const [cCaja, cIngresos, cIva, cImpoconsumo] = await Promise.all([
-    getCuenta(tenantId, codigoCaja),
+  const [cuentasPago, cIngresos, cIva, cImpoconsumo] = await Promise.all([
+    Promise.all(codigosPago.map((codigo) => getCuenta(tenantId, codigo))),
     getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
     getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
     impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
@@ -410,6 +418,11 @@ export async function crearAsientoVentaPOS(
   const total    = Number(venta.total);
   const subtotal = Number(venta.subtotal) - Number(venta.descuento_total);
   const iva      = Number(venta.iva_total);
+  const totalPagos = pagos.reduce((acumulado, pago) => acumulado + pago.monto, 0);
+  if (Math.abs(totalPagos - total) > 0.01) {
+    throw new Error(`Los pagos registrados para ${venta.numero} no coinciden con el total de la venta.`);
+  }
+  const cuentaPorCodigo = new Map(codigosPago.map((codigo, index) => [codigo, cuentasPago[index]]));
 
   const [asiento] = await runner
     .insert(asientos_contables)
@@ -424,13 +437,16 @@ export async function crearAsientoVentaPOS(
     .returning();
 
   const lineas = [
-    {
-      asiento_id: asiento.id,
-      cuenta_id: cCaja.id,
-      descripcion: `${venta.metodo_pago.charAt(0).toUpperCase() + venta.metodo_pago.slice(1)} — ingreso POS`,
-      debito: String(total),
-      credito: "0",
-    },
+    ...pagos.map((pago) => {
+      const codigo = METODO_PAGO_A_CUENTA[pago.metodo_pago] ?? CODIGOS.CAJA;
+      return {
+        asiento_id: asiento.id,
+        cuenta_id: cuentaPorCodigo.get(codigo)!.id,
+        descripcion: `${pago.metodo_pago.charAt(0).toUpperCase() + pago.metodo_pago.slice(1)} — ingreso POS`,
+        debito: String(pago.monto),
+        credito: "0",
+      };
+    }),
     {
       asiento_id: asiento.id,
       cuenta_id: cIngresos.id,
@@ -476,17 +492,29 @@ export async function crearAsientoAnulacionVentaPOS(
   const fecha = new Date().toISOString().slice(0, 10);
   await verificarPeriodoCerrado(tenantId, fecha);
   const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
-  const codigoCaja = METODO_PAGO_A_CUENTA[venta.metodo_pago] ?? CODIGOS.CAJA;
-  const [cIngresos, cIva, cImpoconsumo, cCaja] = await Promise.all([
+  const pagosRegistrados = await db
+    .select({ metodo_pago: pagos_venta_pos.metodo_pago, monto: pagos_venta_pos.monto })
+    .from(pagos_venta_pos)
+    .where(eq(pagos_venta_pos.venta_id, venta.id));
+  const pagos = pagosRegistrados.length > 0
+    ? pagosRegistrados.map((p) => ({ metodo_pago: p.metodo_pago, monto: Number(p.monto) }))
+    : [{ metodo_pago: venta.metodo_pago, monto: Number(venta.total) }];
+  const codigosPago = [...new Set(pagos.map((p) => METODO_PAGO_A_CUENTA[p.metodo_pago] ?? CODIGOS.CAJA))];
+  const [cIngresos, cIva, cImpoconsumo, cuentasPago] = await Promise.all([
     getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
     getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
     impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
-    getCuenta(tenantId, codigoCaja),
+    Promise.all(codigosPago.map((codigo) => getCuenta(tenantId, codigo))),
   ]);
 
   const total = Number(venta.total);
   const subtotal = Number(venta.subtotal) - Number(venta.descuento_total);
   const iva = Number(venta.iva_total);
+  const totalPagos = pagos.reduce((acumulado, pago) => acumulado + pago.monto, 0);
+  if (Math.abs(totalPagos - total) > 0.01) {
+    throw new Error(`Los pagos registrados para ${venta.numero} no coinciden con el total de la venta.`);
+  }
+  const cuentaPorCodigo = new Map(codigosPago.map((codigo, index) => [codigo, cuentasPago[index]]));
   const [asiento] = await db.insert(asientos_contables).values({
     tenant_id: tenantId,
     numero,
@@ -498,7 +526,10 @@ export async function crearAsientoAnulacionVentaPOS(
 
   const lineas = [
     { asiento_id: asiento.id, cuenta_id: cIngresos.id, descripcion: "Reversa ingresos venta POS", debito: String(subtotal), credito: "0" },
-    { asiento_id: asiento.id, cuenta_id: cCaja.id, descripcion: "Reversa cobro venta POS", debito: "0", credito: String(total) },
+    ...pagos.map((pago) => {
+      const codigo = METODO_PAGO_A_CUENTA[pago.metodo_pago] ?? CODIGOS.CAJA;
+      return { asiento_id: asiento.id, cuenta_id: cuentaPorCodigo.get(codigo)!.id, descripcion: `Reversa cobro POS — ${pago.metodo_pago}`, debito: "0", credito: String(pago.monto) };
+    }),
   ];
   if (iva > 0) lineas.push({ asiento_id: asiento.id, cuenta_id: cIva.id, descripcion: "Reversa IVA venta POS", debito: String(iva), credito: "0" });
   if (impoconsumoTotal > 0 && cImpoconsumo) lineas.push({ asiento_id: asiento.id, cuenta_id: cImpoconsumo.id, descripcion: "Reversa Impoconsumo venta POS", debito: String(impoconsumoTotal), credito: "0" });

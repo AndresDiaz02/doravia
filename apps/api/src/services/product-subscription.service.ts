@@ -1,4 +1,4 @@
-import { db, plans, product_subscriptions, tenants } from "@workspace/db";
+import { db, plans, pool_documentos_nomina_tenant, product_subscriptions, tenants } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export type ProductCode = "erp" | "pos" | "facturacion" | "nomina";
@@ -17,6 +17,25 @@ export async function activarSuscripcionProducto(tenantId: string, planSlug: str
     const addons = { ...((tenant?.addons ?? {}) as Record<string, boolean>) };
     if (product === "pos") addons.pos = true;
     await db.update(tenants).set({ addons, ...(product === "facturacion" ? { facturacion_electronica: true } : {}) }).where(eq(tenants.id, tenantId));
+  }
+  if (product === "nomina") {
+    const documentosIncluidos = plan.document_limit ?? 999_999;
+    await db.insert(pool_documentos_nomina_tenant).values({
+      tenant_id: tenantId,
+      plan_slug: plan.slug,
+      documentos_incluidos: documentosIncluidos,
+      fecha_renovacion: endsAt.toISOString().slice(0, 10),
+      limite_acumulacion: documentosIncluidos * 2,
+    }).onConflictDoUpdate({
+      target: pool_documentos_nomina_tenant.tenant_id,
+      set: {
+        plan_slug: plan.slug,
+        documentos_incluidos: documentosIncluidos,
+        fecha_renovacion: endsAt.toISOString().slice(0, 10),
+        limite_acumulacion: documentosIncluidos * 2,
+        updated_at: now,
+      },
+    });
   }
   return { plan, product, startsAt: now, endsAt };
 }

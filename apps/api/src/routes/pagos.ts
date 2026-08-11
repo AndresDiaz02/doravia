@@ -178,6 +178,8 @@ router.post("/webhook", async (req, res) => {
       const fechaRenovacion = new Date(hoy);
       fechaRenovacion.setFullYear(fechaRenovacion.getFullYear() + 1);
 
+      await activarSuscripcionProducto(tenant.id, planSlug);
+
       await db.insert(pool_documentos_nomina_tenant)
         .values({
           tenant_id: tenant.id,

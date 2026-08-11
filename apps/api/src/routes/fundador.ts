@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { insertTaxParameter, getAllTaxParameters, getHistorialParametro, TaxParamValidationError } from "../services/tax-parameters.service.js";
 import { audit } from "../services/audit.service.js";
+import { activarSuscripcionProducto } from "../services/product-subscription.service.js";
 import { eq, and, gte, lte, max, count, desc, sql, notInArray, inArray, isNull } from "drizzle-orm";
 import fundadorSalesRouter from "./fundador-sales.js";
 
@@ -977,6 +978,7 @@ router.post("/nomina/activar", async (req, res, next) => {
       })
       .returning();
 
+    await activarSuscripcionProducto(tenant_id, plan_slug);
     res.status(201).json(pool);
   } catch (err) { next(err); }
 });

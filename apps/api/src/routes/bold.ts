@@ -41,6 +41,7 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
   }
 
   if (plan.product === "nomina") {
+    await activarSuscripcionProducto(tenantId, planSlug);
     // El producto continúa en preparación: nunca debe reemplazar el ERP por error.
     console.warn(`[Bold] Nómina no activada: integración aún no disponible (${planSlug}).`);
     return;

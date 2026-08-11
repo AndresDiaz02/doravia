@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search, ChevronRight, X, AlertTriangle, RotateCcw } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 
@@ -23,6 +23,12 @@ interface ItemVenta {
   total: string;
 }
 
+interface PagoVenta {
+  id: string;
+  metodo_pago: string;
+  monto: string;
+}
+
 interface Devolucion {
   id: string;
   monto_devuelto: string;
@@ -33,6 +39,7 @@ interface Devolucion {
 
 interface VentaDetalle extends VentaPOS {
   items: ItemVenta[];
+  pagos: PagoVenta[];
 }
 
 interface Props {
@@ -49,6 +56,7 @@ type AccionModal = "ninguna" | "anular" | "devolver";
 export default function HistorialVentas({ turnoId }: Props) {
   const [ventas, setVentas] = useState<VentaPOS[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [detalle, setDetalle] = useState<VentaDetalle | null>(null);
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
@@ -66,15 +74,25 @@ export default function HistorialVentas({ turnoId }: Props) {
   const [procesandoDevolucion, setProcesandoDevolucion] = useState(false);
   const [errorDevolucion, setErrorDevolucion] = useState<string | null>(null);
 
+  const cargarVentas = useCallback(async () => {
+    setErrorCarga(null);
+    try {
+      setVentas(await apiFetch<VentaPOS[]>(`/api/pos/ventas?turno_id=${turnoId}`));
+    } catch (err) {
+      setErrorCarga(err instanceof ApiError ? err.message : "No fue posible cargar las ventas del turno.");
+    } finally {
+      setLoading(false);
+    }
+  }, [turnoId]);
+
   function recargar() {
-    apiFetch<VentaPOS[]>(`/api/pos/ventas?turno_id=${turnoId}`).then(setVentas);
+    void cargarVentas();
   }
 
   useEffect(() => {
-    apiFetch<VentaPOS[]>(`/api/pos/ventas?turno_id=${turnoId}`)
-      .then(setVentas)
-      .finally(() => setLoading(false));
-  }, [turnoId]);
+    setLoading(true);
+    void cargarVentas();
+  }, [cargarVentas]);
 
   async function verDetalle(id: string) {
     const [data, devs] = await Promise.all([
@@ -173,6 +191,13 @@ export default function HistorialVentas({ turnoId }: Props) {
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <p className="text-center text-gray-400 dark:text-slate-600 py-8 text-sm">Cargando...</p>
+        ) : errorCarga ? (
+          <div className="mx-4 mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900/50 dark:bg-rose-950/30">
+            <AlertTriangle className="mx-auto h-5 w-5 text-rose-500" />
+            <p className="mt-2 text-sm font-semibold text-rose-800 dark:text-rose-200">No se pudo cargar el historial</p>
+            <p className="mt-1 text-xs text-rose-600 dark:text-rose-300">{errorCarga}</p>
+            <button onClick={recargar} className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-500">Reintentar</button>
+          </div>
         ) : filtradas.length === 0 ? (
           <p className="text-center text-gray-400 dark:text-slate-600 py-12 text-sm">Sin ventas en este turno</p>
         ) : (
@@ -253,6 +278,18 @@ export default function HistorialVentas({ turnoId }: Props) {
                 </div>
                 <div className="flex justify-between font-bold text-gray-900 dark:text-white">
                   <span>Total</span><span className="text-blue-700 dark:text-blue-400">{cop(detalle.total)}</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/60">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pagos registrados</p>
+                <div className="space-y-1.5">
+                  {(detalle.pagos.length > 0 ? detalle.pagos : [{ id: "principal", metodo_pago: detalle.metodo_pago, monto: detalle.total }]).map((pago) => (
+                    <div key={pago.id} className="flex items-center justify-between text-sm">
+                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">{METODO_LABELS[pago.metodo_pago] ?? pago.metodo_pago}</span>
+                      <span className="font-bold text-slate-800 dark:text-white">{cop(pago.monto)}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

@@ -430,7 +430,7 @@ router.get("/periodos", async (req, res) => {
 });
 
 // POST /api/contabilidad/periodos
-router.post("/periodos", requireContableOperativo, async (req, res) => {
+router.post("/periodos", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { nombre, tipo, fecha_inicio, fecha_fin } = req.body;
     if (!nombre || !fecha_inicio || !fecha_fin) {
@@ -457,7 +457,7 @@ router.post("/periodos", requireContableOperativo, async (req, res) => {
 });
 
 // PATCH /api/contabilidad/periodos/:id/cerrar
-router.patch("/periodos/:id/cerrar", requireContableOperativo, async (req, res) => {
+router.patch("/periodos/:id/cerrar", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const [periodo] = await db
       .select()
@@ -524,7 +524,7 @@ router.patch("/periodos/:id/cerrar", requireContableOperativo, async (req, res) 
 });
 
 // PATCH /api/contabilidad/periodos/:id/reabrir
-router.patch("/periodos/:id/reabrir", requireContableOperativo, async (req, res) => {
+router.patch("/periodos/:id/reabrir", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const [periodo] = await db
       .select()
@@ -954,7 +954,7 @@ router.patch("/plan-cuentas/:id", requireAccountingLevel(1), requireContableOper
 // POST /api/contabilidad/cierre-anual
 // Cierra el ejercicio anual: crea asiento de cierre de cuentas de resultado.
 // Solo admins. El año debe tener todos los períodos mensuales cerrados.
-router.post("/cierre-anual", requireContableOperativo, async (req, res) => {
+router.post("/cierre-anual", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { ano } = req.body as { ano?: number };
     if (!ano || isNaN(Number(ano))) {

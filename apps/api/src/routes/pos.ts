@@ -807,8 +807,16 @@ router.post("/devoluciones", async (req, res) => {
     if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
     if (venta.estado === "anulada") return res.status(400).json({ error: "Esta venta ya fue anulada." });
 
-    if (monto_devuelto > Number(venta.total)) {
-      return res.status(400).json({ error: "El monto devuelto no puede superar el total de la venta." });
+    const [{ totalDevuelto }] = await db
+      .select({ totalDevuelto: sql<string>`coalesce(sum(${devoluciones_pos.monto_devuelto}), 0)` })
+      .from(devoluciones_pos)
+      .where(and(
+        eq(devoluciones_pos.tenant_id, req.tenantId),
+        eq(devoluciones_pos.venta_id, venta_id),
+      ));
+    const saldoPorDevolver = Number(venta.total) - Number(totalDevuelto);
+    if (monto_devuelto > saldoPorDevolver) {
+      return res.status(400).json({ error: "El monto devuelto supera el saldo disponible de esta venta." });
     }
 
     // Verificar que el turno de la venta esté abierto (devolución en el mismo turno o uno posterior)

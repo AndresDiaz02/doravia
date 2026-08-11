@@ -42,6 +42,7 @@ interface PeriodoDetalle {
     total_auxilio_transporte?: number;
   } | null;
   asiento_id: string | null;
+  modo_nomina?: "pruebas" | "produccion";
   empleados: DetalleEmpleado[];
 }
 
@@ -147,6 +148,7 @@ export default function NominaPeriodoDetalle() {
   if (!periodo) return <p className="p-8 text-gray-500">Período no encontrado.</p>;
 
   const esAdmin = user?.role === "admin";
+  const puedeEmitir = esAdmin && periodo.modo_nomina === "produccion";
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -174,7 +176,7 @@ export default function NominaPeriodoDetalle() {
               <CheckCircle2 className="w-4 h-4 mr-1" /> {procesando ? "Aprobando…" : "Aprobar"}
             </Button>
           )}
-          {periodo.estado === "aprobada" && esAdmin && (
+          {periodo.estado === "aprobada" && puedeEmitir && (
             <Button onClick={() => void emitir()} disabled={procesando}>
               <Send className="w-4 h-4 mr-1" /> {procesando ? "Emitiendo…" : "Emitir"}
             </Button>
@@ -190,6 +192,12 @@ export default function NominaPeriodoDetalle() {
       {error && (
         <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error} <button className="ml-2 underline" onClick={() => setError(null)}>Cerrar</button>
+        </div>
+      )}
+
+      {periodo.estado === "aprobada" && !puedeEmitir && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Este período está aprobado para revisión. La emisión electrónica permanece deshabilitada mientras Nómina esté en modo de pruebas.
         </div>
       )}
 

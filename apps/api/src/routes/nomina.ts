@@ -359,7 +359,7 @@ router.get("/periodos/:id", async (req, res) => {
       .leftJoin(documentos_soporte_nomina, eq(documentos_soporte_nomina.nomina_detalle_id, nominas_detalle.id))
       .where(eq(nominas_detalle.nomina_periodo_id, periodo.id));
 
-    res.json({ ...periodo, empleados: detalle });
+    res.json({ ...periodo, empleados: detalle, modo_nomina: nominaModo() });
   } catch (err) {
     console.error("Error en GET /nomina/periodos/:id:", err);
     res.status(500).json({ error: "Error interno del servidor." });

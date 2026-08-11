@@ -1032,6 +1032,12 @@ router.get("/reportes", async (req, res) => {
     .from(ventas_pos)
     .where(whereVentas);
 
+  const pagos = ventas.length
+    ? await db.select().from(pagos_venta_pos).where(inArray(pagos_venta_pos.venta_id, ventas.map((v) => v.id)))
+    : [];
+  const pagosPorVenta = new Map<string, typeof pagos>();
+  for (const pago of pagos) pagosPorVenta.set(pago.venta_id, [...(pagosPorVenta.get(pago.venta_id) ?? []), pago]);
+
   // Obtener cajeros vía turnos
   const turnoIds = [...new Set(ventas.map((v) => v.turno_id))];
   const turnosInfo = turnoIds.length
@@ -1063,10 +1069,14 @@ router.get("/reportes", async (req, res) => {
     const monto = Number(v.total);
     totalGeneral += monto;
 
-    // Método de pago
-    if (!porMetodo[v.metodo_pago]) porMetodo[v.metodo_pago] = { total: 0, cantidad: 0 };
-    porMetodo[v.metodo_pago].total    += monto;
-    porMetodo[v.metodo_pago].cantidad += 1;
+    // Método de pago: ventas anteriores conservan su método único; las nuevas
+    // se desglosan por cada componente del cobro mixto.
+    const desglose = pagosPorVenta.get(v.id) ?? [{ metodo_pago: v.metodo_pago, monto: v.total }];
+    for (const pago of desglose) {
+      if (!porMetodo[pago.metodo_pago]) porMetodo[pago.metodo_pago] = { total: 0, cantidad: 0 };
+      porMetodo[pago.metodo_pago].total += Number(pago.monto);
+      porMetodo[pago.metodo_pago].cantidad += 1;
+    }
 
     // Cajero
     const uid = mapaTurno.get(v.turno_id) ?? "desconocido";

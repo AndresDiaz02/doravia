@@ -301,7 +301,9 @@ export async function emitirFactura(params: {
     });
 
     const rawText = await res.text();
-    console.log(`[PLEMSI] POST /api/billing/invoice → status=${res.status} body=${rawText.slice(0, 600)}`);
+    // Las respuestas pueden contener información del comprador; registrar solo
+    // metadatos operativos evita exponerla en logs de infraestructura.
+    console.log(`[PLEMSI] POST /api/billing/invoice → status=${res.status} bytes=${rawText.length}`);
 
     let json: Record<string, unknown>;
     try {
@@ -375,7 +377,7 @@ export async function emitirNotaCredito(params: {
     });
 
     const rawTextNC = await res.text();
-    console.log(`[PLEMSI] POST /api/billing/credit → status=${res.status} body=${rawTextNC.slice(0, 500)}`);
+    console.log(`[PLEMSI] POST /api/billing/credit → status=${res.status} bytes=${rawTextNC.length}`);
     let json: Record<string, unknown>;
     try { json = JSON.parse(rawTextNC) as Record<string, unknown>; }
     catch { return { ok: false, error: `Plemsi respuesta no-JSON (${res.status}): ${rawTextNC.slice(0, 200)}` }; }
@@ -455,7 +457,7 @@ export async function emitirNotaDebito(params: {
     });
 
     const rawText = await res.text();
-    console.log(`[PLEMSI] POST /api/billing/debit → status=${res.status} body=${rawText.slice(0, 600)}`);
+    console.log(`[PLEMSI] POST /api/billing/debit → status=${res.status} bytes=${rawText.length}`);
     let json: Record<string, unknown>;
     try { json = JSON.parse(rawText) as Record<string, unknown>; }
     catch { return { ok: false, error: `Plemsi respuesta no-JSON (${res.status}): ${rawText.slice(0, 200)}` }; }
@@ -631,7 +633,7 @@ export async function emitirNominaIndividual(params: {
     });
 
     const rawText = await res.text();
-    console.log(`[PLEMSI] POST /api/payroll/individual → status=${res.status} body=${rawText.slice(0, 600)}`);
+    console.log(`[PLEMSI] POST /api/payroll/individual → status=${res.status} bytes=${rawText.length}`);
 
     let json: Record<string, unknown>;
     try {

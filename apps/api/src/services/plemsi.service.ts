@@ -68,6 +68,7 @@ export interface PersonaDatos {
   nit: string;
   dv?: string | null;
   nombre: string;
+  tipo_documento?: string | null;
   email?: string | null;
   telefono?: string | null;
   direccion?: string | null;
@@ -76,9 +77,20 @@ export interface PersonaDatos {
   regimen?: string | null;
 }
 
+// Códigos UBL/DlAN que recibe Plemsi para la identificación del adquirente.
+// Mantener esta conversión explícita evita emitir una cédula como NIT.
+const TIPO_DOCUMENTO_PLEMSI: Record<string, number> = {
+  TI: 2,
+  CC: 3,
+  CE: 5,
+  NIT: 6,
+  PPN: 7,
+};
+
 /** Construye objeto buyer/seller desde datos del tenant o cliente */
 export function buildPersona(datos: PersonaDatos) {
   const nitLimpio = datos.nit.replace(/\D/g, "");
+  const tipoDocumento = (datos.tipo_documento ?? (datos.tipo_persona === "natural" ? "CC" : "NIT")).toUpperCase();
   return {
     identification_number: nitLimpio,
     dv: datos.dv ?? calcularDV(nitLimpio),
@@ -88,7 +100,7 @@ export function buildPersona(datos: PersonaDatos) {
     postal_zone_code: "11001",
     email: datos.email ?? "facturacion@empresa.com",
     merchant_registration: "0000000-0",
-    type_document_identification_id: 3, // NIT
+    type_document_identification_id: TIPO_DOCUMENTO_PLEMSI[tipoDocumento] ?? 3,
     type_organization_id: datos.tipo_persona === "natural" ? 2 : 1,
     type_liability_id: datos.regimen === "simplificado" ? 118 : 117,
     municipality_id: municipioId(datos.ciudad),

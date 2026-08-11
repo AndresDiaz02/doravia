@@ -357,6 +357,7 @@ export async function enviarAPlemsiSiAplica(
     direccion: cliente.direccion,
     ciudad: cliente.municipio,
     tipo_persona: cliente.tipo_persona,
+    tipo_documento: cliente.tipo_documento,
   });
 
   const itemsPlemsi = buildItems(itemsDB.map((i) => ({

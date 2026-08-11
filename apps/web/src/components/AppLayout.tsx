@@ -418,6 +418,15 @@ export function AppLayout() {
             );
           })}
 
+          {!isVendedor && (
+            <>
+              <NavSection label="Nómina electrónica" />
+              {NAV_NOMINA.map(({ to, label, icon: Icon }) => (
+                <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
+              ))}
+            </>
+          )}
+
           <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
 
           {((plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true) && (

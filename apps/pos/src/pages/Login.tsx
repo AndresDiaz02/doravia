@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Moon, Sun } from "lucide-react";
 import { ApiError, apiFetch } from "../lib/api";
 
 interface EmpresaOpcion {
@@ -16,7 +17,7 @@ interface LoginMultiResponse {
 }
 type LoginResponse = LoginSingleResponse | LoginMultiResponse;
 
-export default function Login() {
+export default function Login({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => void }) {
   // Campo unificado: acepta usuario corto o correo electrónico
   const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
@@ -91,7 +92,16 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0E1A] flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-violet-50 to-slate-100 dark:from-[#080b16] dark:via-[#0d1024] dark:to-[#080b16] flex items-center justify-center p-4">
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        className="absolute right-4 top-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur hover:text-violet-600 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:text-violet-300"
+        aria-label={dark ? "Activar modo claro" : "Activar modo oscuro"}
+      >
+        {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {dark ? "Modo claro" : "Modo oscuro"}
+      </button>
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <svg style={{height:'56px',width:'56px',display:'block',margin:'0 auto 12px'}} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Doravia"><title>Doravia</title><defs><linearGradient id="g-pos-login" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#7B2FF7"/><stop offset="55%" stopColor="#4A6FF5"/><stop offset="100%" stopColor="#2E9BF5"/></linearGradient></defs><rect width="100" height="100" rx="18" fill="#241A5E"/><path fill="url(#g-pos-login)" transform="translate(5,5) scale(0.95)" d="M 30,6 C 72,6 94,26 94,50 C 94,74 72,94 30,94 L 58,50 Z"/></svg>

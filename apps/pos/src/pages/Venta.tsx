@@ -567,7 +567,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
   }
 
   return (
-    <div className="h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-[#0B0E1A]">
+    <div className="h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-slate-100 dark:from-[#080b16] dark:via-[#0d1024] dark:to-[#080b16]">
       {mostrarTutorial && (
         <TutorialOverlay
           slug="pos"
@@ -577,7 +577,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
         />
       )}
       {/* ── Panel izquierdo: catálogo ── */}
-      <div className="flex min-h-[46vh] flex-col w-full lg:w-[58%] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-slate-800">
+      <div className="flex min-h-[46vh] flex-col w-full lg:w-[61%] lg:min-h-0 border-b lg:border-b-0 lg:border-r border-slate-200/80 dark:border-slate-800/80">
         {/* Pre-cuentas: cada pestaña representa una atención independiente. */}
         <div className="flex items-end gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 pt-2 dark:border-slate-800 dark:bg-[#0B0E1A]">
           <button className="flex-shrink-0 rounded-t-lg border-x border-t border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
@@ -668,7 +668,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               <p className="text-sm">{busqueda ? "Sin resultados" : "No hay productos"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
               {productosVisibles.map((p) => {
                 const enCarrito = carrito.find((i) => i.producto.id === p.id);
                 const stockBajo = p.stock_actual !== null && Number(p.stock_actual) < 5;
@@ -677,10 +677,10 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                     key={p.id}
                     onClick={() => agregarProducto(p)}
                     className={cn(
-                      "relative rounded-xl border p-3 text-left transition-all active:scale-95",
+                      "relative min-h-[142px] rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[.98] hover:-translate-y-0.5",
                       enCarrito
-                        ? "bg-violet-50 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600/60 shadow-lg shadow-violet-100 dark:shadow-violet-900/20"
-                        : "bg-white dark:bg-slate-800/70 border-gray-200 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/70 hover:border-gray-300 dark:hover:border-slate-600"
+                        ? "bg-violet-50 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600/60 shadow-xl shadow-violet-200/50 dark:shadow-violet-950/40"
+                        : "bg-white/90 dark:bg-slate-900/80 border-white dark:border-slate-700/70 shadow-sm hover:bg-white dark:hover:bg-slate-800 hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-lg"
                     )}
                   >
                     {enCarrito && (
@@ -729,7 +729,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
       </div>
 
       {/* ── Panel derecho: carrito ── */}
-      <div className="flex min-h-[44vh] flex-col w-full lg:w-[42%] lg:min-h-0 bg-gray-50 dark:bg-[#0B0E1A]">
+      <div className="flex min-h-[44vh] flex-col w-full lg:w-[39%] lg:min-h-0 bg-white/65 dark:bg-[#0b0e1a]/85 backdrop-blur-sm">
         {/* Campo cliente */}
         <div className="px-3 pt-2.5 pb-2 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-transparent relative">
           <div className="relative">
@@ -932,7 +932,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
         </div>
 
         {/* Totales + acciones */}
-        <div className="border-t border-gray-200 dark:border-slate-800 p-3 flex-shrink-0 space-y-2.5 bg-gray-100 dark:bg-[#0D1120]">
+        <div className="border-t border-slate-200 dark:border-slate-800 p-4 flex-shrink-0 space-y-3 bg-white/95 dark:bg-[#101526] shadow-[0_-10px_25px_rgba(15,23,42,0.06)]">
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500">
               <span>Subtotal</span><span>{cop(subtotalCarrito)}</span>
@@ -968,7 +968,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             <button
               onClick={abrirPago}
               disabled={carrito.length === 0}
-              className="flex-1 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-white font-bold text-sm transition-colors"
+              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-30 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40"
             >
               {carrito.length === 0 ? "Cobrar" : `Cobrar ${cop(totalCarrito)}`}
             </button>

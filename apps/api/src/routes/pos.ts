@@ -703,6 +703,12 @@ router.get("/turnos/:id/resumen", async (req, res) => {
       (s, i) => s + Number(i.cantidad) * Number(i.precio_unitario) * (Number(i.descuento_pct) / 100), 0
     );
 
+    const devolucionesPorMetodo: Record<string, number> = {};
+    for (const devolucion of devolucionesTurno) {
+      devolucionesPorMetodo[devolucion.metodo_devolucion] =
+        (devolucionesPorMetodo[devolucion.metodo_devolucion] ?? 0) + Number(devolucion.monto_devuelto);
+    }
+
     res.json({
       turno,
       total_ventas: totalVentas,
@@ -717,6 +723,8 @@ router.get("/turnos/:id/resumen", async (req, res) => {
       total_gastos_caja: gastosCaja.reduce((s, g) => s + Number(g.monto), 0),
       devoluciones: devolucionesTurno,
       total_devoluciones: devolucionesTurno.reduce((s, d) => s + Number(d.monto_devuelto), 0),
+      devoluciones_por_metodo: devolucionesPorMetodo,
+      total_devoluciones_efectivo: devolucionesPorMetodo.efectivo ?? 0,
     });
   } catch (err) {
     console.error("[resumen-turno] error:", err instanceof Error ? err.message : err);

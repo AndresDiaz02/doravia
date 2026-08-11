@@ -567,6 +567,7 @@ router.post("/ventas", async (req, res) => {
           cantidad: String(item.cantidad),
           costo_unitario: String(item.precio_unitario),
           referencia_tipo: "factura",
+          referencia_id: venta.id,
           observaciones: `Venta POS ${numero}`,
         });
       }
@@ -1025,7 +1026,7 @@ router.patch("/ventas/:id/anular", async (req, res) => {
 
   await db.transaction(async (tx) => {
     // Anulación fiscal — NO revierte inventario (regla de negocio: inventario y documento DIAN son independientes)
-    await tx
+    const [ventaAnulada] = await tx
       .update(ventas_pos)
       .set({
         estado: "anulada",
@@ -1034,10 +1035,41 @@ router.patch("/ventas/:id/anular", async (req, res) => {
         anulado_en: new Date(),
         anulado_motivo: motivo ?? null,
       })
-      .where(eq(ventas_pos.id, venta.id));
+      .where(and(eq(ventas_pos.id, venta.id), ne(ventas_pos.estado, "anulada")))
+      .returning({ id: ventas_pos.id });
+
+    if (ventaAnulada) {
+      const salidas = await tx
+        .select({ producto_id: movimientos_inventario.producto_id, bodega_id: movimientos_inventario.bodega_id, cantidad: movimientos_inventario.cantidad, costo_unitario: movimientos_inventario.costo_unitario })
+        .from(movimientos_inventario)
+        .where(and(
+          eq(movimientos_inventario.tenant_id, req.tenantId),
+          eq(movimientos_inventario.referencia_id, venta.id),
+          eq(movimientos_inventario.tipo, "salida"),
+        ));
+
+      for (const salida of salidas) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`stock_${req.tenantId}_${salida.bodega_id}_${salida.producto_id}`}))`);
+        await tx
+          .update(productos)
+          .set({ stock_actual: sql`COALESCE(stock_actual, 0) + ${Number(salida.cantidad)}` })
+          .where(and(eq(productos.id, salida.producto_id), eq(productos.tenant_id, req.tenantId)));
+        await tx.insert(movimientos_inventario).values({
+          tenant_id: req.tenantId,
+          producto_id: salida.producto_id,
+          bodega_id: salida.bodega_id,
+          tipo: "entrada",
+          cantidad: salida.cantidad,
+          costo_unitario: salida.costo_unitario,
+          referencia_tipo: "ajuste_manual",
+          referencia_id: venta.id,
+          observaciones: `Reversión por anulación de venta POS ${venta.numero}`,
+        });
+      }
+    }
 
     // Restar del acumulado del turno
-    await tx
+    if (ventaAnulada) await tx
       .update(turnos_pos)
       .set({ total_ventas: sql`total_ventas - ${Number(venta.total)}` })
       .where(eq(turnos_pos.id, venta.turno_id));

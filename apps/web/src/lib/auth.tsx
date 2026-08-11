@@ -17,6 +17,7 @@ export interface AuthUser {
   is_fundador?: boolean;
   is_contador_registrado?: boolean;
   permisos_dian?: boolean;
+  permisos_contables?: boolean;
   dark_mode: boolean;
 }
 

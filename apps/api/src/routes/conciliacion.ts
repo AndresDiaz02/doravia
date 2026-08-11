@@ -135,8 +135,6 @@ router.post("/:id/movimientos", requireContableOperativo, async (req, res) => {
   const conc = await getConciliacion(req.params.id, req.tenantId);
   if (!conc) return res.status(404).json({ error: "Conciliación no encontrada." });
   if (conc.estado === "cerrada") return res.status(422).json({ error: "La conciliación está cerrada." });
-  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden agregar movimientos." });
-
   const { fecha, descripcion, monto, referencia } = req.body as {
     fecha: string; descripcion: string; monto: number; referencia?: string;
   };

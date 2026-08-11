@@ -93,6 +93,7 @@ type Vista = "cuentas" | "conciliaciones" | "detalle";
 export default function ConciliacionBancaria() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const puedeOperarContabilidad = isAdmin || (user?.role === "contador" && user.permisos_contables === true);
 
   const [vista, setVista] = useState<Vista>("cuentas");
   const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
@@ -224,7 +225,7 @@ export default function ConciliacionBancaria() {
               side="right"
             />
           </div>
-          {isAdmin && (
+          {puedeOperarContabilidad && (
             <Button onClick={abrirNuevaCuenta}>
               <Plus className="w-4 h-4 mr-2" /> Nueva cuenta bancaria
             </Button>
@@ -242,7 +243,7 @@ export default function ConciliacionBancaria() {
             <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-lg font-medium">Sin cuentas bancarias</p>
             <p className="text-sm mt-1">Agrega tu primera cuenta para empezar a conciliar.</p>
-            {isAdmin && (
+            {puedeOperarContabilidad && (
               <Button className="mt-4" onClick={abrirNuevaCuenta}>
                 <Plus className="w-4 h-4 mr-2" /> Agregar cuenta
               </Button>
@@ -264,7 +265,7 @@ export default function ConciliacionBancaria() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={c.activa ? "default" : "secondary"}>{c.activa ? "Activa" : "Inactiva"}</Badge>
-                      {isAdmin && (
+                      {puedeOperarContabilidad && (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); abrirEdicionCuenta(c); }}
@@ -370,7 +371,7 @@ export default function ConciliacionBancaria() {
         </div>
 
         <div className="flex justify-end">
-          {isAdmin && (
+          {puedeOperarContabilidad && (
             <Button onClick={() => { setModalConc(true); setError(null); }}>
               <Plus className="w-4 h-4 mr-2" /> Nueva conciliación
             </Button>
@@ -387,7 +388,7 @@ export default function ConciliacionBancaria() {
           <div className="text-center py-16 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Sin conciliaciones para esta cuenta.</p>
-            {isAdmin && (
+            {puedeOperarContabilidad && (
               <Button className="mt-4" onClick={() => setModalConc(true)}>
                 <Plus className="w-4 h-4 mr-2" /> Crear primera conciliación
               </Button>
@@ -483,7 +484,7 @@ export default function ConciliacionBancaria() {
       <DetalleConciliacion
         conciliacion={concActual}
         cuenta={cuentaActual}
-        isAdmin={isAdmin}
+        puedeOperar={puedeOperarContabilidad}
         onVolver={() => {
           setVista("conciliaciones");
           void cargarConciliaciones(cuentaActual.id);
@@ -501,13 +502,13 @@ export default function ConciliacionBancaria() {
 function DetalleConciliacion({
   conciliacion: conc,
   cuenta,
-  isAdmin,
+  puedeOperar,
   onVolver,
   onConciliacionActualizada,
 }: {
   conciliacion: Conciliacion;
   cuenta: CuentaBancaria;
-  isAdmin: boolean;
+  puedeOperar: boolean;
   onVolver: () => void;
   onConciliacionActualizada: (c: Conciliacion) => void;
 }) {
@@ -709,7 +710,7 @@ function DetalleConciliacion({
           </h1>
           <Badge variant={cerrada ? "secondary" : "default"}>{cerrada ? "Cerrada" : "En proceso"}</Badge>
         </div>
-        {isAdmin && !cerrada && (
+        {puedeOperar && !cerrada && (
           <Button variant="outline" className="text-red-600 border-red-300" onClick={handleCerrar} disabled={cerrando || !resumen?.cuadrado} title={resumen?.cuadrado ? "Cerrar conciliación" : "Solo puedes cerrar cuando no haya diferencia pendiente"}>
             <Lock className="w-4 h-4 mr-2" /> {cerrando ? "Cerrando..." : "Cerrar conciliación"}
           </Button>
@@ -777,7 +778,7 @@ function DetalleConciliacion({
       )}
 
       {/* Acciones de importación */}
-      {isAdmin && !cerrada && (
+      {puedeOperar && !cerrada && (
         <div className="flex flex-wrap gap-3">
           <Button
             variant="outline"
@@ -930,7 +931,7 @@ function DetalleConciliacion({
                     <th className="text-left px-4 py-3 text-gray-600">Descripción</th>
                     <th className="text-right px-4 py-3 text-gray-600">Monto</th>
                     <th className="text-center px-4 py-3 text-gray-600">Estado</th>
-                    {isAdmin && !cerrada && <th className="px-4 py-3" />}
+                    {puedeOperar && !cerrada && <th className="px-4 py-3" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -949,7 +950,7 @@ function DetalleConciliacion({
                           ? <CheckCircle className="w-4 h-4 text-green-500 inline" />
                           : <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Pendiente</span>}
                       </td>
-                      {isAdmin && !cerrada && (
+                      {puedeOperar && !cerrada && (
                         <td className="px-4 py-3 text-right">
                           {m.estado === "conciliado" ? (
                             <button

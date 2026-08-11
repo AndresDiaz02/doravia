@@ -11,6 +11,9 @@ const COP = new Intl.NumberFormat("es-CO", {
 });
 
 let _resend: Resend | null = null;
+function escaparHtml(valor: string): string {
+  return valor.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
@@ -46,14 +49,16 @@ export async function enviarNotificacionSistema(params: {
   enlace?: string;
 }): Promise<void> {
   const link = params.enlace ? `${APP_URL}${params.enlace}` : APP_URL;
+  const titulo = escaparHtml(params.titulo);
+  const mensaje = escaparHtml(params.mensaje);
   const cuerpo = `
-    <h2 style="color:#111827;font-size:18px;margin:0 0 12px;">${params.titulo}</h2>
-    <p style="color:#4b5563;margin:0 0 24px;font-size:14px;line-height:1.6;">${params.mensaje}</p>
+    <h2 style="color:#111827;font-size:18px;margin:0 0 12px;">${titulo}</h2>
+    <p style="color:#4b5563;margin:0 0 24px;font-size:14px;line-height:1.6;">${mensaje}</p>
     <p style="margin:0;">
       <a href="${link}" style="display:inline-block;background:#4F46E5;color:#fff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">Ver en Doravia</a>
     </p>
   `;
-  await send({ to: params.destinatario, subject: params.titulo, html: baseLayout(params.titulo, cuerpo) });
+  await send({ to: params.destinatario, subject: params.titulo, html: baseLayout(titulo, cuerpo) });
 }
 
 function baseLayout(titulo: string, cuerpo: string): string {

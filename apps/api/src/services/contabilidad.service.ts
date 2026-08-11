@@ -7,7 +7,7 @@ import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, Devoluc
  * generar un comprobante se reutiliza el que ya corresponda al documento, para
  * que un reintento no duplique ingresos ni impuestos en el libro diario.
  */
-async function buscarAsientoAutomatico(tenantId: string, referenciaId: string, origen: "factura" | "pago" | "nomina") {
+async function buscarAsientoAutomatico(tenantId: string, referenciaId: string, origen: "factura" | "pago" | "nomina" | "ajuste") {
   const [existente] = await db
     .select({ id: asientos_contables.id })
     .from(asientos_contables)
@@ -461,6 +461,48 @@ export async function crearAsientoVentaPOS(
   }
 
   await runner.insert(lineas_asiento).values(lineas);
+  return asiento.id;
+}
+
+/** Revierte completamente el comprobante de una venta POS anulada. */
+export async function crearAsientoAnulacionVentaPOS(
+  tenantId: string,
+  venta: VentaPOS,
+  impoconsumoTotal = 0,
+): Promise<string> {
+  const existente = await buscarAsientoAutomatico(tenantId, venta.id, "ajuste");
+  if (existente) return existente;
+
+  const fecha = new Date().toISOString().slice(0, 10);
+  await verificarPeriodoCerrado(tenantId, fecha);
+  const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
+  const codigoCaja = METODO_PAGO_A_CUENTA[venta.metodo_pago] ?? CODIGOS.CAJA;
+  const [cIngresos, cIva, cImpoconsumo, cCaja] = await Promise.all([
+    getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
+    getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
+    impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
+    getCuenta(tenantId, codigoCaja),
+  ]);
+
+  const total = Number(venta.total);
+  const subtotal = Number(venta.subtotal) - Number(venta.descuento_total);
+  const iva = Number(venta.iva_total);
+  const [asiento] = await db.insert(asientos_contables).values({
+    tenant_id: tenantId,
+    numero,
+    fecha,
+    descripcion: `Anulación venta POS ${venta.numero}`,
+    origen: "ajuste",
+    referencia_id: venta.id,
+  }).returning();
+
+  const lineas = [
+    { asiento_id: asiento.id, cuenta_id: cIngresos.id, descripcion: "Reversa ingresos venta POS", debito: String(subtotal), credito: "0" },
+    { asiento_id: asiento.id, cuenta_id: cCaja.id, descripcion: "Reversa cobro venta POS", debito: "0", credito: String(total) },
+  ];
+  if (iva > 0) lineas.push({ asiento_id: asiento.id, cuenta_id: cIva.id, descripcion: "Reversa IVA venta POS", debito: String(iva), credito: "0" });
+  if (impoconsumoTotal > 0 && cImpoconsumo) lineas.push({ asiento_id: asiento.id, cuenta_id: cImpoconsumo.id, descripcion: "Reversa Impoconsumo venta POS", debito: String(impoconsumoTotal), credito: "0" });
+  await db.insert(lineas_asiento).values(lineas);
   return asiento.id;
 }
 

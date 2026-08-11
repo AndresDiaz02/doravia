@@ -3,7 +3,7 @@ import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos
 import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray } from "drizzle-orm";
 import { users } from "@workspace/db";
-import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
+import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, crearAsientoAnulacionVentaPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
@@ -1024,7 +1024,7 @@ router.patch("/ventas/:id/anular", async (req, res) => {
   if (venta.estado_dian === "anulado") return res.status(422).json({ error: "Esta venta ya está anulada." });
   if (venta.estado_dian === "enviado") return res.status(422).json({ error: "Esta venta ya fue enviada a la DIAN y no puede anularse." });
 
-  await db.transaction(async (tx) => {
+  const anuladaAhora = await db.transaction(async (tx) => {
     // Anulación fiscal — NO revierte inventario (regla de negocio: inventario y documento DIAN son independientes)
     const [ventaAnulada] = await tx
       .update(ventas_pos)
@@ -1073,7 +1073,18 @@ router.patch("/ventas/:id/anular", async (req, res) => {
       .update(turnos_pos)
       .set({ total_ventas: sql`total_ventas - ${Number(venta.total)}` })
       .where(eq(turnos_pos.id, venta.turno_id));
+    return Boolean(ventaAnulada);
   });
+
+  if (anuladaAhora) {
+    try {
+      const [impuestosVenta] = await db.select({ impoconsumo: sum(items_venta_pos.impoconsumo_valor) })
+        .from(items_venta_pos).where(eq(items_venta_pos.venta_id, venta.id));
+      await crearAsientoAnulacionVentaPOS(req.tenantId, venta, Number(impuestosVenta?.impoconsumo ?? 0));
+    } catch (err) {
+      console.error("Error al crear reversa contable de venta POS anulada:", err);
+    }
+  }
 
   res.json({ ok: true });
 });

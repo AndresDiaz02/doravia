@@ -356,6 +356,35 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     setError(null);
   }
 
+  // Atajos pensados para operación de caja: no interceptan la escritura en
+  // campos ni acciones que requieran confirmación. F2 agiliza búsqueda, F4
+  // abre el cobro y Escape cierra únicamente los paneles modales abiertos.
+  useEffect(() => {
+    function manejarAtajo(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const escribiendo = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.tagName === "SELECT" || target?.isContentEditable;
+
+      if (event.key === "F2") {
+        event.preventDefault();
+        busquedaRef.current?.focus();
+        return;
+      }
+      if (event.key === "F4" && !escribiendo && carrito.length > 0 && !showPago) {
+        event.preventDefault();
+        abrirPago();
+        return;
+      }
+      if (event.key === "Escape" && !procesando) {
+        if (showPago) { setShowPago(false); return; }
+        if (showPreCuentas) { setShowPreCuentas(false); return; }
+        if (showWhatsApp) { setShowWhatsApp(false); return; }
+      }
+    }
+
+    window.addEventListener("keydown", manejarAtajo);
+    return () => window.removeEventListener("keydown", manejarAtajo);
+  }, [carrito.length, procesando, showPago, showPreCuentas, showWhatsApp]);
+
   const vuelto = metodoPago === "efectivo" && montoRecibido
     ? Math.max(0, pesosAEntero(montoRecibido) - totalCarrito)
     : 0;
@@ -659,7 +688,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
         {/* Grid de productos */}
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">Catálogo</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500">{productosVisibles.length} productos</p>
+          <div className="flex items-center gap-3"><p className="hidden sm:block text-[11px] text-slate-400 dark:text-slate-500">F2 buscar · F4 cobrar</p><p className="text-xs text-gray-400 dark:text-slate-500">{productosVisibles.length} productos</p></div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 pt-2">
           {productosVisibles.length === 0 ? (

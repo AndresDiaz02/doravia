@@ -101,6 +101,9 @@ router.post("/empleados", requireRole(["admin"]), async (req, res) => {
     if (!TIPOS_CONTRATO.includes(tipo_contrato as (typeof TIPOS_CONTRATO)[number])) {
       return res.status(400).json({ error: `tipo_contrato debe ser: ${TIPOS_CONTRATO.join(", ")}.` });
     }
+    if (!Number.isFinite(salario_base) || salario_base <= 0) {
+      return res.status(400).json({ error: "salario_base debe ser un número mayor que cero." });
+    }
 
     if (centro_costos_id) {
       const [cc] = await db.select({ id: centros_costos.id }).from(centros_costos)
@@ -269,6 +272,9 @@ router.post("/empleados/:empleadoId/contratos", requireRole(["admin"]), async (r
     }
     if (!TIPOS_CONTRATO.includes(tipo as (typeof TIPOS_CONTRATO)[number])) {
       return res.status(400).json({ error: `tipo debe ser: ${TIPOS_CONTRATO.join(", ")}.` });
+    }
+    if (!Number.isFinite(salario) || salario <= 0) {
+      return res.status(400).json({ error: "salario debe ser un número mayor que cero." });
     }
 
     // Cierra el contrato vigente el día anterior al nuevo inicio

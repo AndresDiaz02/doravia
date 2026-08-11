@@ -468,6 +468,48 @@ router.patch("/periodos/:id/cerrar", requireContableOperativo, async (req, res) 
     if (!periodo) return res.status(404).json({ error: "Período no encontrado." });
     if (periodo.estado === "cerrado") return res.status(422).json({ error: "El período ya está cerrado." });
 
+    // No es seguro cerrar un período si contiene documentos contabilizables
+    // que todavía no tienen asiento. El checklist de cierre los mostraba,
+    // pero antes esta ruta permitía cerrar de todas formas y dejaba trazas
+    // fuera del período contable.
+    const inicio = new Date(periodo.fecha_inicio);
+    const fin = new Date(periodo.fecha_fin);
+    fin.setHours(23, 59, 59, 999);
+    const [gastosSinAsiento, facturasSinAsiento, ventasPosSinAsiento] = await Promise.all([
+      db.select({ total: count() }).from(gastos).where(and(
+        eq(gastos.tenant_id, req.tenantId),
+        eq(gastos.estado, "aprobado"),
+        isNull(gastos.asiento_id),
+        gte(gastos.fecha, periodo.fecha_inicio),
+        lte(gastos.fecha, periodo.fecha_fin),
+      )),
+      db.select({ total: count() }).from(facturas).where(and(
+        eq(facturas.tenant_id, req.tenantId),
+        eq(facturas.estado, "aceptada"),
+        isNull(facturas.asiento_id),
+        gte(facturas.fecha_emision, inicio),
+        lte(facturas.fecha_emision, fin),
+      )),
+      db.select({ total: count() }).from(ventas_pos).where(and(
+        eq(ventas_pos.tenant_id, req.tenantId),
+        eq(ventas_pos.estado, "completada"),
+        isNull(ventas_pos.asiento_id),
+        gte(ventas_pos.created_at, inicio),
+        lte(ventas_pos.created_at, fin),
+      )),
+    ]);
+    const pendientes = {
+      gastos_sin_asiento: Number(gastosSinAsiento[0]?.total ?? 0),
+      facturas_sin_asiento: Number(facturasSinAsiento[0]?.total ?? 0),
+      ventas_pos_sin_asiento: Number(ventasPosSinAsiento[0]?.total ?? 0),
+    };
+    if (Object.values(pendientes).some((total) => total > 0)) {
+      return res.status(422).json({
+        error: "No se puede cerrar el período mientras existan documentos sin asiento contable.",
+        pendientes,
+      });
+    }
+
     const [cerrado] = await db
       .update(periodos_contables)
       .set({ estado: "cerrado", cerrado_at: new Date(), cerrado_por_id: req.userId })

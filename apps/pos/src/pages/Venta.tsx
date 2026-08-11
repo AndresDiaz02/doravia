@@ -697,21 +697,31 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               <p className="text-sm">{busqueda ? "Sin resultados" : "No hay productos"}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {productosVisibles.map((p) => {
                 const enCarrito = carrito.find((i) => i.producto.id === p.id);
                 const stockBajo = p.stock_actual !== null && Number(p.stock_actual) < 5;
                 return (
-                  <button
+                  <div
                     key={p.id}
                     onClick={() => agregarProducto(p)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        agregarProducto(p);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     className={cn(
-                      "relative min-h-[142px] rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[.98] hover:-translate-y-0.5",
+                      "group relative min-h-[158px] cursor-pointer overflow-hidden rounded-2xl border p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/70 active:scale-[.98] hover:-translate-y-0.5",
                       enCarrito
                         ? "bg-violet-50 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600/60 shadow-xl shadow-violet-200/50 dark:shadow-violet-950/40"
                         : "bg-white/90 dark:bg-slate-900/80 border-white dark:border-slate-700/70 shadow-sm hover:bg-white dark:hover:bg-slate-800 hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-lg"
                     )}
                   >
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-br from-violet-500/[0.07] via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 dark:from-violet-400/[0.10]" />
                     {enCarrito && (
                       <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
                         {enCarrito.cantidad}
@@ -742,14 +752,14 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                         {p.nombre.trim().slice(0, 1).toUpperCase()}
                       </div>
                     )}
-                    <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight line-clamp-2 pr-4">{p.nombre}</p>
+                    <p className="relative text-sm font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2 pr-4">{p.nombre}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.codigo}</p>
                     {p.categoria && <p className="mt-1 text-[11px] font-medium text-violet-600 dark:text-violet-400">{p.categoria}</p>}
-                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2">{cop(p.precio_venta)}</p>
+                    <p className="mt-2 text-base font-black tracking-tight text-emerald-600 dark:text-emerald-400">{cop(p.precio_venta)}</p>
                     {stockBajo && (
                       <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-0.5">Stock: {p.stock_actual}</p>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

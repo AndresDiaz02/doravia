@@ -127,14 +127,14 @@ function AppInner() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-100 dark:bg-[#080b16]">
-      <nav className="relative z-30 bg-white/95 dark:bg-[#0b1020]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-4 flex items-center gap-1 flex-shrink-0 h-14 overflow-x-auto shadow-sm">
+      <nav className="relative z-30 h-16 flex-shrink-0 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-3 shadow-[0_4px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-5 dark:border-slate-800 dark:bg-[#0b1020]/95 dark:shadow-black/20 flex items-center gap-1">
         <div className="flex items-center gap-2 mr-2 sm:mr-4 flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 via-violet-500 to-blue-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-violet-500 to-blue-500 shadow-lg shadow-violet-500/25 ring-2 ring-violet-100 dark:ring-violet-950/70">
             <span className="text-white text-xs font-black">D</span>
           </div>
           <div className="min-w-0">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Caja activa</span>
-            <span className="block truncate text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[120px]">{turno.cajaNombre}</span>
+            <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"><i className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Caja activa</span>
+            <span className="block max-w-[120px] truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{turno.cajaNombre}</span>
           </div>
         </div>
 
@@ -144,8 +144,8 @@ function AppInner() {
             onClick={() => setVista(id)}
             className={`flex flex-shrink-0 items-center gap-1.5 px-2.5 sm:px-3 h-full text-sm font-medium border-b-2 transition-colors ${
               vista === id
-                ? "border-violet-500 text-violet-600 dark:text-violet-400"
-                : "border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300"
+                ? "border-violet-500 bg-violet-50/80 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
+                : "border-transparent text-gray-400 dark:text-slate-500 hover:bg-slate-50 hover:text-gray-700 dark:hover:bg-slate-800/70 dark:hover:text-slate-300"
             }`}
           >
             {icon}

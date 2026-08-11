@@ -326,7 +326,7 @@ router.get("/ventas/:id", async (req, res) => {
 });
 
 router.post("/ventas", async (req, res) => {
-  const { turno_id, caja_id, cliente_id, nombre_cliente, metodo_pago, monto_recibido, vuelto, observaciones, pagos, items } =
+  const { turno_id, caja_id, cliente_id, nombre_cliente, metodo_pago, monto_recibido, observaciones, pagos, items } =
     req.body as {
       turno_id: string;
       caja_id: string;
@@ -334,7 +334,6 @@ router.post("/ventas", async (req, res) => {
       nombre_cliente?: string;
       metodo_pago: string;
       monto_recibido?: number;
-      vuelto?: number;
       pagos?: Array<{ metodo_pago: string; monto: number }>;
       observaciones?: string;
       items: Array<{
@@ -452,6 +451,19 @@ router.post("/ventas", async (req, res) => {
     const totalPagos = pagosFinales.reduce((s, p) => s + p.monto, 0);
     if (Math.abs(totalPagos - total) > 0.01) throw new Error("La suma de los métodos de pago debe ser igual al total de la venta.");
     const metodoRegistrado = pagosFinales.length > 1 ? "mixto" : pagosFinales[0].metodo_pago;
+    const pagoUnicoEnEfectivo = pagosFinales.length === 1 && pagosFinales[0].metodo_pago === "efectivo";
+
+    // El monto recibido es opcional: si no se registra, la venta se cobra por
+    // su total. Si se registra efectivo, el servidor determina el vuelto y no
+    // acepta un valor de vuelto calculado por el navegador.
+    if (monto_recibido !== undefined && !pagoUnicoEnEfectivo) {
+      throw new Error("El monto recibido solo aplica para pagos únicos en efectivo.");
+    }
+    if (pagoUnicoEnEfectivo && monto_recibido !== undefined && monto_recibido < total) {
+      throw new Error("El monto recibido no puede ser menor al total de la venta.");
+    }
+    const montoRecibidoFinal = pagoUnicoEnEfectivo && monto_recibido !== undefined ? monto_recibido : null;
+    const vueltoFinal = montoRecibidoFinal === null ? null : montoRecibidoFinal - total;
 
     const [venta] = await tx
       .insert(ventas_pos)
@@ -468,8 +480,8 @@ router.post("/ventas", async (req, res) => {
         iva_total: String(iva_total),
         total: String(total),
         metodo_pago: metodoRegistrado,
-        monto_recibido: monto_recibido ? String(monto_recibido) : null,
-        vuelto: vuelto ? String(vuelto) : null,
+        monto_recibido: montoRecibidoFinal === null ? null : String(montoRecibidoFinal),
+        vuelto: vueltoFinal === null ? null : String(vueltoFinal),
         observaciones: observaciones ?? null,
       })
       .returning();

@@ -396,8 +396,9 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
           nombre_cliente: clienteNombre || undefined,
           metodo_pago: pagos?.[0]?.metodo_pago ?? metodoPago,
           pagos,
-          monto_recibido: metodoPago === "efectivo" ? pesosAEntero(montoRecibido) : undefined,
-          vuelto: metodoPago === "efectivo" ? vuelto : null,
+          monto_recibido: pagosDivididos === null && metodoPago === "efectivo" && montoRecibido !== ""
+            ? pesosAEntero(montoRecibido)
+            : undefined,
           observaciones: observaciones.trim() || undefined,
           items,
         }),

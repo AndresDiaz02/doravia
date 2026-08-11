@@ -1014,8 +1014,8 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
       {/* ── Modal pago ── */}
       {showPago && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-40">
-          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4">
+        <div className="fixed inset-0 bg-slate-950/70 flex items-center justify-center p-4 z-40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#11172a] border border-slate-200 dark:border-slate-700 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg font-bold text-gray-900 dark:text-white">Cobrar</p>
@@ -1024,7 +1024,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               <button onClick={() => setShowPago(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-white"><X className="h-5 w-5" /></button>
             </div>
 
-            <p className="text-4xl font-black text-gray-900 dark:text-white text-center">{cop(totalCarrito)}</p>
+            <div className="rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 px-4 py-4 text-center shadow-lg shadow-violet-500/20"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">Total a cobrar</p><p className="mt-1 text-4xl font-black text-white">{cop(totalCarrito)}</p></div>
 
             {/* Método de pago */}
             <div className="grid grid-cols-3 gap-2">
@@ -1036,10 +1036,10 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                     setMontoRecibido("");
                   }}
                   className={cn(
-                    "rounded-xl py-2.5 text-sm font-medium border transition-colors",
+                    "rounded-xl py-2.5 text-sm font-medium border transition-all",
                     metodoPago === m.value
-                      ? "border-violet-500 bg-violet-50 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300"
-                      : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600 hover:text-gray-700 dark:hover:text-slate-200"
+                      ? "border-violet-500 bg-violet-50 dark:bg-violet-900/50 text-violet-700 shadow-sm shadow-violet-500/10 dark:text-violet-300"
+                      : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300"
                   )}
                 >
                   {m.label}
@@ -1050,7 +1050,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             <button
               type="button"
               onClick={() => setPagosDivididos((actual) => actual ? null : { [metodoPago]: String(totalCarrito) })}
-              className="text-xs font-medium text-violet-600 dark:text-violet-300 hover:underline"
+              className="w-full rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300 dark:hover:bg-violet-950/55"
             >
               {pagosDivididos ? "Usar un solo método" : "Dividir pago entre varios métodos"}
             </button>
@@ -1078,7 +1078,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                   autoFocus
                   value={montoRecibido}
                   onChange={(e) => setMontoRecibido(formatearPesos(e.target.value))}
-                  className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 text-2xl font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-2xl font-bold text-center text-slate-900 dark:text-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 />
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {montosRapidos.map((m) => (
@@ -1093,7 +1093,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                   ))}
                 </div>
                 {montoRecibido ? (
-                  <div className="flex justify-between text-sm bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5">
+                  <div className="flex justify-between text-sm bg-emerald-50 dark:bg-emerald-950/25 rounded-xl border border-emerald-100 dark:border-emerald-900/50 px-4 py-2.5">
                     <span className="text-gray-500 dark:text-slate-400">Vuelto</span>
                     <span className={cn("font-bold text-lg", vuelto < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
                       {cop(vuelto)}
@@ -1122,7 +1122,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
             <button
               onClick={() => void procesarVenta()}
               disabled={procesando || (metodoPago === "efectivo" && montoRecibido !== "" && pesosAEntero(montoRecibido) < totalCarrito) || (pagosDivididos !== null && METODOS.reduce((sum, m) => sum + pesosAEntero(pagosDivididos[m.value] ?? ""), 0) !== totalCarrito)}
-              className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 py-4 text-lg font-bold text-white transition-colors"
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-500/25 transition-all"
             >
               {procesando ? "Procesando..." : "Confirmar venta"}
             </button>

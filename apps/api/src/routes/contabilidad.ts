@@ -90,7 +90,7 @@ router.post("/sincronizar-asientos", requireAccountingLevel(1), requireContableO
 });
 
 // GET /api/contabilidad/cierre-mensual — lista de control, no cierra ni altera información.
-router.get("/cierre-mensual", async (req, res) => {
+router.get("/cierre-mensual", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const hoy = new Date().toISOString().slice(0, 10);
     const desde = (req.query.desde as string | undefined) ?? `${hoy.slice(0, 7)}-01`;
@@ -115,7 +115,7 @@ router.get("/cierre-mensual", async (req, res) => {
 });
 
 // Libro diario — todos los asientos del periodo con sus líneas
-router.get("/diario", async (req, res) => {
+router.get("/diario", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { desde, hasta } = req.query as { desde?: string; hasta?: string };
 
@@ -154,7 +154,7 @@ router.get("/diario", async (req, res) => {
 });
 
 // Mayor de cuenta — movimientos de una cuenta en el periodo
-router.get("/mayor/:codigo", async (req, res) => {
+router.get("/mayor/:codigo", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { desde, hasta } = req.query as { desde?: string; hasta?: string };
     const { codigo } = req.params;
@@ -205,7 +205,7 @@ router.get("/mayor/:codigo", async (req, res) => {
 });
 
 // Lista de cuentas PUC disponibles para el tenant
-router.get("/cuentas", async (req, res) => {
+router.get("/cuentas", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const cuentas = await db
       .select()
@@ -228,7 +228,7 @@ router.get("/cuentas", async (req, res) => {
 // ── Reportes nivel 2 (Raíz y superior) ────────────────────────────────────────
 
 // GET /api/contabilidad/balance-prueba?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
-router.get("/balance-prueba", requireAccountingLevel(2), async (req, res) => {
+router.get("/balance-prueba", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const hoy = new Date().toISOString().split("T")[0];
     const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
@@ -296,7 +296,7 @@ router.get("/balance-prueba", requireAccountingLevel(2), async (req, res) => {
 });
 
 // GET /api/contabilidad/balance-general?corte=YYYY-MM-DD
-router.get("/balance-general", requireAccountingLevel(2), async (req, res) => {
+router.get("/balance-general", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const corte = (req.query.corte as string | undefined) ?? new Date().toISOString().split("T")[0];
 
@@ -358,7 +358,7 @@ router.get("/balance-general", requireAccountingLevel(2), async (req, res) => {
 });
 
 // GET /api/contabilidad/estado-resultados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
-router.get("/estado-resultados", requireAccountingLevel(2), async (req, res) => {
+router.get("/estado-resultados", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const hoy = new Date().toISOString().split("T")[0];
     const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
@@ -432,7 +432,7 @@ router.get("/estado-resultados", requireAccountingLevel(2), async (req, res) => 
 // ── Períodos contables ────────────────────────────────────────────────────────
 
 // GET /api/contabilidad/periodos
-router.get("/periodos", async (req, res) => {
+router.get("/periodos", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const periodos = await db
       .select()
@@ -574,7 +574,7 @@ function enviarExcel(res: import("express").Response, wb: XLSX.WorkBook, nombre:
 }
 
 // GET /api/contabilidad/exportar/diario?desde=&hasta=
-router.get("/exportar/diario", async (req, res) => {
+router.get("/exportar/diario", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { desde, hasta } = req.query as { desde?: string; hasta?: string };
     const hoy = new Date().toISOString().split("T")[0];
@@ -625,7 +625,7 @@ router.get("/exportar/diario", async (req, res) => {
 });
 
 // GET /api/contabilidad/exportar/balance?corte=
-router.get("/exportar/balance", requireAccountingLevel(2), async (req, res) => {
+router.get("/exportar/balance", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const corte = (req.query.corte as string | undefined) ?? new Date().toISOString().split("T")[0];
 
@@ -671,7 +671,7 @@ router.get("/exportar/balance", requireAccountingLevel(2), async (req, res) => {
 });
 
 // GET /api/contabilidad/exportar/estado-resultados?desde=&hasta=
-router.get("/exportar/estado-resultados", requireAccountingLevel(2), async (req, res) => {
+router.get("/exportar/estado-resultados", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const hoy = new Date().toISOString().split("T")[0];
     const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
@@ -732,7 +732,7 @@ router.get("/exportar/estado-resultados", requireAccountingLevel(2), async (req,
 });
 
 // GET /api/contabilidad/exportar/balance-prueba?desde=&hasta=
-router.get("/exportar/balance-prueba", requireAccountingLevel(2), async (req, res) => {
+router.get("/exportar/balance-prueba", requireAccountingLevel(2), requireContableOperativo, async (req, res) => {
   try {
     const hoy = new Date().toISOString().split("T")[0];
     const desde = (req.query.desde as string | undefined) ?? hoy.slice(0, 7) + "-01";
@@ -796,7 +796,7 @@ router.get("/exportar/balance-prueba", requireAccountingLevel(2), async (req, re
 });
 
 // GET /api/contabilidad/exportar/mayor/:codigo?desde=&hasta=
-router.get("/exportar/mayor/:codigo", requireAccountingLevel(1), async (req, res) => {
+router.get("/exportar/mayor/:codigo", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const { codigo } = req.params;
     const { desde, hasta } = req.query as { desde?: string; hasta?: string };
@@ -855,7 +855,7 @@ router.get("/exportar/mayor/:codigo", requireAccountingLevel(1), async (req, res
 
 // GET /api/contabilidad/plan-cuentas
 // Devuelve todas las cuentas: sistema (tenant_id null) + propias del tenant
-router.get("/plan-cuentas", requireAccountingLevel(1), async (req, res) => {
+router.get("/plan-cuentas", requireAccountingLevel(1), requireContableOperativo, async (req, res) => {
   try {
     const cuentas = await db
       .select()

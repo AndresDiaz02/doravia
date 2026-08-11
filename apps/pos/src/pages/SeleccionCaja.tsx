@@ -105,7 +105,7 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0E1A] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/50 to-slate-100 dark:from-[#080b16] dark:via-[#0d1024] dark:to-[#080b16] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -138,11 +138,11 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
                 <button
                   key={caja.id}
                   onClick={() => void handleAbrirTurno(caja)}
-                  className="rounded-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-5 text-left hover:border-violet-400 dark:hover:border-violet-700/60 hover:bg-violet-50 dark:hover:bg-slate-800/60 transition-all group"
+                  className="rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-white dark:border-slate-700 p-5 text-left shadow-sm hover:-translate-y-1 hover:border-violet-300 dark:hover:border-violet-700/60 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-xl hover:shadow-violet-500/10 transition-all duration-200 group"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="rounded-xl bg-gray-100 dark:bg-slate-800 p-2.5 group-hover:bg-violet-100 dark:group-hover:bg-violet-900/40 transition-colors">
-                      <Monitor className="h-5 w-5 text-gray-400 dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
+                    <div className="rounded-xl bg-violet-100 dark:bg-violet-900/40 p-2.5 group-hover:bg-violet-600 dark:group-hover:bg-violet-500 transition-colors">
+                      <Monitor className="h-5 w-5 text-violet-600 dark:text-violet-300 group-hover:text-white transition-colors" />
                     </div>
                     {turno && (
                       <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700/50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">

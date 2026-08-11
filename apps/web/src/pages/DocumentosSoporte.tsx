@@ -52,7 +52,7 @@ const emptyForm = {
 };
 
 export default function DocumentosSoporte() {
-  const { isContador } = useAuth();
+  const { canOperateAccounting } = useAuth();
   const [documentos, setDocumentos] = useState<DocumentoSoporte[]>([]);
   const [loading, setLoading] = useState(true);
   const [openNuevo, setOpenNuevo] = useState(false);
@@ -149,7 +149,7 @@ export default function DocumentosSoporte() {
           <h1 className="text-xl font-semibold text-gray-900">Documentos soporte</h1>
           <p className="text-sm text-gray-500 mt-0.5">Adquisiciones a vendedores no obligados a facturar (Art. 771-5 E.T.)</p>
         </div>
-        {!isContador && (
+        {canOperateAccounting && (
           <Button onClick={() => { setForm(emptyForm); setItems([newItem()]); setError(null); setOpenNuevo(true); }}>
             <Plus className="h-4 w-4" />
             Nuevo documento

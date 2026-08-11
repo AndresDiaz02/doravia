@@ -40,7 +40,7 @@ const formVacio = {
 };
 
 export default function Proveedores() {
-  const { isContador } = useAuth();
+  const { canOperateAccounting } = useAuth();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -150,7 +150,7 @@ export default function Proveedores() {
             <FileDown className="h-4 w-4" />
             Excel
           </Button>
-          {!isContador && (
+          {canOperateAccounting && (
             <Button onClick={abrirNuevo}>
               <Plus className="h-4 w-4" />
               Nuevo proveedor
@@ -178,7 +178,7 @@ export default function Proveedores() {
             <p className="text-sm">
               {search ? "Sin resultados para la búsqueda" : "Sin proveedores registrados"}
             </p>
-            {!search && !isContador && (
+            {!search && canOperateAccounting && (
               <Button variant="secondary" size="sm" onClick={abrirNuevo}>
                 Agregar primero
               </Button>
@@ -227,7 +227,7 @@ export default function Proveedores() {
                     </Badge>
                   </td>
                   <td className="px-6 py-3 text-right">
-                    {!isContador && (
+                    {canOperateAccounting && (
                       <button
                         onClick={() => abrirEditar(p)}
                         className="text-xs text-gray-400 hover:text-gray-700 hover:underline"

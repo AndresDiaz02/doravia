@@ -20,7 +20,7 @@ interface Periodo {
 }
 
 export default function PeriodosContables() {
-  const { isContador } = useAuth();
+  const { canOperateAccounting } = useAuth();
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -72,7 +72,7 @@ export default function PeriodosContables() {
           <h1 className="text-xl font-semibold text-gray-900">Períodos contables</h1>
           <p className="text-sm text-gray-500 mt-0.5">Cierra un período para proteger sus asientos y evitar modificaciones accidentales.</p>
         </div>
-        {!isContador && (
+        {canOperateAccounting && (
           <Button onClick={() => setOpenDialog(true)}>
             <Plus className="h-4 w-4" />
             Nuevo período

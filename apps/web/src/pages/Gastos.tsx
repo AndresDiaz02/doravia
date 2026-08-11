@@ -62,7 +62,7 @@ function hoy() {
 }
 
 export default function Gastos() {
-  const { plan, isContador } = useAuth();
+  const { plan, isContador, canOperateAccounting } = useAuth();
   const puedeIA = (plan?.features as Record<string, boolean> | undefined)?.ia_asistente === true;
 
   const [tab, setTab] = useState<TabActiva>("gastos");
@@ -248,7 +248,7 @@ export default function Gastos() {
           }}>
             <FileDown className="w-4 h-4" /> Excel
           </Button>
-          {!isContador && (
+          {canOperateAccounting && (
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-1" /> Nuevo gasto
             </Button>

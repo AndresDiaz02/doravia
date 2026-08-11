@@ -67,6 +67,7 @@ interface AuthCtx {
   empresas: EmpresaAcceso[];
   isLoading: boolean;
   isContador: boolean;
+  canOperateAccounting: boolean;
   isVendedor: boolean;
   isFundador: boolean;
   isContadorHub: boolean;
@@ -166,6 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const isContador = useMemo(() => user?.role === "contador", [user?.role]);
+  const canOperateAccounting = useMemo(
+    () => user?.role === "admin" || (user?.role === "contador" && user.permisos_contables === true),
+    [user?.role, user?.permisos_contables],
+  );
   const isVendedor = useMemo(() => user?.role === "vendedor", [user?.role]);
   const isFundador = useMemo(() => user?.is_fundador === true, [user?.is_fundador]);
   // El acceso al Hub se concede exclusivamente tras confirmar el registro de
@@ -177,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>
+    <Ctx.Provider value={{ user, plan, tenant, empresas, isLoading, isContador, canOperateAccounting, isVendedor, isFundador, isContadorHub, login, logout, cambiarEmpresa }}>
       {children}
     </Ctx.Provider>
   );

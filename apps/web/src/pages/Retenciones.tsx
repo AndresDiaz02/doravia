@@ -42,7 +42,7 @@ const TIPOS_PREDEFINIDOS = [
 const emptyForm = { nombre: "", tipo: "retefuente" as "retefuente" | "reteiva" | "reteica", porcentaje: "" };
 
 export default function Retenciones() {
-  const { isContador } = useAuth();
+  const { canOperateAccounting } = useAuth();
   const [retenciones, setRetenciones] = useState<RetencionConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -120,7 +120,7 @@ export default function Retenciones() {
             <FileDown className="h-4 w-4" />
             {exportando ? "Exportando..." : "Certificado Excel"}
           </Button>
-          {!isContador && (
+          {canOperateAccounting && (
             <Button onClick={() => openNew()}>
               <Plus className="h-4 w-4" />
               Nueva retención
@@ -130,7 +130,7 @@ export default function Retenciones() {
       </div>
 
       {/* Predefinidas */}
-      {retenciones.length === 0 && !loading && (
+      {retenciones.length === 0 && !loading && canOperateAccounting && (
         <Card>
           <div className="p-6">
             <p className="text-sm font-medium text-gray-700 mb-3">Tarifas más comunes en Colombia — haz clic para agregar:</p>

@@ -8,7 +8,7 @@ interface EmpresaOpcion {
   role: string;
 }
 
-interface LoginSingleResponse { accessToken: string; }
+interface LoginSingleResponse { accessToken: string; refreshToken?: string; }
 interface LoginMultiResponse {
   requiresEmpresaSelect: true;
   selectionToken: string;
@@ -25,8 +25,9 @@ export default function Login() {
   const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
   const [selectionToken, setSelectionToken] = useState("");
 
-  function completarLogin(accessToken: string) {
+  function completarLogin(accessToken: string, refreshToken?: string) {
     localStorage.setItem("pos_token", accessToken);
+    if (refreshToken) localStorage.setItem("pos_refresh_token", refreshToken);
     window.location.reload();
   }
 
@@ -44,7 +45,7 @@ export default function Login() {
         setEmpresas(data.empresas);
         setSelectionToken(data.selectionToken);
       } else {
-        completarLogin(data.accessToken);
+        completarLogin(data.accessToken, data.refreshToken);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión.");
@@ -61,7 +62,7 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify({ selectionToken, tenantId }),
       });
-      completarLogin(data.accessToken);
+      completarLogin(data.accessToken, data.refreshToken);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo abrir la empresa seleccionada.");
       if (err instanceof ApiError && err.status === 401) {

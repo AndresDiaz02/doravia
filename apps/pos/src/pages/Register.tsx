@@ -67,6 +67,7 @@ export default function Register({ onRegistered }: Props) {
       });
 
       localStorage.setItem("pos_token", data.accessToken);
+      localStorage.setItem("pos_refresh_token", data.refreshToken);
 
       const checkout = await apiFetch<CheckoutData>("/api/pagos/checkout", {
         method: "POST",

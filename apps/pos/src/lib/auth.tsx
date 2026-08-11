@@ -65,21 +65,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) { setLoading(false); return; }
     apiFetch<MeResponse>("/api/auth/me")
       .then((raw) => setUser(mapMe(raw)))
-      .catch(() => localStorage.removeItem("pos_token"))
+      .catch(() => {
+        localStorage.removeItem("pos_token");
+        localStorage.removeItem("pos_refresh_token");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email: string, password: string) {
-    const data = await apiFetch<{ accessToken: string } & MeResponse>("/api/auth/login", {
+    const data = await apiFetch<{ accessToken: string; refreshToken?: string } & MeResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
     localStorage.setItem("pos_token", data.accessToken);
+    if (data.refreshToken) localStorage.setItem("pos_refresh_token", data.refreshToken);
     setUser(mapMe(data));
   }
 
   function logout() {
     localStorage.removeItem("pos_token");
+    localStorage.removeItem("pos_refresh_token");
     setUser(null);
   }
 

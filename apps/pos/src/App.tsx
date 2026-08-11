@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { ShoppingCart, BookOpen, Clock, LogOut, Calendar, Sun, Moon, Wallet, BarChart2, Bell, X } from "lucide-react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { apiFetch } from "./lib/api";
@@ -6,12 +6,12 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import SeleccionCaja, { type CajaConfig } from "./pages/SeleccionCaja";
 import Venta from "./pages/Venta";
-import Fiados from "./pages/Fiados";
-import HistorialVentas from "./pages/HistorialVentas";
-import CierreTurno from "./pages/CierreTurno";
-import Citas from "./pages/Citas";
-import GastosCaja from "./pages/GastosCaja";
-import Reportes from "./pages/Reportes";
+const Fiados = lazy(() => import("./pages/Fiados"));
+const HistorialVentas = lazy(() => import("./pages/HistorialVentas"));
+const CierreTurno = lazy(() => import("./pages/CierreTurno"));
+const Citas = lazy(() => import("./pages/Citas"));
+const GastosCaja = lazy(() => import("./pages/GastosCaja"));
+const Reportes = lazy(() => import("./pages/Reportes"));
 
 interface TurnoActivo {
   turnoId: string;
@@ -191,21 +191,23 @@ function AppInner() {
       </nav>
 
       <div className="flex-1 overflow-hidden">
+        <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-slate-500">Cargando módulo…</div>}>
         {vista === "venta"    && <Venta turnoId={turno.turnoId} cajaId={turno.cajaId} cajaNombre={turno.cajaNombre} cajaConfig={turno.cajaConfig} />}
         {vista === "cartera"  && <Fiados cajaId={turno.cajaId} />}
         {vista === "citas"    && <Citas cajaId={turno.cajaId} onIrAVenta={() => setVista("venta")} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
         {vista === "gastos"    && <GastosCaja turnoId={turno.turnoId} cajaId={turno.cajaId} />}
         {vista === "reportes"  && <Reportes />}
+        </Suspense>
       </div>
 
       {showCierre && (
-        <CierreTurno
+        <Suspense fallback={null}><CierreTurno
           turnoId={turno.turnoId}
           cajaNombre={turno.cajaNombre}
           onCerrado={() => { setShowCierre(false); setTurno(null); }}
           onCancelar={() => setShowCierre(false)}
-        />
+        /></Suspense>
       )}
     </div>
   );

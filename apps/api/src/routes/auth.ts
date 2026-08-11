@@ -379,23 +379,30 @@ router.get("/me", authenticate, async (req, res) => {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
-  // El Hub de Contadores es exclusivo de cuentas que completaron el formulario
-  // público de registro. Tener el rol contador o pertenecer al tenant hub no es
-  // suficiente, pues un usuario normal puede compartir ese tenant técnico.
-  // Estas dos lecturas no dependen entre sí. Ejecutarlas en paralelo reduce
-  // la espera de la carga inicial después del inicio de sesión.
-  const [empresas, registrosContador] = await Promise.all([
-    getEmpresasUsuario(req.userId, req.tenantId),
-    db
-      .select({ id: contador_registrations.id })
-      .from(contador_registrations)
-      .where(and(
-        eq(contador_registrations.user_id, req.userId),
-        eq(contador_registrations.confirmado, true),
-      ))
-      .limit(1),
-  ]);
-  const [registroContador] = registrosContador;
+  // El POS no usa empresas externas ni el estado del Hub de Contadores. Evitar
+  // esas dos lecturas en su arranque reduce el tiempo de acceso para cada
+  // cajero, mientras ERP conserva exactamente la respuesta completa.
+  const esClientePos = req.header("X-Doravia-Client") === "pos";
+  let empresas: Awaited<ReturnType<typeof getEmpresasUsuario>> = [];
+  let registroContador: { id: string } | undefined;
+  if (!esClientePos) {
+    // El Hub de Contadores es exclusivo de cuentas que completaron el formulario
+    // público de registro. Tener el rol contador o pertenecer al tenant hub no es
+    // suficiente, pues un usuario normal puede compartir ese tenant técnico.
+    const [empresasResult, registrosContador] = await Promise.all([
+      getEmpresasUsuario(req.userId, req.tenantId),
+      db
+        .select({ id: contador_registrations.id })
+        .from(contador_registrations)
+        .where(and(
+          eq(contador_registrations.user_id, req.userId),
+          eq(contador_registrations.confirmado, true),
+        ))
+        .limit(1),
+    ]);
+    empresas = empresasResult;
+    [registroContador] = registrosContador;
+  }
 
   res.json({
     user: {

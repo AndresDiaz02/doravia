@@ -26,6 +26,9 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, isRet
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
+        // Permite al backend omitir datos de ERP que el POS no usa durante
+        // su arranque (por ejemplo, empresas externas del contador).
+        "X-Doravia-Client": "pos",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers as Record<string, string> | undefined),
       },

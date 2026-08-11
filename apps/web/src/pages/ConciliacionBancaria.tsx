@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import {
   Plus, Upload, CheckCircle, XCircle, RefreshCw, Lock, ChevronLeft, AlertTriangle,
-  Building2, FileText, Sparkles, Trash2, X
+  Building2, FileText, Sparkles, Trash2, X, Pencil
 } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -104,6 +104,7 @@ export default function ConciliacionBancaria() {
 
   // Modal crear cuenta
   const [modalCuenta, setModalCuenta] = useState(false);
+  const [cuentaEditando, setCuentaEditando] = useState<CuentaBancaria | null>(null);
   const [formCuenta, setFormCuenta] = useState({ nombre: "", banco: "", numero_cuenta: "", cuenta_contable_id: "" });
   const [cuentasContables, setCuentasContables] = useState<CuentaContable[]>([]);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
@@ -136,15 +137,38 @@ export default function ConciliacionBancaria() {
     setGuardandoCuenta(true);
     setError(null);
     try {
-      await apiFetch("/api/conciliacion/cuentas", { method: "POST", body: JSON.stringify(formCuenta) });
+      await apiFetch(
+        cuentaEditando ? `/api/conciliacion/cuentas/${cuentaEditando.id}` : "/api/conciliacion/cuentas",
+        { method: cuentaEditando ? "PATCH" : "POST", body: JSON.stringify(formCuenta) },
+      );
       await cargarCuentas();
       setModalCuenta(false);
+      setCuentaEditando(null);
       setFormCuenta({ nombre: "", banco: "", numero_cuenta: "", cuenta_contable_id: "" });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al crear la cuenta.");
     } finally {
       setGuardandoCuenta(false);
     }
+  }
+
+  function abrirEdicionCuenta(cuenta: CuentaBancaria) {
+    setError(null);
+    setCuentaEditando(cuenta);
+    setFormCuenta({
+      nombre: cuenta.nombre,
+      banco: cuenta.banco,
+      numero_cuenta: cuenta.numero_cuenta ?? "",
+      cuenta_contable_id: cuenta.cuenta_contable_id ?? "",
+    });
+    setModalCuenta(true);
+  }
+
+  function abrirNuevaCuenta() {
+    setError(null);
+    setCuentaEditando(null);
+    setFormCuenta({ nombre: "", banco: "", numero_cuenta: "", cuenta_contable_id: "" });
+    setModalCuenta(true);
   }
 
   async function abrirCuenta(cuenta: CuentaBancaria) {
@@ -201,7 +225,7 @@ export default function ConciliacionBancaria() {
             />
           </div>
           {isAdmin && (
-            <Button onClick={() => setModalCuenta(true)}>
+            <Button onClick={abrirNuevaCuenta}>
               <Plus className="w-4 h-4 mr-2" /> Nueva cuenta bancaria
             </Button>
           )}
@@ -219,7 +243,7 @@ export default function ConciliacionBancaria() {
             <p className="text-lg font-medium">Sin cuentas bancarias</p>
             <p className="text-sm mt-1">Agrega tu primera cuenta para empezar a conciliar.</p>
             {isAdmin && (
-              <Button className="mt-4" onClick={() => setModalCuenta(true)}>
+              <Button className="mt-4" onClick={abrirNuevaCuenta}>
                 <Plus className="w-4 h-4 mr-2" /> Agregar cuenta
               </Button>
             )}
@@ -233,13 +257,27 @@ export default function ConciliacionBancaria() {
                 onClick={() => abrirCuenta(c)}
               >
                 <CardContent className="pt-5 pb-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-gray-900">{c.nombre}</p>
                       <p className="text-sm text-gray-500">{c.banco}{c.numero_cuenta ? ` · ${c.numero_cuenta}` : ""}</p>
                     </div>
-                    <Badge variant={c.activa ? "default" : "secondary"}>{c.activa ? "Activa" : "Inactiva"}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={c.activa ? "default" : "secondary"}>{c.activa ? "Activa" : "Inactiva"}</Badge>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); abrirEdicionCuenta(c); }}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-indigo-600"
+                          title="Editar cuenta bancaria"
+                          aria-label={`Editar ${c.nombre}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {!c.cuenta_contable_id && <p className="mt-3 text-xs font-medium text-amber-700">Falta vincular una cuenta PUC para conciliar con precisión.</p>}
                   <p className="text-xs text-indigo-600 mt-3">Ver conciliaciones →</p>
                 </CardContent>
               </Card>
@@ -252,7 +290,7 @@ export default function ConciliacionBancaria() {
           <Dialog open onOpenChange={setModalCuenta}>
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                <h2 className="text-lg font-bold mb-4">Nueva cuenta bancaria</h2>
+                <h2 className="text-lg font-bold mb-4">{cuentaEditando ? "Editar cuenta bancaria" : "Nueva cuenta bancaria"}</h2>
                 <form onSubmit={handleCrearCuenta} className="space-y-4">
                   <div>
                     <Label>Nombre de la cuenta *</Label>
@@ -302,11 +340,11 @@ export default function ConciliacionBancaria() {
                   </div>
                   {error && <p className="text-sm text-red-600">{error}</p>}
                   <div className="flex gap-3 pt-2">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => { setModalCuenta(false); setError(null); }}>
+                    <Button type="button" variant="outline" className="flex-1" onClick={() => { setModalCuenta(false); setCuentaEditando(null); setError(null); }}>
                       Cancelar
                     </Button>
                     <Button type="submit" className="flex-1" disabled={guardandoCuenta}>
-                      {guardandoCuenta ? "Guardando..." : "Crear cuenta"}
+                      {guardandoCuenta ? "Guardando..." : cuentaEditando ? "Guardar cambios" : "Crear cuenta"}
                     </Button>
                   </div>
                 </form>

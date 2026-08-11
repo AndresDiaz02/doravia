@@ -1,5 +1,5 @@
 import type { Empleado, ParametrosNominaAnuales } from "@workspace/db";
-import { calcularSaludEmpleado, calcularPensionEmpleado, calcularRetencionFuenteSimplificada } from "./deducciones.js";
+import { calcularSaludEmpleado, calcularPensionEmpleado, calcularRetencionFuenteArt383 } from "./deducciones.js";
 import { calcularAportesParafiscalesEmpleador } from "./aportes.js";
 import { calcularJornadaSemanal, calcularValorHoraOrdinaria } from "./jornada.js";
 
@@ -71,7 +71,7 @@ export function calcularNominaEmpleado(
 
   const salud_empleado = calcularSaludEmpleado(devengado, parametros);
   const pension_empleado = calcularPensionEmpleado(devengado, parametros);
-  const retencion_fuente = calcularRetencionFuenteSimplificada(devengado, salud_empleado, pension_empleado, parametros, uvt);
+  const retencion_fuente = calcularRetencionFuenteArt383(devengado, salud_empleado, pension_empleado, parametros, uvt);
 
   const deducciones_totales = round2(salud_empleado + pension_empleado + retencion_fuente + otras_deducciones);
   const aportes_parafiscales = calcularAportesParafiscalesEmpleador(devengado, parametros);

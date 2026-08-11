@@ -22,20 +22,31 @@ export function calcularPensionEmpleado(devengado: number, parametros: Parametro
  * Base gravable = devengado - deducciones obligatorias (salud + pensión empleado), que es
  * la base real que usa la ley antes de aplicar la tabla de retención.
  */
-export function calcularRetencionFuenteSimplificada(
+export function calcularRetencionFuenteArt383(
   devengado: number,
   saludEmpleado: number,
   pensionEmpleado: number,
   parametros: ParametrosNominaAnuales,
   uvt: number,
 ): number {
-  const baseGravable = devengado - saludEmpleado - pensionEmpleado;
-  const umbral = Number(parametros.retencion_base_uvt) * uvt;
-  if (baseGravable <= umbral) return 0;
+  if (!Number.isFinite(uvt) || uvt <= 0) return 0;
 
-  const exceso = baseGravable - umbral;
-  return round2(exceso * (Number(parametros.retencion_pct_simplificada) / 100));
+  // Tabla progresiva del art. 383 ET. La base se expresa primero en UVT y
+  // cada tramo aplica su componente fijo acumulado, no una tarifa plana.
+  const baseUvt = Math.max(0, devengado - saludEmpleado - pensionEmpleado) / uvt;
+  let retencionUvt = 0;
+  if (baseUvt > 2300) retencionUvt = (baseUvt - 2300) * 0.39 + 770;
+  else if (baseUvt > 945) retencionUvt = (baseUvt - 945) * 0.37 + 268;
+  else if (baseUvt > 640) retencionUvt = (baseUvt - 640) * 0.35 + 162;
+  else if (baseUvt > 360) retencionUvt = (baseUvt - 360) * 0.33 + 69;
+  else if (baseUvt > 150) retencionUvt = (baseUvt - 150) * 0.28 + 10;
+  else if (baseUvt > 95) retencionUvt = (baseUvt - 95) * 0.19;
+
+  return round2(retencionUvt * uvt);
 }
+
+/** @deprecated Conservada temporalmente para integraciones internas previas. */
+export const calcularRetencionFuenteSimplificada = calcularRetencionFuenteArt383;
 
 function round2(v: number): number {
   return Math.round(v * 100) / 100;

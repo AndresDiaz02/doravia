@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calcularSaludEmpleado, calcularPensionEmpleado, calcularRetencionFuenteSimplificada } from "../services/nomina/deducciones.js";
+import { calcularSaludEmpleado, calcularPensionEmpleado, calcularRetencionFuenteArt383 } from "../services/nomina/deducciones.js";
 import { calcularAportesParafiscalesEmpleador } from "../services/nomina/aportes.js";
 import { calcularNominaEmpleado } from "../services/nomina/calculadora.js";
 import type { ParametrosNominaAnuales } from "@workspace/db";
@@ -58,7 +58,7 @@ describe("nomina: deducciones del empleado", () => {
     const devengado = 1750905;
     const salud = calcularSaludEmpleado(devengado, PARAMETROS_2026);
     const pension = calcularPensionEmpleado(devengado, PARAMETROS_2026);
-    expect(calcularRetencionFuenteSimplificada(devengado, salud, pension, PARAMETROS_2026, UVT_2026)).toBe(0);
+    expect(calcularRetencionFuenteArt383(devengado, salud, pension, PARAMETROS_2026, UVT_2026)).toBe(0);
   });
 
   it("retención en la fuente: aplica tarifa simplificada sobre el exceso del umbral", () => {
@@ -68,8 +68,22 @@ describe("nomina: deducciones del empleado", () => {
     const pension = calcularPensionEmpleado(devengado, PARAMETROS_2026);
     const baseGravable = devengado - salud - pension;
     const esperado = Math.round((baseGravable - umbralCop) * 0.19 * 100) / 100;
-    expect(calcularRetencionFuenteSimplificada(devengado, salud, pension, PARAMETROS_2026, UVT_2026)).toBe(esperado);
+    expect(calcularRetencionFuenteArt383(devengado, salud, pension, PARAMETROS_2026, UVT_2026)).toBe(esperado);
     expect(esperado).toBeGreaterThan(0);
+  });
+
+  it("retención en la fuente: acumula el componente fijo de cada tramo del art. 383", () => {
+    const casos = [
+      { baseUvt: 200, esperadoUvt: (200 - 150) * 0.28 + 10 },
+      { baseUvt: 500, esperadoUvt: (500 - 360) * 0.33 + 69 },
+      { baseUvt: 800, esperadoUvt: (800 - 640) * 0.35 + 162 },
+      { baseUvt: 1200, esperadoUvt: (1200 - 945) * 0.37 + 268 },
+      { baseUvt: 2500, esperadoUvt: (2500 - 2300) * 0.39 + 770 },
+    ];
+    for (const { baseUvt, esperadoUvt } of casos) {
+      expect(calcularRetencionFuenteArt383(baseUvt * UVT_2026, 0, 0, PARAMETROS_2026, UVT_2026))
+        .toBe(Math.round(esperadoUvt * UVT_2026 * 100) / 100);
+    }
   });
 });
 

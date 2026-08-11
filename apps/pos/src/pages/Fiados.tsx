@@ -175,30 +175,30 @@ export default function Cuentas({ cajaId }: Props) {
   const saldo = (f: Cuenta) => Number(f.monto_total) - Number(f.monto_pagado);
 
   return (
-    <div className="pos-cartera flex h-full flex-col bg-gray-50">
+    <div className="pos-cartera flex h-full flex-col bg-gradient-to-br from-slate-50 via-violet-50/30 to-slate-100 dark:from-[#080b16] dark:via-[#0d1024] dark:to-[#080b16]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white/90 border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0 backdrop-blur dark:bg-slate-950/70">
         <div>
           <p className="font-semibold text-gray-900">Cartera</p>
           <p className="text-xs text-gray-400">{filtrados.filter((f) => f.estado === "pendiente").length} cuentas por cobrar</p>
         </div>
         <button
           onClick={() => { setError(null); setShowNuevo(true); }}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800"
+          className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-indigo-500"
         >
           <Plus className="h-4 w-4" /> Nueva cuenta
         </button>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+      <div className="bg-white/80 border-b border-slate-100 px-4 py-2 flex items-center gap-2 flex-shrink-0 dark:bg-slate-950/50 dark:border-slate-800">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
           <input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o teléfono..."
-            className="w-full rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
         </div>
         {(["pendiente", "pagado", "todos"] as const).map((f) => (
@@ -207,7 +207,7 @@ export default function Cuentas({ cajaId }: Props) {
             onClick={() => setFiltro(f)}
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap",
-              filtro === f ? "bg-blue-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              filtro === f ? "bg-violet-600 text-white shadow-sm shadow-violet-500/20" : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-violet-950/40 dark:hover:text-violet-300"
             )}
           >
             {f === "pendiente" ? "Pendientes" : f === "pagado" ? "Pagados" : "Todos"}
@@ -229,7 +229,7 @@ export default function Cuentas({ cajaId }: Props) {
             <button
               key={cuenta.id}
               onClick={() => void abrirDetalle(cuenta.id)}
-              className="w-full rounded-xl bg-white border border-gray-100 p-3 text-left hover:shadow-sm hover:border-blue-200 transition-all"
+              className="w-full rounded-2xl bg-white/90 border border-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-500/10 hover:border-violet-200 dark:border-slate-700 dark:bg-slate-900/85 dark:hover:border-violet-700"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -256,7 +256,7 @@ export default function Cuentas({ cajaId }: Props) {
                 <div className="mt-2">
                   <div className="h-1.5 w-full rounded-full bg-gray-100">
                     <div
-                      className="h-1.5 rounded-full bg-green-400"
+                      className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400"
                       style={{ width: `${Math.min(100, (Number(cuenta.monto_pagado) / Number(cuenta.monto_total)) * 100)}%` }}
                     />
                   </div>

@@ -75,9 +75,9 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
   const totalGastos = gastos.reduce((s, g) => s + Number(g.monto), 0);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#0B0E1A]">
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-rose-50/30 to-slate-100 dark:from-[#080b16] dark:via-[#151020] dark:to-[#080b16]">
       {/* Header */}
-      <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+      <div className="px-4 py-3 bg-white/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-shrink-0 backdrop-blur">
         <div>
           <p className="font-semibold text-gray-900 dark:text-white text-sm">Gastos de caja</p>
           {gastos.length > 0 && (
@@ -88,7 +88,7 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
         </div>
         <button
           onClick={() => { setShowForm(true); setError(null); }}
-          className="flex items-center gap-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-xs font-medium bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-400 hover:to-red-400 text-white px-3 py-2 rounded-xl shadow-lg shadow-red-500/20 transition-all"
         >
           <Plus className="h-3.5 w-3.5" /> Registrar gasto
         </button>
@@ -107,7 +107,7 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
         ) : (
           <div className="space-y-2">
             {gastos.map((g) => (
-              <div key={g.id} className="rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 px-4 py-3 flex items-center gap-3">
+              <div key={g.id} className="rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-white dark:border-slate-700 px-4 py-3 flex items-center gap-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/10">
                 <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
                   <Wallet className="h-4 w-4 text-red-500" />
                 </div>
@@ -128,7 +128,7 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
       {/* Modal nuevo gasto */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
+          <div className="bg-white dark:bg-[#11172a] border border-slate-200 dark:border-slate-700 rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-gray-900 dark:text-white">Registrar gasto de caja</p>
               <button onClick={() => setShowForm(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300">
@@ -191,7 +191,7 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
               <button
                 onClick={() => void registrar()}
                 disabled={guardando}
-                className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 py-3 text-sm font-semibold text-white transition-colors"
+                className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-400 hover:to-red-400 disabled:opacity-50 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-all"
               >
                 {guardando ? "Guardando..." : "Registrar gasto"}
               </button>

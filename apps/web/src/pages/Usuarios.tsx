@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { UserPlus, AlertCircle, Link2, Trash2, BookOpen } from "lucide-react";
+import { UserPlus, AlertCircle, Link2, Trash2, BookOpen, FileCheck2 } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button } from "../components/ui/button";
@@ -16,6 +16,7 @@ interface Usuario {
   role: string;
   activo: boolean;
   permisos_contables: boolean;
+  permisos_dian: boolean;
   created_at: string;
 }
 
@@ -27,6 +28,7 @@ interface UsuarioExterno {
   role: string;
   activo: boolean;
   permisos_contables: boolean;
+  permisos_dian: boolean;
   created_at: string;
 }
 
@@ -105,6 +107,22 @@ export function Usuarios() {
     const actualizado = await apiFetch<UsuarioExterno>(`/api/usuarios/externo/${e.id}`, {
       method: "PATCH",
       body: JSON.stringify({ permisos_contables: !e.permisos_contables }),
+    });
+    setExternos((prev) => prev.map((x) => (x.id === e.id ? actualizado : x)));
+  }
+
+  async function togglePermisoDian(u: Usuario) {
+    const actualizado = await apiFetch<Usuario>(`/api/usuarios/${u.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permisos_dian: !u.permisos_dian }),
+    });
+    setUsuarios((prev) => prev.map((x) => (x.id === u.id ? actualizado : x)));
+  }
+
+  async function togglePermisoDianExterno(e: UsuarioExterno) {
+    const actualizado = await apiFetch<UsuarioExterno>(`/api/usuarios/externo/${e.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permisos_dian: !e.permisos_dian }),
     });
     setExternos((prev) => prev.map((x) => (x.id === e.id ? actualizado : x)));
   }
@@ -215,6 +233,12 @@ export function Usuarios() {
                           Contable
                         </span>
                       )}
+                      {u.role === "contador" && u.permisos_dian && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700" title="Puede reintentar documentos DIAN; no puede emitir ni cobrar">
+                          <FileCheck2 className="h-3 w-3" />
+                          DIAN
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-3 text-center">
@@ -231,6 +255,11 @@ export function Usuarios() {
                           title={u.permisos_contables ? "Quitar permisos contables" : "Habilitar permisos contables"}
                         >
                           {u.permisos_contables ? "Quitar contable" : "Habilitar contable"}
+                        </button>
+                      )}
+                      {u.role === "contador" && u.id !== user?.id && (
+                        <button onClick={() => void togglePermisoDian(u)} className="text-xs text-sky-600 hover:text-sky-800" title={u.permisos_dian ? "Quitar autorización de reintentos DIAN" : "Autorizar únicamente reintentos DIAN"}>
+                          {u.permisos_dian ? "Quitar DIAN" : "Autorizar DIAN"}
                         </button>
                       )}
                       {u.id !== user?.id && (
@@ -281,6 +310,12 @@ export function Usuarios() {
                             Contable
                           </span>
                         )}
+                        {e.role === "contador" && e.permisos_dian && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700" title="Puede reintentar documentos DIAN; no puede emitir ni cobrar">
+                            <FileCheck2 className="h-3 w-3" />
+                            DIAN
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-3 text-right">
@@ -291,6 +326,11 @@ export function Usuarios() {
                             className="text-xs text-purple-500 hover:text-purple-700"
                           >
                             {e.permisos_contables ? "Quitar contable" : "Habilitar contable"}
+                          </button>
+                        )}
+                        {e.role === "contador" && (
+                          <button onClick={() => void togglePermisoDianExterno(e)} className="text-xs text-sky-600 hover:text-sky-800" title={e.permisos_dian ? "Quitar autorización de reintentos DIAN" : "Autorizar únicamente reintentos DIAN"}>
+                            {e.permisos_dian ? "Quitar DIAN" : "Autorizar DIAN"}
                           </button>
                         )}
                         <button

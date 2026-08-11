@@ -15,6 +15,9 @@ export const users = pgTable("users", {
   password_hash: varchar("password_hash", { length: 255 }).notNull(),
   activo: boolean("activo").notNull().default(true),
   permisos_contables: boolean("permisos_contables").notNull().default(false),
+  // Permiso excepcional para que un contador autorizado reintente el envío DIAN.
+  // No concede permisos de emisión, cobro ni edición de facturas.
+  permisos_dian: boolean("permisos_dian").notNull().default(false),
   dark_mode: boolean("dark_mode").notNull().default(false),
   // Nombre de usuario corto para cajeros POS (sin email)
   usuario_pos: varchar("usuario_pos", { length: 50 }),
@@ -37,6 +40,7 @@ export const user_accesos = pgTable(
     role: varchar("role", { length: 50 }).$type<UserRole>().notNull().default("contador"),
     invitado_por: uuid("invitado_por").references(() => users.id),
     permisos_contables: boolean("permisos_contables").notNull().default(false),
+    permisos_dian: boolean("permisos_dian").notNull().default(false),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

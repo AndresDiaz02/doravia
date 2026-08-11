@@ -56,6 +56,9 @@ const migrations = [
   // permisos_contables en users y user_accesos (se omitió en el push inicial de Railway)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
+  // Autorización independiente para reintentar documentos ante DIAN.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos_dian boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_dian boolean NOT NULL DEFAULT false`,
   // dark_mode por usuario (preferencia guardada en servidor, no solo en localStorage)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode boolean NOT NULL DEFAULT false`,
   `ALTER TABLE contador_registrations ADD COLUMN IF NOT EXISTS password_hash varchar(200) NOT NULL DEFAULT ''`,

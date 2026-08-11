@@ -29,6 +29,7 @@ router.get("/", async (req, res) => {
       role: users.role,
       activo: users.activo,
       permisos_contables: users.permisos_contables,
+      permisos_dian: users.permisos_dian,
       created_at: users.created_at,
     })
     .from(users)
@@ -107,7 +108,7 @@ router.patch("/:id", async (req, res) => {
     return res.status(422).json({ error: "No puedes desactivar tu propia cuenta." });
   }
 
-  const { nombre, role, activo, permisos_contables } = req.body;
+  const { nombre, role, activo, permisos_contables, permisos_dian } = req.body;
 
   if (role !== undefined && !(USER_ROLES as readonly string[]).includes(role)) {
     return res.status(400).json({ error: `Rol inválido. Opciones: ${USER_ROLES.join(", ")}.` });
@@ -117,6 +118,9 @@ router.patch("/:id", async (req, res) => {
   if (permisos_contables === true && rolFinal !== "contador") {
     return res.status(422).json({ error: "Los permisos contables solo aplican al rol Contador." });
   }
+  if (permisos_dian === true && rolFinal !== "contador") {
+    return res.status(422).json({ error: "La autorización DIAN solo aplica al rol Contador." });
+  }
 
   const [actualizado] = await db
     .update(users)
@@ -125,6 +129,7 @@ router.patch("/:id", async (req, res) => {
       ...(role !== undefined && { role }),
       ...(activo !== undefined && { activo }),
       ...(permisos_contables !== undefined && { permisos_contables }),
+      ...(permisos_dian !== undefined && { permisos_dian }),
     })
     .where(eq(users.id, usuario.id))
     .returning();
@@ -278,6 +283,7 @@ router.get("/externos", async (req, res) => {
       user_id: user_accesos.user_id,
       role: user_accesos.role,
       permisos_contables: user_accesos.permisos_contables,
+      permisos_dian: user_accesos.permisos_dian,
       created_at: user_accesos.created_at,
       nombre: users.nombre,
       email: users.email,
@@ -349,11 +355,12 @@ router.post("/vincular-externo", async (req, res) => {
     email: usuarioExterno.email,
     role: nuevo.role,
     permisos_contables: nuevo.permisos_contables,
+    permisos_dian: nuevo.permisos_dian,
     created_at: nuevo.created_at,
   });
 });
 
-// PATCH /api/usuarios/externo/:accesoId — actualiza permisos_contables del acceso externo
+// PATCH /api/usuarios/externo/:accesoId — actualiza autorizaciones del acceso externo
 router.patch("/externo/:accesoId", async (req, res) => {
   const [acceso] = await db
     .select({ id: user_accesos.id, role: user_accesos.role })
@@ -363,19 +370,25 @@ router.patch("/externo/:accesoId", async (req, res) => {
 
   if (!acceso) return res.status(404).json({ error: "Acceso no encontrado." });
 
-  const { permisos_contables } = req.body;
+  const { permisos_contables, permisos_dian } = req.body;
 
   if (permisos_contables === true && acceso.role !== "contador") {
     return res.status(422).json({ error: "Los permisos contables solo aplican al rol Contador." });
   }
+  if (permisos_dian === true && acceso.role !== "contador") {
+    return res.status(422).json({ error: "La autorización DIAN solo aplica al rol Contador." });
+  }
 
   const [actualizado] = await db
     .update(user_accesos)
-    .set({ ...(permisos_contables !== undefined && { permisos_contables }) })
+    .set({
+      ...(permisos_contables !== undefined && { permisos_contables }),
+      ...(permisos_dian !== undefined && { permisos_dian }),
+    })
     .where(eq(user_accesos.id, acceso.id))
     .returning();
 
-  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "acceso_externo.modificado", entidadTipo: "user_acceso", entidadId: acceso.id, detalle: { permisos_contables }, ip: req.ip });
+  void audit({ tenantId: req.tenantId, userId: req.userId, accion: "acceso_externo.modificado", entidadTipo: "user_acceso", entidadId: acceso.id, detalle: { permisos_contables, permisos_dian }, ip: req.ip });
   res.json(actualizado);
 });
 

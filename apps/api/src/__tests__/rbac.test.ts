@@ -26,6 +26,7 @@ function makeReq(role: string, url: string, method = "POST"): Partial<Request> {
     originalUrl: url,
     method,
     userContable: false,
+    userDian: false,
     tenant: {
       activo: true,
       plan_starts_at: new Date("2024-01-01").toISOString(),
@@ -113,9 +114,11 @@ function applyRbacRules(
       (res.status as Mock)(403).json({ error: "El rol Contador solo tiene permisos de lectura.", code: "CONTADOR_READ_ONLY" });
       return;
     }
-    // Con permisos_contables: solo contabilidad y gastos, nunca DELETE
+    // Con permisos contables: solo contabilidad y gastos; el reintento DIAN
+    // requiere una segunda autorización explícita y nunca habilita emisión/cobro.
     const contableOk = method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
-    if (!contableOk) {
+    const reintentoDianAutorizado = req.userDian && method === "POST" && /^\/api\/facturas\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
+    if (!contableOk && !reintentoDianAutorizado) {
       (res.status as Mock)(403).json({ error: "El contador no tiene permisos para modificar este módulo.", code: "CONTADOR_READ_ONLY" });
       return;
     }
@@ -397,6 +400,28 @@ describe("RBAC por rol", () => {
     it("bloquea POST /api/facturas sin permisos_contables → 403", () => {
       const req = makeReq("contador", "/api/facturas", "POST");
       req.userContable = false;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("permite únicamente reintentar DIAN con autorización específica", () => {
+      const req = makeReq("contador", "/api/facturas/abc-123/reenviar-dian", "POST");
+      req.userContable = true;
+      req.userDian = true;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("bloquea reintento DIAN sin autorización específica", () => {
+      const req = makeReq("contador", "/api/facturas/abc-123/reenviar-dian", "POST");
+      req.userContable = true;
+      req.userDian = false;
       const res = makeRes();
       const next = makeNext();
       applyRbacRules(req, res, next);

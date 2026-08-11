@@ -10,6 +10,7 @@ declare global {
       userId: string;
       userRole: string;
       userContable: boolean;
+      userDian: boolean;
       tenant: TenantWithPlan;
     }
   }
@@ -35,6 +36,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     req.userId = payload.sub;
     req.userRole = payload.role;
     req.userContable = payload.permisos_contables ?? false;
+    req.userDian = payload.permisos_dian ?? false;
     req.tenant = await getTenantWithPlan(payload.tenantId);
   } catch {
     return res.status(401).json({ error: "Token inválido o expirado." });
@@ -86,7 +88,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     // DELETE nunca está permitido para el contador
     const url = req.originalUrl;
     const contableOk = req.method !== "DELETE" && CONTABLE_WRITE_OK.some((re) => re.test(url));
-    if (!contableOk) {
+    const reintentoDianAutorizado = req.userDian && req.method === "POST" && /^\/api\/facturas\/[^/]+\/reenviar-dian(?:\?.*)?$/.test(url);
+    if (!contableOk && !reintentoDianAutorizado) {
       return res.status(403).json({
         error: "El contador no tiene permisos para modificar este módulo.",
         code: "CONTADOR_READ_ONLY",

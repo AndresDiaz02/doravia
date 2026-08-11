@@ -20,6 +20,12 @@ function requireOperadorVentas(req: Request, res: Response): boolean {
   return false;
 }
 
+function requireReintentoDian(req: Request, res: Response): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian)) return true;
+  res.status(403).json({ error: "Solo administradores, vendedores o contadores autorizados pueden reintentar el envío DIAN." });
+  return false;
+}
+
 router.get("/", async (req, res) => {
   const page = Math.max(1, Number(req.query.page ?? 1));
   const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50)));
@@ -174,7 +180,7 @@ router.patch("/:id/marcar-pagada", async (req, res) => {
 
 // POST /api/facturas/:id/reenviar-dian — reintenta el envío a Plemsi para facturas con error o pendientes
 router.post("/:id/reenviar-dian", async (req, res) => {
-  if (!requireOperadorVentas(req, res)) return;
+  if (!requireReintentoDian(req, res)) return;
   const [factura] = await db
     .select()
     .from(facturas)

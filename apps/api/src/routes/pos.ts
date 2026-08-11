@@ -1041,7 +1041,7 @@ router.patch("/ventas/:id/anular", async (req, res) => {
   if (venta.estado_dian === "enviado") return res.status(422).json({ error: "Esta venta ya fue enviada a la DIAN y no puede anularse." });
 
   const anuladaAhora = await db.transaction(async (tx) => {
-    // Anulación fiscal — NO revierte inventario (regla de negocio: inventario y documento DIAN son independientes)
+    // La venta anulada revierte los movimientos de inventario generados por esta venta.
     const [ventaAnulada] = await tx
       .update(ventas_pos)
       .set({

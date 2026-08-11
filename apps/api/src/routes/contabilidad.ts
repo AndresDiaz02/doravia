@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos, facturas, ventas_pos, items_venta_pos } from "@workspace/db";
-import { eq, and, gte, lte, isNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, isNotNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
 import { requireAccountingLevel, requireContableOperativo } from "../middleware/require-plan-feature.js";
-import { crearAsientoManual, crearAsientoFactura, crearAsientoVentaPOS } from "../services/contabilidad.service.js";
+import { crearAsientoManual, crearAsientoFactura, crearAsientoVentaPOS, crearAsientoAnulacionVentaPOS } from "../services/contabilidad.service.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
@@ -65,7 +65,24 @@ router.post("/sincronizar-asientos", requireAccountingLevel(1), requireContableO
         errores.push({ factura_id: venta.id, numero: venta.numero, error: err instanceof Error ? err.message : "Error desconocido" });
       }
     }
-    res.json({ encontradas: pendientes.length + ventasPendientes.length, reparadas: reparadas.length, errores });
+    const condicionesAnuladas = [eq(ventas_pos.tenant_id, req.tenantId), eq(ventas_pos.estado, "anulada"), isNotNull(ventas_pos.asiento_id)];
+    if (desde) condicionesAnuladas.push(gte(ventas_pos.created_at, new Date(desde)));
+    if (hasta) {
+      const fin = new Date(hasta);
+      fin.setHours(23, 59, 59, 999);
+      condicionesAnuladas.push(lte(ventas_pos.created_at, fin));
+    }
+    const anulaciones = await db.select().from(ventas_pos).where(and(...condicionesAnuladas)).limit(100);
+    for (const venta of anulaciones) {
+      try {
+        const [impuestosVenta] = await db.select({ impoconsumo: sum(items_venta_pos.impoconsumo_valor) })
+          .from(items_venta_pos).where(eq(items_venta_pos.venta_id, venta.id));
+        await crearAsientoAnulacionVentaPOS(req.tenantId, venta, Number(impuestosVenta?.impoconsumo ?? 0));
+      } catch (err) {
+        errores.push({ factura_id: venta.id, numero: venta.numero, error: err instanceof Error ? err.message : "Error desconocido" });
+      }
+    }
+    res.json({ encontradas: pendientes.length + ventasPendientes.length + anulaciones.length, reparadas: reparadas.length, anulaciones_verificadas: anulaciones.length, errores });
   } catch (err) {
     console.error("Error al sincronizar asientos:", err);
     res.status(500).json({ error: "No fue posible sincronizar los asientos automáticos." });

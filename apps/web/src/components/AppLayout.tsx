@@ -825,7 +825,7 @@ function SoporteChat() {
 
       {/* Panel de chat */}
       {open && (
-        <div className="fixed bottom-20 right-5 z-40 w-80 sm:w-96 rounded-2xl shadow-2xl bg-white border border-gray-200 flex flex-col overflow-hidden"
+        <div className="fixed inset-x-3 bottom-20 z-40 flex w-auto flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:inset-x-auto sm:right-5 sm:w-96"
           style={{ maxHeight: "70vh" }}
         >
           {/* Header */}
@@ -840,13 +840,13 @@ function SoporteChat() {
           </div>
 
           {/* Mensajes */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50 p-3 dark:bg-slate-950/70">
             {mensajes.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                   m.role === "user"
                     ? "bg-action text-white rounded-br-sm"
-                    : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm"
+                    : "border border-gray-200 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-bl-sm"
                 }`}>
                   {m.content}
                 </div>
@@ -854,7 +854,7 @@ function SoporteChat() {
             ))}
             {enviando && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-3 py-2">
+                <div className="rounded-2xl rounded-bl-sm border border-gray-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
                   <span className="flex gap-1">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
@@ -868,14 +868,14 @@ function SoporteChat() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-gray-200 p-2 bg-white flex gap-2">
+          <div className="flex gap-2 border-t border-gray-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
             <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
               placeholder="Escribe tu pregunta..."
-              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action/40"
+              className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-action/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               disabled={enviando}
             />
             <button

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos } from "@workspace/db";
+import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray } from "drizzle-orm";
 import { users } from "@workspace/db";
@@ -321,11 +321,12 @@ router.get("/ventas/:id", async (req, res) => {
     .from(items_venta_pos)
     .where(eq(items_venta_pos.venta_id, venta.id));
 
-  res.json({ ...venta, items });
+  const pagos = await db.select().from(pagos_venta_pos).where(eq(pagos_venta_pos.venta_id, venta.id));
+  res.json({ ...venta, items, pagos });
 });
 
 router.post("/ventas", async (req, res) => {
-  const { turno_id, caja_id, cliente_id, nombre_cliente, metodo_pago, monto_recibido, vuelto, observaciones, items } =
+  const { turno_id, caja_id, cliente_id, nombre_cliente, metodo_pago, monto_recibido, vuelto, observaciones, pagos, items } =
     req.body as {
       turno_id: string;
       caja_id: string;
@@ -334,6 +335,7 @@ router.post("/ventas", async (req, res) => {
       metodo_pago: string;
       monto_recibido?: number;
       vuelto?: number;
+      pagos?: Array<{ metodo_pago: string; monto: number }>;
       observaciones?: string;
       items: Array<{
       producto_id?: string;
@@ -356,6 +358,14 @@ router.post("/ventas", async (req, res) => {
   if (!items?.length) return res.status(400).json({ error: "La venta debe tener al menos un ítem." });
   if (!METODOS_PAGO.includes(metodo_pago as typeof METODOS_PAGO[number])) {
     return res.status(400).json({ error: "Método de pago no válido." });
+  }
+  if (pagos !== undefined) {
+    if (!Array.isArray(pagos) || pagos.length === 0) return res.status(400).json({ error: "pagos debe incluir al menos un método de pago." });
+    for (const pago of pagos) {
+      if (!METODOS_PAGO.includes(pago.metodo_pago as typeof METODOS_PAGO[number]) || !Number.isFinite(pago.monto) || pago.monto <= 0) {
+        return res.status(400).json({ error: "Cada pago debe tener un método válido y un monto mayor que cero." });
+      }
+    }
   }
 
   for (const [i, item] of items.entries()) {
@@ -437,6 +447,12 @@ router.post("/ventas", async (req, res) => {
     const total = productosVenta.reduce((s, i) => s + i.total, 0);
     const descuento_total = productosVenta.reduce((s, i) => s + (i.cantidad * i.precio_unitario * (i.descuento_pct / 100)), 0);
 
+    const pagosFinales = pagos?.map((p) => ({ metodo_pago: p.metodo_pago as typeof METODOS_PAGO[number], monto: p.monto }))
+      ?? [{ metodo_pago: metodo_pago as typeof METODOS_PAGO[number], monto: total }];
+    const totalPagos = pagosFinales.reduce((s, p) => s + p.monto, 0);
+    if (Math.abs(totalPagos - total) > 0.01) throw new Error("La suma de los métodos de pago debe ser igual al total de la venta.");
+    const metodoRegistrado = pagosFinales.length > 1 ? "mixto" : pagosFinales[0].metodo_pago;
+
     const [venta] = await tx
       .insert(ventas_pos)
       .values({
@@ -451,12 +467,14 @@ router.post("/ventas", async (req, res) => {
         descuento_total: String(descuento_total),
         iva_total: String(iva_total),
         total: String(total),
-        metodo_pago: (metodo_pago ?? "efectivo") as "efectivo",
+        metodo_pago: metodoRegistrado,
         monto_recibido: monto_recibido ? String(monto_recibido) : null,
         vuelto: vuelto ? String(vuelto) : null,
         observaciones: observaciones ?? null,
       })
       .returning();
+
+    await tx.insert(pagos_venta_pos).values(pagosFinales.map((p) => ({ venta_id: venta.id, ...p, monto: String(p.monto) })));
 
     await tx.insert(items_venta_pos).values(
       productosVenta.map((i) => ({

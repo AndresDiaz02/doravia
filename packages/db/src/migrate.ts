@@ -59,6 +59,13 @@ const migrations = [
   // Autorización independiente para reintentar documentos ante DIAN.
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos_dian boolean NOT NULL DEFAULT false`,
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_dian boolean NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS pagos_venta_pos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    venta_id uuid NOT NULL REFERENCES ventas_pos(id) ON DELETE CASCADE,
+    metodo_pago varchar(20) NOT NULL,
+    monto numeric(14,2) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   // dark_mode por usuario (preferencia guardada en servidor, no solo en localStorage)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode boolean NOT NULL DEFAULT false`,
   `ALTER TABLE contador_registrations ADD COLUMN IF NOT EXISTS password_hash varchar(200) NOT NULL DEFAULT ''`,

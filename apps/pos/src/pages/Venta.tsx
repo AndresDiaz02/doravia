@@ -166,6 +166,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [showPago, setShowPago] = useState(false);
   const [metodoPago, setMetodoPago] = useState("efectivo");
   const [montoRecibido, setMontoRecibido] = useState("");
+  const [pagosDivididos, setPagosDivididos] = useState<Record<string, string> | null>(null);
   const [observaciones, setObservaciones] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [showFiarForm, setShowFiarForm] = useState(false);
@@ -350,6 +351,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     // El valor recibido solo es necesario cuando se desea calcular vuelto.
     // Sin ese dato, el cobro se registra por el total de la venta.
     setMontoRecibido("");
+    setPagosDivididos(null);
     setShowPago(true);
     setError(null);
   }
@@ -381,6 +383,9 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
         };
       });
 
+      const pagos = pagosDivididos
+        ? METODOS.map((m) => ({ metodo_pago: m.value, monto: pesosAEntero(pagosDivididos[m.value] ?? "") })).filter((p) => p.monto > 0)
+        : undefined;
       const venta = await apiFetch<{ numero: string; total: string }>("/api/pos/ventas", {
         method: "POST",
         headers: { "Idempotency-Key": ventaIdempotencyKeyRef.current ?? crypto.randomUUID() },
@@ -389,7 +394,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
           caja_id: cajaId,
           cliente_id: clienteId ?? undefined,
           nombre_cliente: clienteNombre || undefined,
-          metodo_pago: metodoPago,
+          metodo_pago: pagos?.[0]?.metodo_pago ?? metodoPago,
+          pagos,
           monto_recibido: metodoPago === "efectivo" ? pesosAEntero(montoRecibido) : undefined,
           vuelto: metodoPago === "efectivo" ? vuelto : null,
           observaciones: observaciones.trim() || undefined,
@@ -1040,7 +1046,28 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
               ))}
             </div>
 
-            {metodoPago === "efectivo" && (
+            <button
+              type="button"
+              onClick={() => setPagosDivididos((actual) => actual ? null : { [metodoPago]: String(totalCarrito) })}
+              className="text-xs font-medium text-violet-600 dark:text-violet-300 hover:underline"
+            >
+              {pagosDivididos ? "Usar un solo método" : "Dividir pago entre varios métodos"}
+            </button>
+
+            {pagosDivididos && (() => {
+              const totalDividido = METODOS.reduce((sum, m) => sum + pesosAEntero(pagosDivididos[m.value] ?? ""), 0);
+              const faltante = totalCarrito - totalDividido;
+              return <div className="space-y-2 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-950/30">
+                <p className="text-xs font-semibold text-violet-800 dark:text-violet-200">Distribución del cobro</p>
+                {METODOS.map((m) => <div key={m.value} className="flex items-center gap-2">
+                  <span className="w-24 text-xs text-gray-600 dark:text-slate-300">{m.label}</span>
+                  <input inputMode="numeric" value={pagosDivididos[m.value] ?? ""} onChange={(e) => setPagosDivididos({ ...pagosDivididos, [m.value]: formatearPesos(e.target.value) })} placeholder="$ 0" className="min-w-0 flex-1 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-right text-sm font-medium text-gray-900 dark:border-violet-700 dark:bg-slate-900 dark:text-white" />
+                </div>)}
+                <p className={cn("text-xs font-medium", faltante === 0 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")}>{faltante === 0 ? "Pago distribuido correctamente" : `Faltan ${cop(Math.abs(faltante))} por asignar`}</p>
+              </div>;
+            })()}
+
+            {!pagosDivididos && metodoPago === "efectivo" && (
               <div className="space-y-1.5">
                 <label className="text-xs text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wide">Recibido (opcional)</label>
                 <input
@@ -1093,7 +1120,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
             <button
               onClick={() => void procesarVenta()}
-              disabled={procesando || (metodoPago === "efectivo" && montoRecibido !== "" && pesosAEntero(montoRecibido) < totalCarrito)}
+              disabled={procesando || (metodoPago === "efectivo" && montoRecibido !== "" && pesosAEntero(montoRecibido) < totalCarrito) || (pagosDivididos !== null && METODOS.reduce((sum, m) => sum + pesosAEntero(pagosDivididos[m.value] ?? ""), 0) !== totalCarrito)}
               className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 py-4 text-lg font-bold text-white transition-colors"
             >
               {procesando ? "Procesando..." : "Confirmar venta"}

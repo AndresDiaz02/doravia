@@ -117,6 +117,16 @@ export type TurnoPOS = typeof turnos_pos.$inferSelect;
 export type VentaPOS = typeof ventas_pos.$inferSelect;
 export type ItemVentaPOS = typeof items_venta_pos.$inferSelect;
 
+// Desglose verificable de cobro. Una venta puede tener efectivo + tarjeta, por ejemplo.
+export const pagos_venta_pos = pgTable("pagos_venta_pos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  venta_id: uuid("venta_id").notNull().references(() => ventas_pos.id, { onDelete: "cascade" }),
+  metodo_pago: varchar("metodo_pago", { length: 20 }).$type<MetodoPagoPOS>().notNull(),
+  monto: numeric("monto", { precision: 14, scale: 2 }).notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type PagoVentaPOS = typeof pagos_venta_pos.$inferSelect;
+
 // ── Fiados (crédito informal en POS) ─────────────────────────────────────────
 
 export const ESTADOS_FIADO = ["pendiente", "pagado", "vencido"] as const;

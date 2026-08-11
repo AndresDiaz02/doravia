@@ -934,7 +934,19 @@ router.post("/fiados", async (req, res) => {
   if (!nombre_cliente) return res.status(400).json({ error: "Campo requerido: nombre_cliente." });
   if (!items?.length)  return res.status(400).json({ error: "El fiado debe tener al menos un ítem." });
 
-  const monto_total = items.reduce((s, i) => s + i.total, 0);
+  for (const [index, item] of items.entries()) {
+    if (!item.descripcion?.trim() || !Number.isFinite(item.cantidad) || item.cantidad <= 0 || !Number.isFinite(item.precio_unitario) || item.precio_unitario < 0) {
+      return res.status(400).json({ error: `El ítem ${index + 1} debe tener descripción, cantidad y precio válidos.` });
+    }
+  }
+
+  // El total nunca se acepta desde el navegador: se deriva de cantidad × precio.
+  const itemsNormalizados = items.map((item) => ({
+    ...item,
+    descripcion: item.descripcion.trim(),
+    total: Number((item.cantidad * item.precio_unitario).toFixed(2)),
+  }));
+  const monto_total = itemsNormalizados.reduce((s, i) => s + i.total, 0);
 
   const [fiado] = await db.insert(fiados).values({
     tenant_id: req.tenantId,
@@ -948,7 +960,7 @@ router.post("/fiados", async (req, res) => {
   }).returning();
 
   await db.insert(items_fiado).values(
-    items.map((i) => ({
+    itemsNormalizados.map((i) => ({
       fiado_id: fiado.id,
       producto_id: i.producto_id ?? null,
       descripcion: i.descripcion,
@@ -959,7 +971,7 @@ router.post("/fiados", async (req, res) => {
   );
 
   // Descontar inventario para ítems con producto_id (misma lógica que ventas POS)
-  const itemsConProducto = items.filter((i) => i.producto_id);
+  const itemsConProducto = itemsNormalizados.filter((i) => i.producto_id);
   if (itemsConProducto.length > 0) {
     const [bodega] = await db
       .select({ id: bodegas.id })
@@ -994,7 +1006,10 @@ router.post("/fiados", async (req, res) => {
 
 router.post("/fiados/:id/abonos", async (req, res) => {
   const { monto, metodo_pago, notas } = req.body as { monto: number; metodo_pago?: string; notas?: string };
-  if (!monto || monto <= 0) return res.status(400).json({ error: "Monto inválido." });
+  if (!Number.isFinite(monto) || monto <= 0) return res.status(400).json({ error: "Monto inválido." });
+  if (metodo_pago !== undefined && !METODOS_PAGO.includes(metodo_pago as typeof METODOS_PAGO[number])) {
+    return res.status(400).json({ error: "Método de pago no válido." });
+  }
 
   const [fiado] = await db
     .select()

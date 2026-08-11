@@ -42,8 +42,9 @@ async function activarPlan(tenantId: string, planSlug: string): Promise<void> {
 
   if (plan.product === "nomina") {
     await activarSuscripcionProducto(tenantId, planSlug);
-    // El producto continúa en preparación: nunca debe reemplazar el ERP por error.
-    console.warn(`[Bold] Nómina no activada: integración aún no disponible (${planSlug}).`);
+    // La emisión electrónica continúa protegida por NOMINA_MODO; esta acción
+    // únicamente activa el producto y su cupo de documentos.
+    console.log(`[Bold] Nómina activada en modo controlado (${planSlug}) para tenant ${tenantId}`);
     return;
   }
 

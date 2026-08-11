@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { db, notification_queue, notifications } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { NOTIFICATION_TEMPLATES, type TemplateKey } from "./notification-templates.js";
 
 // Zona horaria Bogotá para ventana activa
@@ -105,7 +105,9 @@ export async function enqueueNotification(opts: {
           ref_id: opts.ref_id,
           fecha_local,
           channel,
+          status: channel === "in_app" ? "sent" : "pending",
           scheduled_at,
+          sent_at: channel === "in_app" ? now : null,
           payload: opts.payload ?? {},
         })
         .onConflictDoNothing();
@@ -158,7 +160,9 @@ export async function enqueueR7Alert(opts: {
           ref_id: opts.ref_id,
           fecha_local,
           channel,
+          status: channel === "in_app" ? "sent" : "pending",
           scheduled_at,
+          sent_at: channel === "in_app" ? now : null,
           payload: opts.payload ?? {},
         })
         .onConflictDoNothing();
@@ -190,7 +194,7 @@ export async function getInAppNotifications(
   limit = 30,
 ): Promise<typeof notifications.$inferSelect[]> {
   const filters = userId
-    ? and(eq(notifications.tenant_id, tenantId), eq(notifications.user_id, userId))
+    ? and(eq(notifications.tenant_id, tenantId), or(isNull(notifications.user_id), eq(notifications.user_id, userId)))
     : eq(notifications.tenant_id, tenantId);
 
   return db

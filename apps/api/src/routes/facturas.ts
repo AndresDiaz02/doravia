@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { db, facturas, items_factura, clientes, retenciones_factura, resoluciones_dian } from "@workspace/db";
 import { eq, and, desc, gte, lte, ilike, or, SQL, sql } from "drizzle-orm";
 import { crearFactura, enviarAPlemsiSiAplica } from "../services/factura.service.js";
@@ -13,6 +13,12 @@ import { enviarFacturaAceptada } from "../services/email.service.js";
 import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 
 const router = Router();
+
+function requireOperadorVentas(req: Request, res: Response): boolean {
+  if (req.userRole === "admin" || req.userRole === "vendedor") return true;
+  res.status(403).json({ error: "Solo administradores o vendedores pueden operar facturas." });
+  return false;
+}
 
 router.get("/", async (req, res) => {
   const page = Math.max(1, Number(req.query.page ?? 1));
@@ -75,6 +81,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/facturas/:id/reenviar — reintenta el envío a la DIAN para facturas en borrador
 router.post("/:id/reenviar", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   const [factura] = await db
     .select()
     .from(facturas)
@@ -140,6 +147,7 @@ router.post("/:id/reenviar", async (req, res) => {
 
 // PATCH /api/facturas/:id/marcar-pagada
 router.patch("/:id/marcar-pagada", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   const [factura] = await db
     .select()
     .from(facturas)
@@ -166,6 +174,7 @@ router.patch("/:id/marcar-pagada", async (req, res) => {
 
 // POST /api/facturas/:id/reenviar-dian — reintenta el envío a Plemsi para facturas con error o pendientes
 router.post("/:id/reenviar-dian", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   const [factura] = await db
     .select()
     .from(facturas)
@@ -229,6 +238,7 @@ router.post("/:id/reenviar-dian", async (req, res) => {
 
 // POST /api/facturas/:id/enviar-email — reenvía la factura por correo al cliente
 router.post("/:id/enviar-email", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   const [row] = await db
     .select({ factura: facturas, cliente: clientes })
     .from(facturas)
@@ -355,6 +365,7 @@ router.post("/:id/whatsapp-link", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
+  if (!requireOperadorVentas(req, res)) return;
   const { cliente_id, items, fecha, fecha_vencimiento, observaciones, bodega_id } = req.body;
 
   if (!cliente_id || !Array.isArray(items) || items.length === 0) {
@@ -388,6 +399,7 @@ router.post("/", async (req, res) => {
 // POST /api/facturas/sync-cude-plemsi — consulta Plemsi y actualiza CUDEs reales en BD
 // Solo actualiza facturas con CUFE stub (emitidas en modo habilitación sin guardar CUDE)
 router.post("/sync-cude-plemsi", async (req, res) => {
+  if (req.userRole !== "admin") return res.status(403).json({ error: "Solo administradores pueden sincronizar documentos con PLEMSI." });
   let plemsiCreds: { apiKey: string; ambiente: string };
   try {
     plemsiCreds = await getPlemsiCredentials(req.tenantId);

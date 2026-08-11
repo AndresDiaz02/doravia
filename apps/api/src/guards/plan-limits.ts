@@ -3,6 +3,22 @@ import { eq, and, count, gte, lt } from "drizzle-orm";
 import { PlanLimitError } from "@workspace/shared";
 import type { TenantWithPlan } from "../lib/tenant.js";
 
+type FacturacionSubscription = {
+  status: string;
+  ends_at: Date | string;
+};
+
+export function suscripcionFacturacionVigente(
+  subscription: FacturacionSubscription | undefined,
+  now = new Date(),
+): boolean {
+  return Boolean(
+    subscription &&
+    subscription.status === "active" &&
+    new Date(subscription.ends_at) >= now,
+  );
+}
+
 export async function assertCanUseIA(tenant: TenantWithPlan): Promise<void> {
   const { max_ia_docs_mes } = tenant.plan;
   if (max_ia_docs_mes === null) return; // ilimitado (Cosecha)
@@ -91,7 +107,24 @@ export async function assertCanAddBodega(tenant: TenantWithPlan): Promise<void> 
 export async function assertCanEmitirFactura(tenant: TenantWithPlan): Promise<void> {
   // En una cuenta POS, el cupo fiscal viene de su suscripción independiente de FE.
   let planFacturacion = tenant.plan;
-  if (tenant.plan.product === "pos") {
+  const [suscripcionIndependiente] = await db
+    .select({ plan: plans, status: product_subscriptions.status, ends_at: product_subscriptions.ends_at })
+    .from(product_subscriptions)
+    .innerJoin(plans, eq(product_subscriptions.plan_id, plans.id))
+    .where(and(
+      eq(product_subscriptions.tenant_id, tenant.id),
+      eq(product_subscriptions.product, "facturacion"),
+    ))
+    .limit(1);
+
+  if (suscripcionIndependiente) {
+    if (!suscripcionFacturacionVigente(suscripcionIndependiente)) {
+      throw new PlanLimitError("Tu suscripcion de Facturacion Electronica no esta activa. Renuevala para emitir documentos.");
+    }
+    planFacturacion = suscripcionIndependiente.plan;
+  }
+
+  if (tenant.plan.product === "pos" && !suscripcionIndependiente) {
     const [suscripcion] = await db
       .select({ plan: plans })
       .from(product_subscriptions)

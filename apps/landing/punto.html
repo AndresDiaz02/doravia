@@ -173,7 +173,7 @@
       <div class="browser-frame">
         <div class="browser-chrome">
           <div class="browser-dots"><span class="browser-dot browser-dot-r"></span><span class="browser-dot browser-dot-y"></span><span class="browser-dot browser-dot-g"></span></div>
-          <div class="browser-url" id="pos-url">app.doraviasoft.com/pos/cajeros</div>
+          <div class="browser-url" id="pos-url">pos.doraviasoft.com</div>
         </div>
         <div class="browser-body">
           <div class="preview-panel active" id="panel-pos-cajero">
@@ -239,7 +239,7 @@
   const nav=document.querySelector('nav');
   if(toggle){toggle.addEventListener('click',()=>{const v=nav.style.display==='flex';nav.style.display=v?'none':'flex';nav.style.cssText=v?'':'display:flex;flex-direction:column;position:fixed;top:62px;left:0;right:0;background:rgba(250,246,238,0.97);padding:24px 32px;gap:18px;box-shadow:0 12px 24px rgba(26,34,56,0.08);z-index:99;';});}
   document.querySelectorAll('.faq-question').forEach(q=>{q.addEventListener('click',()=>{const item=q.closest('.faq-item');const was=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!was)item.classList.add('open');});});
-  const URLS_P={'pos-cajero':'app.doraviasoft.com/pos/cajeros','pos-productos':'app.doraviasoft.com/productos','pos-dashboard':'app.doraviasoft.com/dashboard'};
+  const URLS_P={'pos-cajero':'pos.doraviasoft.com','pos-productos':'app.doraviasoft.com/productos','pos-dashboard':'pos.doraviasoft.com'};
   function mostrarPanel(btn,id){const wrap=btn.closest('.preview-section');wrap.querySelectorAll('.preview-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');wrap.querySelectorAll('.preview-panel').forEach(p=>p.classList.remove('active'));const panel=document.getElementById('panel-'+id);if(panel)panel.classList.add('active');const urlEl=document.getElementById('pos-url');if(urlEl&&URLS_P[id])urlEl.textContent=URLS_P[id];}
 </script>
 </body>

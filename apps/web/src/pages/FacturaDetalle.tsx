@@ -88,7 +88,7 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 export function FacturaDetalle() {
-  const { isContador } = useAuth();
+  const { isContador, user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [factura, setFactura] = useState<Factura | null>(null);
@@ -409,7 +409,7 @@ export function FacturaDetalle() {
               {reenviando ? "Enviando..." : "Reenviar a DIAN"}
             </Button>
           )}
-          {!isContador && (factura.estado_dian === "error" || factura.estado_dian === "pendiente") && (
+          {(!isContador || user?.permisos_dian) && (factura.estado_dian === "error" || factura.estado_dian === "pendiente") && (
             <Button variant="secondary" onClick={() => void handleReenviarDian()} disabled={reenviandoDian}>
               <RefreshCw className={`h-4 w-4 ${reenviandoDian ? "animate-spin" : ""}`} />
               {reenviandoDian ? "Enviando..." : "Reenviar a DIAN (Plemsi)"}

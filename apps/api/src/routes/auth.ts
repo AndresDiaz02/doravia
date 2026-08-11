@@ -399,6 +399,9 @@ router.get("/me", authenticate, async (req, res) => {
     user: {
       ...user,
       role: req.userRole,
+      // El permiso viene del acceso activo (usuario propio o acceso externo),
+      // por eso se toma del token autenticado y no del registro base del usuario.
+      permisos_dian: req.userDian,
       is_fundador: fundadorList.includes(user.email.toLowerCase()),
       is_contador_registrado: Boolean(registroContador),
     },

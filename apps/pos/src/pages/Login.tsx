@@ -1,14 +1,34 @@
 import { useState, type FormEvent } from "react";
-import { useAuth } from "../lib/auth";
 import { ApiError, apiFetch } from "../lib/api";
 
+interface EmpresaOpcion {
+  tenant_id: string;
+  tenant_nombre: string;
+  nit: string;
+  role: string;
+}
+
+interface LoginSingleResponse { accessToken: string; }
+interface LoginMultiResponse {
+  requiresEmpresaSelect: true;
+  selectionToken: string;
+  empresas: EmpresaOpcion[];
+}
+type LoginResponse = LoginSingleResponse | LoginMultiResponse;
+
 export default function Login() {
-  const { login } = useAuth();
   // Campo unificado: acepta usuario corto o correo electrónico
   const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
+  const [selectionToken, setSelectionToken] = useState("");
+
+  function completarLogin(accessToken: string) {
+    localStorage.setItem("pos_token", accessToken);
+    window.location.reload();
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -16,24 +36,57 @@ export default function Login() {
     setError(null);
     try {
       const valor = identificador.trim();
-      // Si contiene "@" se trata como correo; de lo contrario como usuario_pos
-      if (valor.includes("@")) {
-        await login(valor, password);
+      const data = await apiFetch<LoginResponse>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(valor.includes("@") ? { email: valor, password } : { usuario: valor, password }),
+      });
+      if ("requiresEmpresaSelect" in data) {
+        setEmpresas(data.empresas);
+        setSelectionToken(data.selectionToken);
       } else {
-        // Enviar como usuario POS directamente a la API
-        const data = await apiFetch<{ accessToken: string; user: { id: string; nombre: string; email: string; role: string }; tenant: { id: string; nombre: string; nit: string }; plan: { slug: string } }>("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ usuario: valor, password }),
-        });
-        // Guardar token y recargar para que el contexto de auth detecte el nuevo token
-        localStorage.setItem("pos_token", data.accessToken);
-        window.location.reload();
+        completarLogin(data.accessToken);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleElegirEmpresa(tenantId: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetch<LoginSingleResponse>("/api/auth/select-empresa", {
+        method: "POST",
+        body: JSON.stringify({ selectionToken, tenantId }),
+      });
+      completarLogin(data.accessToken);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo abrir la empresa seleccionada.");
+      if (err instanceof ApiError && err.status === 401) {
+        setEmpresas([]);
+        setSelectionToken("");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (empresas.length > 0) {
+    return <div className="min-h-screen bg-gray-50 dark:bg-[#0B0E1A] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center"><p className="text-2xl font-bold text-gray-900 dark:text-white">Doravia POS</p><p className="mt-1 text-sm text-gray-400 dark:text-slate-500">Selecciona la empresa donde vas a vender</p></div>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          {empresas.map((empresa) => <button key={empresa.tenant_id} type="button" disabled={loading} onClick={() => void handleElegirEmpresa(empresa.tenant_id)} className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-4 text-left last:border-0 hover:bg-violet-50 disabled:opacity-50 dark:border-slate-800 dark:hover:bg-slate-800">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-sm font-black text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">D</span>
+            <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-gray-900 dark:text-white">{empresa.tenant_nombre}</span><span className="block text-xs text-gray-400 dark:text-slate-500">NIT {empresa.nit} · {empresa.role}</span></span>
+          </button>)}
+        </div>
+        {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800/50 dark:bg-red-950/60 dark:text-red-400">{error}</p>}
+        <button type="button" onClick={() => { setEmpresas([]); setSelectionToken(""); setError(null); }} className="w-full text-sm text-gray-400 hover:text-gray-700 dark:hover:text-slate-300">← Volver</button>
+      </div>
+    </div>;
   }
 
   return (

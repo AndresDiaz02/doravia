@@ -16,10 +16,15 @@ declare global {
   }
 }
 
-// Paths donde el contador con permisos_contables puede escribir (PATCH/POST)
+// Rutas financieras donde el contador con permisos contables puede trabajar.
+// Nunca habilita nómina, facturación comercial, usuarios o configuración de empresa.
 const CONTABLE_WRITE_OK: RegExp[] = [
   /^\/api\/contabilidad(\/|$)/,
-  /^\/api\/gastos\//,
+  /^\/api\/gastos(\/|$)/,
+  /^\/api\/conciliacion(\/|$)/,
+  /^\/api\/retenciones(\/|$)/,
+  /^\/api\/activos-fijos(\/|$)/,
+  /^\/api\/documentos-soporte(\/|$)/,
 ];
 
 export async function authenticate(req: Request, res: Response, next: NextFunction) {

@@ -93,7 +93,11 @@ const BLOQUEADO_OPERARIO = [
 
 const CONTABLE_WRITE_OK = [
   /^\/api\/contabilidad(\/|$)/,
-  /^\/api\/gastos\//,
+  /^\/api\/gastos(\/|$)/,
+  /^\/api\/conciliacion(\/|$)/,
+  /^\/api\/retenciones(\/|$)/,
+  /^\/api\/activos-fijos(\/|$)/,
+  /^\/api\/documentos-soporte(\/|$)/,
 ];
 
 function applyRbacRules(
@@ -427,6 +431,26 @@ describe("RBAC por rol", () => {
       applyRbacRules(req, res, next);
       expect(res.status).toHaveBeenCalledWith(403);
       expect(next).not.toHaveBeenCalled();
+    });
+
+    it("permite trabajar conciliación al contador con permiso contable", () => {
+      const req = makeReq("contador", "/api/conciliacion/abc/match", "POST");
+      req.userContable = true;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("permite registrar activos fijos al contador con permiso contable", () => {
+      const req = makeReq("contador", "/api/activos-fijos", "POST");
+      req.userContable = true;
+      const res = makeRes();
+      const next = makeNext();
+      applyRbacRules(req, res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
     });
 
     it("bloquea PATCH /api/clientes/:id sin permisos_contables → 403", () => {

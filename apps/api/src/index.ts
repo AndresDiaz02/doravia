@@ -195,10 +195,10 @@ app.use("/api/propuestas", salesPropuestasRouter);
 // ── Fase 1 — Semilla (todos los planes) ─────────────────────────────────────
 app.use(writeRateLimit);
 app.use("/api/clientes",           authenticate, clientesRouter);
-app.use("/api/facturas",           authenticate, facturasRouter);
+app.use("/api/facturas",           authenticate, requireProductoActivo("facturacion", "facturacion_ilimitada"), facturasRouter);
 app.use("/api/contabilidad",       authenticate, contabilidadRouter);
 app.use("/api/reportes",           authenticate, reportesRouter);
-app.use("/api/resoluciones-dian",  authenticate, resolucionesDianRouter);
+app.use("/api/resoluciones-dian",  authenticate, requireProductoActivo("facturacion", "facturacion_ilimitada"), resolucionesDianRouter);
 app.use("/api/productos",          authenticate, productosRouter);
 app.use("/api/usuarios",           authenticate, usuariosRouter);
 
@@ -219,8 +219,8 @@ app.use("/api/pagos",              pagosRouter);            // Wompi/otros
 
 // ── Fase 4 — Cosecha ────────────────────────────────────────────────────────
 app.use("/api/retenciones",    authenticate, retencionesRouter);
-app.use("/api/notas-credito",  authenticate, notasCreditoRouter);
-app.use("/api/notas-debito",   authenticate, notasDebitoRouter);
+app.use("/api/notas-credito",  authenticate, requireProductoActivo("facturacion", "facturacion_ilimitada"), notasCreditoRouter);
+app.use("/api/notas-debito",   authenticate, requireProductoActivo("facturacion", "facturacion_ilimitada"), notasDebitoRouter);
 app.use("/api/exportar",       authenticate, exportarRouter);
 app.use("/api/empresa",        authenticate, empresaRouter);
 app.use("/api/centros-costos", authenticate, requirePlanFeature("centros_costos"),  centrosCostosRouter);

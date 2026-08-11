@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle, Scale, Wifi, WifiOff, Star } from "lucide-react";
+import { Search, X, Plus, Minus, Trash2, Pause, Clock, Package, User, Percent, Printer, MessageCircle, Scale, Wifi, WifiOff, Star, Banknote, CreditCard, Landmark, Smartphone } from "lucide-react";
 import { TutorialOverlay } from "../components/TutorialOverlay";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { cn } from "../lib/cn";
@@ -61,6 +61,14 @@ const METODOS = [
   { value: "nequi",         label: "Nequi" },
   { value: "daviplata",     label: "Daviplata" },
 ];
+
+const ICONOS_METODO: Record<string, typeof Banknote> = {
+  efectivo: Banknote,
+  tarjeta: CreditCard,
+  transferencia: Landmark,
+  nequi: Smartphone,
+  daviplata: Smartphone,
+};
 
 /** El efectivo se captura como pesos COP enteros y se muestra con miles. */
 function formatearPesos(valor: string) {
@@ -1067,23 +1075,27 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 
             {/* Método de pago */}
             <div className="grid grid-cols-3 gap-2">
-              {METODOS.map((m) => (
+              {METODOS.map((m) => {
+                const Icono = ICONOS_METODO[m.value] ?? Banknote;
+                return (
                 <button
                   key={m.value}
                   onClick={() => {
                     setMetodoPago(m.value);
                     setMontoRecibido("");
                   }}
+                  aria-pressed={metodoPago === m.value}
                   className={cn(
-                    "rounded-xl py-2.5 text-sm font-medium border transition-all",
+                    "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border py-2 text-sm font-semibold transition-all",
                     metodoPago === m.value
                       ? "border-violet-500 bg-violet-50 dark:bg-violet-900/50 text-violet-700 shadow-sm shadow-violet-500/10 dark:text-violet-300"
                       : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300"
                   )}
                 >
+                  <Icono className="h-4 w-4" />
                   {m.label}
                 </button>
-              ))}
+              ); })}
             </div>
 
             <button

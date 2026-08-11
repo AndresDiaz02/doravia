@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mantiene los controles nativos, barras de desplazamiento y formularios en el
+   mismo tema que eligió el cajero. Evita pantallas claras dentro de un POS oscuro. */
+.pos-app { color-scheme: light; }
+.dark .pos-app { color-scheme: dark; }
+.dark .pos-app ::selection { background: rgb(124 58 237 / 0.55); color: white; }
+
 /* Las pantallas históricas de POS usan utilidades claras. Este alcance permite
    que Cartera respete el tema activo sin alterar sus estados funcionales. */
 .dark .pos-cartera .bg-white { background-color: rgb(15 23 42); }

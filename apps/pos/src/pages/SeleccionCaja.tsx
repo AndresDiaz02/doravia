@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Monitor, Plus } from "lucide-react";
+import { Monitor, Moon, Plus, Sun } from "lucide-react";
 import { apiFetch, ApiError, cop } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -26,6 +26,8 @@ interface Bodega { id: string; nombre: string; }
 
 interface Props {
   onTurnoAbierto: (turnoId: string, cajaId: string, cajaNombre: string, cajaConfig: CajaConfig | null) => void;
+  dark: boolean;
+  onToggleTheme: () => void;
 }
 
 /** Pesos colombianos no usan centavos en caja; se muestran con miles (100.000). */
@@ -39,7 +41,7 @@ function pesosAEntero(valor: string) {
   return Number(valor.replace(/\D/g, "")) || 0;
 }
 
-export default function SeleccionCaja({ onTurnoAbierto }: Props) {
+export default function SeleccionCaja({ onTurnoAbierto, dark, onToggleTheme }: Props) {
   const { user, logout } = useAuth();
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [turnosActivos, setTurnosActivos] = useState<Record<string, TurnoActivo>>({});
@@ -117,9 +119,20 @@ export default function SeleccionCaja({ onTurnoAbierto }: Props) {
               <p className="text-xs text-gray-400 dark:text-slate-500">{user?.tenantNombre} · {user?.nombre}</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              title={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 px-2.5 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-700 dark:hover:text-violet-300"
+            >
+              {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{dark ? "Claro" : "Oscuro"}</span>
+            </button>
           <button onClick={logout} className="text-xs text-gray-400 dark:text-slate-600 hover:text-gray-700 dark:hover:text-slate-300 transition-colors">
             Cerrar sesión
           </button>
+          </div>
         </div>
 
         {loading ? (

@@ -104,6 +104,8 @@ function AppInner() {
   if (!turno) {
     return (
       <SeleccionCaja
+        dark={dark}
+        onToggleTheme={toggleTheme}
         onTurnoAbierto={(turnoId, cajaId, cajaNombre, cajaConfig) => {
           setTurno({ turnoId, cajaId, cajaNombre, cajaConfig });
           setVista("venta");
@@ -126,7 +128,7 @@ function AppInner() {
   ];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-100 dark:bg-[#080b16]">
+    <div className="pos-app h-screen flex flex-col overflow-hidden bg-slate-100 dark:bg-[#080b16]">
       <nav className="relative z-30 h-16 flex-shrink-0 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-3 shadow-[0_4px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-5 dark:border-slate-800 dark:bg-[#0b1020]/95 dark:shadow-black/20 flex items-center gap-1">
         <div className="flex items-center gap-2 mr-2 sm:mr-4 flex-shrink-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-violet-500 to-blue-500 shadow-lg shadow-violet-500/25 ring-2 ring-violet-100 dark:ring-violet-950/70">

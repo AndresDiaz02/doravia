@@ -496,7 +496,7 @@ router.get("/contadores", async (_req, res, next) => {
     const usersRows = await db
       .select({ id: users.id, nombre: users.nombre, email: users.email })
       .from(users)
-      .where(sql`${users.id} = ANY(ARRAY[${sql.raw(userIds.map((id) => `'${id}'`).join(","))}]::uuid[])`);
+      .where(inArray(users.id, userIds));
 
     const comisiones = await db
       .select({ contador_user_id: comisiones_contador.contador_user_id, pagada: comisiones_contador.pagada, valor: comisiones_contador.valor_cop })

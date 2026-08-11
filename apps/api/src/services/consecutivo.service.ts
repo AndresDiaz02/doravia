@@ -1,6 +1,21 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
+const TABLAS_CON_CONSECUTIVO = new Set([
+  "cotizaciones",
+  "documentos_soporte",
+  "notas_credito",
+  "notas_debito",
+  "remisiones",
+  "ventas_pos",
+]);
+
+export function validarConfiguracionConsecutivo(tabla: string, campo: string) {
+  if (!TABLAS_CON_CONSECUTIVO.has(tabla) || campo !== "consecutivo") {
+    throw new Error("Configuración de consecutivo no permitida.");
+  }
+}
+
 /**
  * Obtiene el siguiente consecutivo para una entidad del tenant,
  * usando una transacción con bloqueo (pg_advisory_xact_lock) para evitar
@@ -20,6 +35,8 @@ export async function siguienteConsecutivo(
   campoConsecutivo: string,
   tenantId: string,
 ): Promise<number> {
+  validarConfiguracionConsecutivo(tabla, campoConsecutivo);
+
   const resultado = await db.transaction(async (tx) => {
     // Adquiere un advisory lock exclusivo a nivel de transacción.
     // hashtext() produce un int4 estable para el par (tabla, tenantId).
@@ -30,13 +47,13 @@ export async function siguienteConsecutivo(
 
     // Ahora leemos el máximo con seguridad: ningún otro proceso puede
     // entrar aquí con el mismo (tabla, tenant) hasta que terminemos.
-    const rows = await tx.execute(
-      sql.raw(`
-        SELECT COALESCE(MAX(${campoConsecutivo}), 0) + 1 AS siguiente
-        FROM ${tabla}
-        WHERE tenant_id = '${tenantId}'
-      `),
-    );
+    // Tabla y columna se validan contra una lista cerrada; el tenant se envía
+    // como parámetro para que nunca forme parte del texto SQL.
+    const rows = await tx.execute(sql`
+      SELECT COALESCE(MAX(${sql.raw(campoConsecutivo)}), 0) + 1 AS siguiente
+      FROM ${sql.raw(tabla)}
+      WHERE tenant_id = ${tenantId}::uuid
+    `);
 
     // postgres-js driver devuelve un array directamente (no { rows: [] })
     const arr = rows as unknown as Array<{ siguiente: number | string }>;

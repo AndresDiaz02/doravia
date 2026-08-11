@@ -209,19 +209,24 @@ router.post("/:id/reenviar-dian", async (req, res) => {
 
   try {
     const resultado = await enviarAPlemsiSiAplica(req.tenant, factura, cliente, itemsDB, resolucion);
-    if (resultado.ok && factura.estado !== "aceptada") {
+    if (resultado.ok) {
       let asientoId = factura.asiento_id;
-      if (!asientoId) {
-        try {
-          asientoId = await crearAsientoFactura(req.tenantId, factura);
-        } catch (error) {
-          console.error(`[CONTABILIDAD] Asiento reintento DIAN factura ${factura.numero} fallido:`, error);
+      // Una factura aceptada puede necesitar recuperar solo la confirmación
+      // DIAN. El asiento e inventario se crean una única vez, pero el estado
+      // fiscal siempre se actualiza con la respuesta exitosa de Plemsi.
+      if (factura.estado !== "aceptada") {
+        if (!asientoId) {
+          try {
+            asientoId = await crearAsientoFactura(req.tenantId, factura);
+          } catch (error) {
+            console.error(`[CONTABILIDAD] Asiento reintento DIAN factura ${factura.numero} fallido:`, error);
+          }
         }
-      }
 
-      const features = req.tenant.plan.features as Record<string, boolean>;
-      if (features.inventario) {
-        await registrarSalidaFactura(req.tenantId, factura, itemsDB, factura.bodega_id);
+        const features = req.tenant.plan.features as Record<string, boolean>;
+        if (features.inventario) {
+          await registrarSalidaFactura(req.tenantId, factura, itemsDB, factura.bodega_id);
+        }
       }
 
       await db.update(facturas).set({

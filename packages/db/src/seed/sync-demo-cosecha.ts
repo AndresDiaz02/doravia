@@ -1,12 +1,12 @@
 /** Actualiza la empresa de revisión del contador al plan ERP máximo. */
 import { and, eq } from "drizzle-orm";
-import { db, plans, product_subscriptions, tenants } from "../index.js";
+import { db, plans, pool_documentos_nomina_tenant, product_subscriptions, tenants } from "../index.js";
 
 const DEMO_NIT = "901234570";
 
 async function syncDemoCosecha() {
   const planSlugs = ["cosecha", "punto_plus", "origen_300", "nomina_pro"] as const;
-  const foundPlans = await db.select({ id: plans.id, slug: plans.slug }).from(plans);
+  const foundPlans = await db.select({ id: plans.id, slug: plans.slug, document_limit: plans.document_limit }).from(plans);
   const planBySlug = new Map(foundPlans.map((plan) => [plan.slug, plan]));
   const missing = planSlugs.filter((slug) => !planBySlug.has(slug));
   if (missing.length) throw new Error(`Faltan planes: ${missing.join(", ")}. Ejecuta primero el seed de planes.`);
@@ -46,6 +46,24 @@ async function syncDemoCosecha() {
       set: { plan_id: planBySlug.get(slug)!.id, status: "active", starts_at: startsAt, ends_at: endsAt, updated_at: new Date() },
     });
   }
+
+  const documentosIncluidos = planBySlug.get("nomina_pro")!.document_limit ?? 999_999;
+  await db.insert(pool_documentos_nomina_tenant).values({
+    tenant_id: tenant.id,
+    plan_slug: "nomina_pro",
+    documentos_incluidos: documentosIncluidos,
+    fecha_renovacion: "2027-12-31",
+    limite_acumulacion: documentosIncluidos * 2,
+  }).onConflictDoUpdate({
+    target: pool_documentos_nomina_tenant.tenant_id,
+    set: {
+      plan_slug: "nomina_pro",
+      documentos_incluidos: documentosIncluidos,
+      fecha_renovacion: "2027-12-31",
+      limite_acumulacion: documentosIncluidos * 2,
+      updated_at: new Date(),
+    },
+  });
 
   const subscriptions = await db
     .select({ product: product_subscriptions.product, slug: plans.slug, status: product_subscriptions.status })

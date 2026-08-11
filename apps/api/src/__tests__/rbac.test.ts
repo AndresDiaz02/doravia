@@ -17,6 +17,7 @@
 
 import { describe, it, expect, vi, type Mock } from "vitest";
 import type { Request, Response, NextFunction } from "express";
+import { requireRole } from "../middleware/require-plan-feature.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,6 +174,26 @@ function applyRbacRules(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("RBAC por rol", () => {
+  describe("Proteccion de escritura en nomina", () => {
+    it("solo permite al administrador modificar datos de nomina", () => {
+      const middleware = requireRole(["admin"]);
+      const contadorRes = makeRes();
+      const contadorNext = makeNext();
+
+      middleware(makeReq("contador", "/api/nomina/empleados") as Request, contadorRes, contadorNext);
+
+      expect(contadorRes.status).toHaveBeenCalledWith(403);
+      expect(contadorNext).not.toHaveBeenCalled();
+
+      const adminRes = makeRes();
+      const adminNext = makeNext();
+      middleware(makeReq("admin", "/api/nomina/empleados") as Request, adminRes, adminNext);
+
+      expect(adminNext).toHaveBeenCalledOnce();
+      expect(adminRes.status).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Rol cajero", () => {
     // ── Rutas permitidas ─────────────────────────────────────────────────────
     it("permite POST /api/pos/ventas", () => {

@@ -11,21 +11,11 @@ declare global {
 }
 
 /**
- * Nómina es una línea de producto independiente del plan ERP/POS/Origen del tenant
- * (req.tenant.plan). El estado de suscripción vive en pool_documentos_nomina_tenant,
- * asignado desde el Panel Fundador. Sin fila en esa tabla, el tenant no tiene nómina activa.
+ * Payroll is an independent product from the ERP/POS plan. A tenant may use the
+ * internal test workflow only when it has an active payroll allocation. Actual
+ * electronic issuance remains protected by NOMINA_MODO in the payroll routes.
  */
 export async function requireNominaActivo(req: Request, res: Response, next: NextFunction) {
-  // Nómina electrónica aún no se comercializa ni se opera en producción. El
-  // proveedor no ha confirmado el contrato de emisión y habilitarla a un tenant
-  // por accidente tendría impacto laboral/fiscal. Conservamos el código para el
-  // roadmap, pero cerramos toda la superficie operativa hasta su lanzamiento.
-  return res.status(503).json({
-    error: "Nómina electrónica estará disponible próximamente. Aún no está habilitada para operación.",
-    code: "NOMINA_COMING_SOON",
-  });
-
-  /* c8 ignore next -- flujo reservado para la activación comercial futura
   try {
     const [pool] = await db
       .select()
@@ -35,7 +25,7 @@ export async function requireNominaActivo(req: Request, res: Response, next: Nex
 
     if (!pool) {
       return res.status(403).json({
-        error: "Tu empresa no tiene nómina electrónica activa. Contacta a soporte para contratar un plan de nómina.",
+        error: "Tu empresa no tiene nomina electronica activa. Contacta a soporte para habilitar el modulo.",
         code: "NOMINA_NOT_ACTIVE",
       });
     }
@@ -44,5 +34,5 @@ export async function requireNominaActivo(req: Request, res: Response, next: Nex
     next();
   } catch (err) {
     next(err);
-  } */
+  }
 }

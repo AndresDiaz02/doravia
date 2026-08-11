@@ -31,6 +31,7 @@ import {
   plans,
   productos,
   proveedores,
+  pool_documentos_nomina_tenant,
   resoluciones_dian,
   retenciones_config,
   retenciones_factura,
@@ -268,6 +269,13 @@ export async function seedContador() {
     .returning();
 
   const TID = tenant.id;
+  await db.insert(pool_documentos_nomina_tenant).values({
+    tenant_id: TID,
+    plan_slug: "nomina_pro",
+    documentos_incluidos: 999_999,
+    fecha_renovacion: "2027-12-31",
+    limite_acumulacion: 1_999_998,
+  });
   console.log(`✓ Tenant creado: ${tenant.nombre} (${TID})`);
 
   // ── Usuarios ───────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Moon, Sun } from "lucide-react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useAuth, type AuthSessionResponse } from "../lib/auth";
 
 interface EmpresaOpcion {
   tenant_id: string;
@@ -9,7 +10,7 @@ interface EmpresaOpcion {
   role: string;
 }
 
-interface LoginSingleResponse { accessToken: string; refreshToken?: string; }
+type LoginSingleResponse = AuthSessionResponse;
 interface LoginMultiResponse {
   requiresEmpresaSelect: true;
   selectionToken: string;
@@ -25,12 +26,7 @@ export default function Login({ dark, onToggleTheme }: { dark: boolean; onToggle
   const [error, setError] = useState<string | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
   const [selectionToken, setSelectionToken] = useState("");
-
-  function completarLogin(accessToken: string, refreshToken?: string) {
-    localStorage.setItem("pos_token", accessToken);
-    if (refreshToken) localStorage.setItem("pos_refresh_token", refreshToken);
-    window.location.reload();
-  }
+  const { completeLogin } = useAuth();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -46,7 +42,9 @@ export default function Login({ dark, onToggleTheme }: { dark: boolean; onToggle
         setEmpresas(data.empresas);
         setSelectionToken(data.selectionToken);
       } else {
-        completarLogin(data.accessToken, data.refreshToken);
+        // La respuesta de login ya trae usuario, tenant y plan necesarios para
+        // POS: evitamos recargar la página y una segunda petición /auth/me.
+        completeLogin(data);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión.");
@@ -63,7 +61,11 @@ export default function Login({ dark, onToggleTheme }: { dark: boolean; onToggle
         method: "POST",
         body: JSON.stringify({ selectionToken, tenantId }),
       });
-      completarLogin(data.accessToken, data.refreshToken);
+      // La selección de empresa solo entrega tokens; el arranque normal carga
+      // el perfil elegido una única vez.
+      localStorage.setItem("pos_token", data.accessToken);
+      if (data.refreshToken) localStorage.setItem("pos_refresh_token", data.refreshToken);
+      window.location.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo abrir la empresa seleccionada.");
       if (err instanceof ApiError && err.status === 401) {

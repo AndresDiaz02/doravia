@@ -21,6 +21,7 @@ interface AuthCtx {
   user: PosUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  completeLogin: (session: AuthSessionResponse) => void;
   logout: () => void;
 }
 
@@ -31,6 +32,11 @@ interface MeResponse {
   // ese objeto. El POS no necesita el slug para operar, así que aceptamos
   // ambas respuestas para que el inicio de sesión no falle tras autenticar.
   plan?: { slug: string };
+}
+
+export interface AuthSessionResponse extends MeResponse {
+  accessToken: string;
+  refreshToken?: string;
 }
 
 function mapMe(raw: MeResponse): PosUser {
@@ -46,7 +52,7 @@ function mapMe(raw: MeResponse): PosUser {
   };
 }
 
-const Ctx = createContext<AuthCtx>({ user: null, loading: true, login: async () => {}, logout: () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, loading: true, login: async () => {}, completeLogin: () => {}, logout: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PosUser | null>(null);
@@ -84,13 +90,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(mapMe(data));
   }
 
+  function completeLogin(session: AuthSessionResponse) {
+    localStorage.setItem("pos_token", session.accessToken);
+    if (session.refreshToken) localStorage.setItem("pos_refresh_token", session.refreshToken);
+    setUser(mapMe(session));
+    setLoading(false);
+  }
+
   function logout() {
     localStorage.removeItem("pos_token");
     localStorage.removeItem("pos_refresh_token");
     setUser(null);
   }
 
-  return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, login, completeLogin, logout }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() { return useContext(Ctx); }

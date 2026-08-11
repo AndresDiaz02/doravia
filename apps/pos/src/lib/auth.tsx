@@ -56,8 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const hash = window.location.hash.slice(1);
     const hashParams = new URLSearchParams(hash);
     const urlToken = hashParams.get("token");
+    const urlRefresh = hashParams.get("refresh");
     if (urlToken) {
       localStorage.setItem("pos_token", urlToken);
+      if (urlRefresh) localStorage.setItem("pos_refresh_token", urlRefresh);
       window.history.replaceState({}, "", window.location.pathname);
     }
 

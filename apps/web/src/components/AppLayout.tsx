@@ -442,9 +442,11 @@ export function AppLayout() {
           {(() => {
             const hasPos = (plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true;
             const posUrl = import.meta.env.VITE_POS_URL ?? "https://pos.doraviasoft.com";
+            const accessToken = localStorage.getItem("access_token") ?? "";
+            const refreshToken = localStorage.getItem("refresh_token") ?? "";
             return hasPos ? (
               <a
-                href={`${posUrl}#token=${encodeURIComponent(localStorage.getItem("access_token") ?? "")}`}
+                href={`${posUrl}#token=${encodeURIComponent(accessToken)}&refresh=${encodeURIComponent(refreshToken)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-accent-blue hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"

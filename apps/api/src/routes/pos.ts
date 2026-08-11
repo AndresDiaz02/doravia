@@ -11,6 +11,11 @@ import { completarIdempotencia, reservarIdempotencia } from "../services/idempot
 const router = Router();
 const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
 
+/** Un cajero solo puede operar el turno que abrió; administración conserva supervisión total. */
+function puedeOperarTurno(req: { userId: string; userRole: string }, turno: { usuario_id: string }) {
+  return req.userRole === "admin" || turno.usuario_id === req.userId;
+}
+
 // ── Cajas ─────────────────────────────────────────────────────────────────────
 
 router.get("/cajas", async (req, res) => {
@@ -260,6 +265,7 @@ router.patch("/turnos/:id/cerrar", async (req, res) => {
   const [turno] = await db.select().from(turnos_pos)
     .where(and(eq(turnos_pos.id, req.params.id), eq(turnos_pos.tenant_id, req.tenantId)));
   if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
+  if (!puedeOperarTurno(req, turno)) return res.status(403).json({ error: "Solo puedes cerrar tu propio turno.", code: "POS_TURNO_FORBIDDEN" });
   if (turno.estado === "cerrado") return res.status(400).json({ error: "El turno ya está cerrado." });
   const [cerrado] = await db.update(turnos_pos).set({
     estado: "cerrado", cierre_at: new Date(),
@@ -398,6 +404,7 @@ router.post("/ventas", async (req, res) => {
     .from(turnos_pos)
     .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId), eq(turnos_pos.estado, "abierto")));
   if (!turno) return res.status(400).json({ error: "El turno no está abierto." });
+  if (!puedeOperarTurno(req, turno)) return res.status(403).json({ error: "No puedes registrar ventas en el turno de otro usuario.", code: "POS_TURNO_FORBIDDEN" });
   if (turno.caja_id !== caja_id) return res.status(400).json({ error: "La caja no corresponde al turno abierto." });
 
   // Genera consecutivo con bloqueo para evitar duplicados en inserciones concurrentes

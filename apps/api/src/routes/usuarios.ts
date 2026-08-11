@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, users, user_accesos, USER_ROLES } from "@workspace/db";
 import type { UserRole } from "@workspace/db";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, ilike } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import { assertCanAddUsuario } from "../guards/plan-limits.js";
@@ -68,10 +68,11 @@ router.post("/", async (req, res) => {
     throw err;
   }
 
+  const emailNormalizado = email.trim().toLowerCase();
   const [existente] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, email))
+    .where(ilike(users.email, emailNormalizado))
     .limit(1);
 
   if (existente) return res.status(422).json({ error: "Ya existe un usuario con ese correo electrónico." });
@@ -82,7 +83,7 @@ router.post("/", async (req, res) => {
     .insert(users)
     .values({
       tenant_id: req.tenantId,
-      email,
+      email: emailNormalizado,
       nombre,
       role: roleValido,
       password_hash,

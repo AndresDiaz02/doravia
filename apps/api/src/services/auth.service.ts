@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createHash, randomBytes } from "crypto";
 import { db, users, tenants, plans, refresh_tokens, user_accesos, pending_registrations } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, ilike } from "drizzle-orm";
 import crypto from "node:crypto";
 import type { User } from "@workspace/db";
 
@@ -99,6 +99,7 @@ export interface WompiCheckoutParams {
 }
 
 export async function registrarTenant(input: RegistrarTenantInput): Promise<RegistrarTenantResult> {
+  const email = input.email.trim().toLowerCase();
   const [plan] = await db.select().from(plans).where(eq(plans.slug, input.plan_slug)).limit(1);
   if (!plan) throw new Error(`Plan no encontrado: ${input.plan_slug}.`);
 
@@ -106,7 +107,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
   const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, input.nit)).limit(1);
   if (nitExistente) throw new Error("Ya existe una empresa registrada con ese NIT.");
 
-  const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
+  const [emailExistente] = await db.select({ id: users.id }).from(users).where(ilike(users.email, email)).limit(1);
   if (emailExistente) throw new Error("Ya existe un usuario con ese correo electrónico.");
 
   // ── Plan gratuito (Origen): activar inmediatamente, permanente ────────────
@@ -127,7 +128,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
 
       const [user] = await tx.insert(users).values({
         tenant_id: tenant.id,
-        email: input.email,
+        email,
         nombre: input.usuario_nombre,
         role: "admin",
         password_hash,
@@ -147,7 +148,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
 
   // Eliminar registro pendiente anterior para este email (si existe y no fue completado)
   await db.delete(pending_registrations)
-    .where(eq(pending_registrations.email, input.email));
+    .where(ilike(pending_registrations.email, email));
 
   const wompiRef = `DOR-REG-${Date.now()}-${plan.slug}`;
 
@@ -156,7 +157,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
     tenant_nombre: input.tenant_nombre,
     nit: input.nit,
     usuario_nombre: input.usuario_nombre,
-    email: input.email,
+    email,
     password_hash,
     wompi_reference: wompiRef,
     expires_at: expiresAt,
@@ -247,10 +248,11 @@ export async function completarRegistroPendiente(wompiReference: string) {
 // ── Login ────────────────────────────────────────────────────────────────────
 
 export async function login(email: string, password: string) {
+  const emailNormalizado = email.trim().toLowerCase();
   const [user] = await db
     .select()
     .from(users)
-    .where(and(eq(users.email, email), eq(users.activo, true)))
+    .where(and(ilike(users.email, emailNormalizado), eq(users.activo, true)))
     .limit(1);
 
   const hashParaComparar = user?.password_hash ?? "$2a$12$placeholder.hash.to.prevent.timing.attacks.xxxxxxxxxx";

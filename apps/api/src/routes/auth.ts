@@ -38,7 +38,8 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const resultado = await registrarTenant({ plan_slug, tenant_nombre, nit, usuario_nombre, email, password });
+    const emailNormalizado = email.trim().toLowerCase();
+    const resultado = await registrarTenant({ plan_slug, tenant_nombre, nit, usuario_nombre, email: emailNormalizado, password });
 
     if (resultado.payment_required) {
       // Plan de pago: retornar datos de checkout (sin crear cuenta todavía)
@@ -47,7 +48,7 @@ router.post("/register", async (req, res) => {
 
     // Plan gratuito: cuenta lista — enviar email de bienvenida (fire and forget)
     void enviarEmailBienvenida({
-      destinatario: email as string,
+      destinatario: emailNormalizado,
       nombre: usuario_nombre as string,
       empresa: tenant_nombre as string,
     }).catch((e) => console.error("Error enviando email de bienvenida:", e));
@@ -75,6 +76,7 @@ router.post("/register-trial", async (req, res) => {
   }
 
   try {
+    const emailNormalizado = email.trim().toLowerCase();
     const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_slug)).limit(1);
     if (!plan) return res.status(422).json({ error: `Plan "${plan_slug}" no encontrado.` });
     if (plan.precio_anual_cop === 0) {
@@ -84,7 +86,7 @@ router.post("/register-trial", async (req, res) => {
     const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, nit)).limit(1);
     if (nitExistente) return res.status(422).json({ error: "Ya existe una empresa registrada con ese NIT." });
 
-    const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    const [emailExistente] = await db.select({ id: users.id }).from(users).where(ilike(users.email, emailNormalizado)).limit(1);
     if (emailExistente) return res.status(422).json({ error: "Ya existe un usuario con ese correo electrónico." });
 
     const ahora = new Date();
@@ -105,7 +107,7 @@ router.post("/register-trial", async (req, res) => {
 
       const [user] = await tx.insert(users).values({
         tenant_id: tenant.id,
-        email,
+        email: emailNormalizado,
         nombre: usuario_nombre,
         role: "admin",
         password_hash,
@@ -114,7 +116,7 @@ router.post("/register-trial", async (req, res) => {
       return { tenant, user };
     });
 
-    void enviarBienvenidaTrial({ destinatario: email, nombre: usuario_nombre, empresa: tenant_nombre, plan: plan.nombre })
+    void enviarBienvenidaTrial({ destinatario: emailNormalizado, nombre: usuario_nombre, empresa: tenant_nombre, plan: plan.nombre })
       .catch((e) => console.error("[register-trial] Error email bienvenida:", e));
 
     const { accessToken, refreshToken } = await (async () => {

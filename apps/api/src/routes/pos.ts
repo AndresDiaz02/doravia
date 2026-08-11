@@ -758,7 +758,7 @@ router.post("/gastos-caja", async (req, res) => {
     turno_id: string; caja_id: string; monto: number;
     concepto?: string; descripcion?: string;
   };
-  if (!turno_id || !caja_id || !monto || monto <= 0) {
+  if (!turno_id || !caja_id || !Number.isFinite(monto) || monto <= 0) {
     return res.status(400).json({ error: "turno_id, caja_id y monto son requeridos." });
   }
 
@@ -768,6 +768,11 @@ router.post("/gastos-caja", async (req, res) => {
     if (!turno || turno.estado !== "abierto") {
       return res.status(400).json({ error: "El turno no está abierto." });
     }
+
+    if (!puedeOperarTurno(req, turno)) {
+      return res.status(403).json({ error: "No puedes registrar gastos en el turno de otro usuario.", code: "POS_TURNO_FORBIDDEN" });
+    }
+    if (turno.caja_id !== caja_id) return res.status(400).json({ error: "La caja no corresponde al turno abierto." });
 
     const [gasto] = await db.insert(gastos_caja_pos).values({
       tenant_id: req.tenantId,
@@ -815,24 +820,15 @@ router.post("/devoluciones", async (req, res) => {
   if (!venta_id || !monto_devuelto || monto_devuelto <= 0) {
     return res.status(400).json({ error: "venta_id y monto_devuelto son requeridos." });
   }
+  if (metodo_devolucion !== undefined && !METODOS_PAGO.includes(metodo_devolucion as typeof METODOS_PAGO[number])) {
+    return res.status(400).json({ error: "El método de devolución no es válido." });
+  }
 
   try {
     const [venta] = await db.select().from(ventas_pos)
       .where(and(eq(ventas_pos.id, venta_id), eq(ventas_pos.tenant_id, req.tenantId)));
     if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
     if (venta.estado === "anulada") return res.status(400).json({ error: "Esta venta ya fue anulada." });
-
-    const [{ totalDevuelto }] = await db
-      .select({ totalDevuelto: sql<string>`coalesce(sum(${devoluciones_pos.monto_devuelto}), 0)` })
-      .from(devoluciones_pos)
-      .where(and(
-        eq(devoluciones_pos.tenant_id, req.tenantId),
-        eq(devoluciones_pos.venta_id, venta_id),
-      ));
-    const saldoPorDevolver = Number(venta.total) - Number(totalDevuelto);
-    if (monto_devuelto > saldoPorDevolver) {
-      return res.status(400).json({ error: "El monto devuelto supera el saldo disponible de esta venta." });
-    }
 
     // Verificar que el turno de la venta esté abierto (devolución en el mismo turno o uno posterior)
     const [turno] = await db.select().from(turnos_pos)
@@ -846,17 +842,34 @@ router.post("/devoluciones", async (req, res) => {
         eq(turnos_pos.tenant_id, req.tenantId),
         eq(turnos_pos.estado, "abierto"),
       ));
-    const turnoDevolucion = turnoAbierto ?? turno;
+    if (!turnoAbierto) return res.status(422).json({ error: "Abre un turno en esta caja antes de registrar una devolución." });
+    if (!puedeOperarTurno(req, turnoAbierto)) {
+      return res.status(403).json({ error: "No puedes registrar devoluciones en el turno de otro usuario.", code: "POS_TURNO_FORBIDDEN" });
+    }
 
-    const [devolucion] = await db.insert(devoluciones_pos).values({
-      tenant_id: req.tenantId,
-      venta_id,
-      turno_id: turnoDevolucion.id,
-      usuario_id: req.userId,
-      monto_devuelto: String(monto_devuelto),
-      metodo_devolucion: metodo_devolucion ?? "efectivo",
-      motivo: motivo ?? null,
-    }).returning();
+    const devolucion = await db.transaction(async (tx) => {
+      // Serializa devoluciones de una venta para impedir reembolsos acumulados excesivos.
+      await tx.execute(sql`SELECT id FROM ventas_pos WHERE id = ${venta.id} FOR UPDATE`);
+      const [{ totalDevuelto }] = await tx
+        .select({ totalDevuelto: sql<string>`coalesce(sum(${devoluciones_pos.monto_devuelto}), 0)` })
+        .from(devoluciones_pos)
+        .where(and(
+          eq(devoluciones_pos.tenant_id, req.tenantId),
+          eq(devoluciones_pos.venta_id, venta_id),
+        ));
+      if (monto_devuelto > Number(venta.total) - Number(totalDevuelto)) return null;
+      const [creada] = await tx.insert(devoluciones_pos).values({
+        tenant_id: req.tenantId,
+        venta_id,
+        turno_id: turnoAbierto.id,
+        usuario_id: req.userId,
+        monto_devuelto: String(monto_devuelto),
+        metodo_devolucion: metodo_devolucion ?? "efectivo",
+        motivo: motivo ?? null,
+      }).returning();
+      return creada;
+    });
+    if (!devolucion) return res.status(400).json({ error: "El monto devuelto supera el saldo disponible de esta venta." });
 
     try {
       const asientoId = await crearAsientoDevolucionPOS(req.tenantId, devolucion);
@@ -1046,6 +1059,12 @@ router.patch("/ventas/:id/anular", async (req, res) => {
   if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
   if (venta.estado_dian === "anulado") return res.status(422).json({ error: "Esta venta ya está anulada." });
   if (venta.estado_dian === "enviado") return res.status(422).json({ error: "Esta venta ya fue enviada a la DIAN y no puede anularse." });
+  const [turnoVenta] = await db.select().from(turnos_pos)
+    .where(and(eq(turnos_pos.id, venta.turno_id), eq(turnos_pos.tenant_id, req.tenantId)));
+  if (!turnoVenta) return res.status(400).json({ error: "Turno original no encontrado." });
+  if (!puedeOperarTurno(req, turnoVenta)) {
+    return res.status(403).json({ error: "No puedes anular ventas de otro usuario.", code: "POS_TURNO_FORBIDDEN" });
+  }
 
   const anuladaAhora = await db.transaction(async (tx) => {
     // La venta anulada revierte los movimientos de inventario generados por esta venta.

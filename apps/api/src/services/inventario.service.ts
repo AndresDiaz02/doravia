@@ -17,6 +17,21 @@ export async function registrarSalidaFactura(
   const itemsConProducto = items.filter((i) => i.producto_id != null);
   if (itemsConProducto.length === 0) return;
 
+  // Una factura aceptada puede reintentarse después de una caída de red o de
+  // una respuesta tardía del proveedor DIAN. La salida debe aplicarse una sola
+  // vez para no duplicar kardex, stock ni costo de ventas.
+  const [salidaExistente] = await db
+    .select({ id: movimientos_inventario.id })
+    .from(movimientos_inventario)
+    .where(and(
+      eq(movimientos_inventario.tenant_id, tenantId),
+      eq(movimientos_inventario.referencia_tipo, "factura"),
+      eq(movimientos_inventario.referencia_id, factura.id),
+      eq(movimientos_inventario.tipo, "salida"),
+    ))
+    .limit(1);
+  if (salidaExistente) return;
+
   const [bodega] = await db
     .select({ id: bodegas.id })
     .from(bodegas)

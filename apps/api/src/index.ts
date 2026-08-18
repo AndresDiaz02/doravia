@@ -62,6 +62,7 @@ import conciliacionRouter from "./routes/conciliacion.js";
 import agendaRouter from "./routes/agenda.js";
 import buscarRouter from "./routes/buscar.js";
 import nominaRouter from "./routes/nomina.js";
+import asistentePublicoRouter from "./routes/asistente-publico.js";
 import { requireFundador } from "./middleware/fundador.js";
 import { requireNominaActivo } from "./middleware/nomina.js";
 import { iniciarCronRecurrentes } from "./jobs/recurrentes.js";
@@ -191,6 +192,7 @@ app.use("/api/auth/register", registerRateLimit);
 app.use("/api/auth/register-fundador", founderRegistrationRateLimit);
 app.use("/api/auth", authRouter);
 app.use("/api/propuestas", salesPropuestasRouter);
+app.use("/api/asistente-publico", asistentePublicoRouter);
 
 // ── Fase 1 — Semilla (todos los planes) ─────────────────────────────────────
 app.use(writeRateLimit);

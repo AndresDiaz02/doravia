@@ -39,3 +39,35 @@ contables. La prueba termina correctamente solo si debitos y creditos cuadran.
 - Inventario negativo solo cuando la empresa lo permita expresamente.
 - Pagos, DIAN y nomina no se consideran productivos sin confirmacion de sus proveedores.
 - Un contador valida reportes y firma la lista de hallazgos resueltos.
+
+## Escenarios verificables de caja y POS
+
+| Caso | Acción | Evidencia esperada |
+| --- | --- | --- |
+| Apertura | Abrir una caja con base en efectivo y arqueo por denominaciones | El total de denominaciones coincide con la base declarada y el turno queda asignado al cajero que lo abrió. |
+| Venta en efectivo | Vender un producto gravado, con y sin monto recibido | Inventario disminuye una sola vez, vuelto calculado por servidor y asiento en caja 1105. |
+| Pago mixto | Cobrar una venta repartida entre efectivo y tarjeta/transferencia | Se crean líneas de pago separadas; el asiento contable conserva un débito por cada método. |
+| Permisos de turno | Intentar vender, registrar gasto, devolver o cerrar desde otro cajero | El sistema rechaza la operación; administración conserva supervisión. |
+| Devolución | Devolver una venta desde el turno abierto de la misma caja | No permite exceder el total acumulado devuelto, registra el método de devolución y actualiza el arqueo correspondiente. |
+| Cierre | Cerrar con conteo de monedas y billetes | La diferencia es visible; solo el propietario o administrador puede cerrar el turno. |
+| Cartera POS | Crear una cuenta a crédito y registrar abonos por varios medios | El total se calcula en servidor, el saldo nunca queda negativo y cada abono genera su asiento. |
+
+## Escenarios verificables de documentos electrónicos
+
+| Caso | Acción | Evidencia esperada |
+| --- | --- | --- |
+| Factura | Emitir en ambiente de pruebas con resolución vigente | Estado, CUFE/error y respuesta del proveedor quedan trazables. |
+| Notas | Crear nota crédito parcial y luego una segunda parcial | La suma de notas no puede superar la factura original. |
+| Documento equivalente POS | Enviar una venta POS pendiente desde Cierre DIAN | Plemsi confirma el documento; se guarda fecha, CUFE y estado enviado. |
+| Reintento POS | Provocar una respuesta rechazada o usar configuración incompleta | El mensaje queda visible, la venta sigue en cola y puede reenviarse tras corregirla. |
+| Producción | Repetir solo después de habilitación aprobada del proveedor | No usar datos ficticios ni declarar cumplimiento DIAN sin aceptación verificable. |
+
+## Matriz de permisos mínima
+
+| Rol | Debe poder | No debe poder |
+| --- | --- | --- |
+| Administrador | Configurar, operar y supervisar todos los módulos contratados | — |
+| Vendedor | Ventas, facturas y notas autorizadas | Contabilidad operativa, nómina o configuración sensible. |
+| Cajero | Operar exclusivamente su turno POS | Caja de otro usuario, cierre DIAN, contabilidad y configuraciones. |
+| Contador con permiso | Consultar/operar contabilidad y DIAN cuando corresponda | Vender, abrir caja o cambiar parámetros comerciales sin autorización. |
+| Contador registrado | Gestionar las empresas asignadas desde su Hub | Acceder al Hub solo por tener un rol contador técnico. |

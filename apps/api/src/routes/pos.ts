@@ -22,6 +22,10 @@ function puedeOperarDian(req: { userRole: string; userDian?: boolean }) {
   return req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian === true);
 }
 
+function puedeAdministrarPOS(req: { userRole: string }) {
+  return req.userRole === "admin";
+}
+
 // ── Cajas ─────────────────────────────────────────────────────────────────────
 
 router.get("/cajas", async (req, res) => {
@@ -34,6 +38,7 @@ router.get("/cajas", async (req, res) => {
 });
 
 router.post("/cajas", async (req, res) => {
+  if (!puedeAdministrarPOS(req)) return res.status(403).json({ error: "Solo administración puede crear cajas POS." });
   const { nombre, descripcion } = req.body as { nombre?: string; descripcion?: string };
   if (!nombre) return res.status(400).json({ error: "Campo requerido: nombre." });
 
@@ -64,6 +69,7 @@ router.post("/cajas", async (req, res) => {
 });
 
 router.patch("/cajas/:id", async (req, res) => {
+  if (!puedeAdministrarPOS(req)) return res.status(403).json({ error: "Solo administración puede modificar cajas POS." });
   const { nombre, descripcion, activo, config } = req.body as {
     nombre?: string; descripcion?: string; activo?: boolean; config?: Record<string, unknown>;
   };
@@ -86,6 +92,7 @@ router.patch("/cajas/:id", async (req, res) => {
 // ── Detectar protocolo de gramera con IA ──────────────────────────────────────
 
 router.post("/cajas/:id/gramera-detectar", async (req, res) => {
+  if (!puedeAdministrarPOS(req)) return res.status(403).json({ error: "Solo administración puede configurar una gramera." });
   const { marca, modelo } = req.body as { marca?: string; modelo?: string };
   if (!marca || !modelo) {
     return res.status(400).json({ error: "Se requieren marca y modelo de la gramera." });

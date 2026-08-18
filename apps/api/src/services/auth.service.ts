@@ -80,6 +80,7 @@ export interface RegistrarTenantInput {
   usuario_nombre: string;
   email: string;
   password: string;
+  fuente_adquisicion?: string;
 }
 
 export type RegistrarTenantResult =
@@ -124,6 +125,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
         plan_id: plan.id,
         plan_starts_at: ahora,
         plan_ends_at: planFin,
+        fuente_adquisicion: input.fuente_adquisicion,
       }).returning();
 
       const [user] = await tx.insert(users).values({
@@ -159,6 +161,7 @@ export async function registrarTenant(input: RegistrarTenantInput): Promise<Regi
     usuario_nombre: input.usuario_nombre,
     email,
     password_hash,
+    fuente_adquisicion: input.fuente_adquisicion,
     wompi_reference: wompiRef,
     expires_at: expiresAt,
   });
@@ -225,6 +228,7 @@ export async function completarRegistroPendiente(wompiReference: string) {
       plan_starts_at: ahora,
       plan_ends_at: planFin,
       activo: true,
+      fuente_adquisicion: pending.fuente_adquisicion,
     }).returning();
 
     nuevoTenantId = tenant.id;

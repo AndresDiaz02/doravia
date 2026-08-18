@@ -25,7 +25,7 @@ const router = Router();
 // Plan gratuito ("origen"): crea empresa + usuario inmediatamente.
 // Plan de pago: guarda registro pendiente y retorna parámetros de checkout Wompi.
 router.post("/register", async (req, res) => {
-  const { plan_slug, tenant_nombre, nit, usuario_nombre, email, password } = req.body;
+  const { plan_slug, tenant_nombre, nit, usuario_nombre, email, password, fuente_adquisicion } = req.body;
 
   if (!plan_slug || !tenant_nombre || !nit || !usuario_nombre || !email || !password) {
     return res.status(400).json({
@@ -39,7 +39,7 @@ router.post("/register", async (req, res) => {
 
   try {
     const emailNormalizado = email.trim().toLowerCase();
-    const resultado = await registrarTenant({ plan_slug, tenant_nombre, nit, usuario_nombre, email: emailNormalizado, password });
+    const resultado = await registrarTenant({ plan_slug, tenant_nombre, nit, usuario_nombre, email: emailNormalizado, password, fuente_adquisicion: fuente_adquisicion === "asistente_web" ? "asistente_web" : undefined });
 
     if (resultado.payment_required) {
       // Plan de pago: retornar datos de checkout (sin crear cuenta todavía)

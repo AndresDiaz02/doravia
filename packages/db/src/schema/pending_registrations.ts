@@ -8,6 +8,7 @@ export const pending_registrations = pgTable("pending_registrations", {
   usuario_nombre:  varchar("usuario_nombre", { length: 100 }).notNull(),
   email:           varchar("email", { length: 200 }).notNull().unique(),
   password_hash:   text("password_hash").notNull(),
+  fuente_adquisicion: varchar("fuente_adquisicion", { length: 50 }),
   wompi_reference: varchar("wompi_reference", { length: 120 }).notNull().unique(),
   completed_at:    timestamp("completed_at", { withTimezone: true }),
   expires_at:      timestamp("expires_at", { withTimezone: true }).notNull(),

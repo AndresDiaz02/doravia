@@ -71,12 +71,13 @@ declare global {
 export function Register() {
   const [params] = useSearchParams();
   const planFromUrl = params.get("plan") ?? "";
+  const fuenteAdquisicion = params.get("source") === "asistente_web" ? "asistente_web" : "";
   const planFijo = planFromUrl in PLANES_INFO ? planFromUrl : "";
   const redirectAfterRegister = params.get("redirect") ?? "";
   const esTrial = params.get("trial") === "true" && planFijo !== "" && planFijo !== "origen";
 
   const [form, setForm] = useState({
-    plan_slug: planFijo || "semilla",
+    plan_slug: planFijo || "semilla", fuente_adquisicion: fuenteAdquisicion,
     tenant_nombre: "",
     nit: "",
     usuario_nombre: "",

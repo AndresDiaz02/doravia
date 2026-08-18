@@ -951,6 +951,7 @@ const migrations = [
   `ALTER TABLE sales_quotes ADD COLUMN IF NOT EXISTS installments integer NOT NULL DEFAULT 1`,
   `CREATE INDEX IF NOT EXISTS idx_sales_activities_owner_due ON sales_activities(owner_id, estado, scheduled_at)`,
   `CREATE INDEX IF NOT EXISTS idx_sales_timeline_account ON sales_timeline_events(account_id, created_at DESC)`,
+  `ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS fuente_adquisicion varchar(50)`,
 ];
 
 for (const migration of migrations) {

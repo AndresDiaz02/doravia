@@ -288,7 +288,10 @@ export default function ModulosAdicionales() {
         <p className="text-sm text-gray-500 dark:text-slate-400">
           Contrátala sola o junto a ERP, POS o Facturación Electrónica. Conservas una sola empresa y los datos se conectan automáticamente. La disponibilidad de emisión se confirma durante la activación.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-xl border border-violet-100 bg-violet-50/70 px-4 py-3 text-sm text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+          <strong>Empleado adicional:</strong> Semilla suma cupos por $5.000/mes; Raíz, Brote, Plus y Pro por $4.000/mes. Solicítalo con ventas sin cambiar de plan ni perder historial.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           {PLANES_NOMINA.map((p) => (
             <div key={p.slug} className={`relative rounded-2xl border bg-white p-5 flex flex-col gap-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 ${p.destacado ? "border-violet-400 ring-1 ring-violet-200 dark:border-violet-500 dark:ring-violet-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}

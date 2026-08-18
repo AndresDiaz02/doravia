@@ -357,7 +357,7 @@
     if (assistantState.necesidad === 'Nómina y empleados') { product = 'Nómina'; text = 'Te recomiendo Nómina para gestionar colaboradores y preparar la nómina electrónica desde Doravia.'; }
     if (assistantState.empleados === 'Sí' && product === 'ERP') { product = 'ERP + Nómina'; text = 'Te recomiendo ERP + Nómina: tendrás administración, contabilidad y gestión de colaboradores conectadas.'; }
     assistantAddMessage(`${text}${assistantState.duda ? ' También tomaremos en cuenta la duda que nos compartiste.' : ''}`);
-    const plan = product.toLowerCase().replace(' + ', '-');
+    const plan = ({ Origen:'origen', Punto:'punto', Nómina:'nomina', ERP:'erp', 'ERP + Nómina':'erp' })[product];
     const summary = `Empresa: ${assistantState.sector}. Empleados: ${assistantState.empleados}. Inventario: ${assistantState.inventario}. Contabilidad: ${assistantState.contabilidad}. Necesidad: ${assistantState.necesidad}.${assistantState.duda ? ` Duda: ${assistantState.duda}` : ''}`;
     const card = document.createElement('div'); card.className = 'assistant-recommendation'; card.innerHTML = `<small>RECOMENDACIÓN PARA TI</small><b>${product}</b><span>Puedes activarlo ahora o hablar con nuestro equipo antes de decidir.</span><div class="assistant-actions"><a class="btn-primary" href="https://app.doraviasoft.com/register?plan=${encodeURIComponent(plan)}">Activar ahora <span>→</span></a><a class="assistant-sales-link" target="_blank" rel="noopener" href="https://wa.me/573125587055?text=${encodeURIComponent(`Hola, quiero orientación sobre ${product}. ${summary}`)}">Hablar con Ventas</a></div>`; assistantMessages.append(card);
     assistantOptions.innerHTML = '<button type="button" class="assistant-again">Hacer otra consulta</button>';

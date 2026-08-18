@@ -71,16 +71,28 @@
   </div>
 </section>
 
-<!-- DIAGNÓSTICO COMERCIAL -->
-<section class="diagnostico-section" id="diagnostico">
-  <div class="container diagnostico-layout">
-    <div class="diagnostico-copy"><div class="section-eyebrow">ENCUENTRA TU PUNTO DE PARTIDA</div><h2>Cuéntanos cómo operas. Te orientamos sin complicarte.</h2><p>En menos de un minuto identifica la combinación de productos que mejor encaja hoy y cómo puede crecer contigo.</p><div class="diagnostico-note"><b>Sin formularios largos.</b><span>La recomendación se abre directamente por WhatsApp.</span></div></div>
-    <form class="diagnostico-form" id="diagnostico-form">
-      <label>¿Qué quieres resolver primero?<select name="necesidad" required><option value="Facturación electrónica">Facturación electrónica</option><option value="Administración, inventario y contabilidad">Administración, inventario y contabilidad</option><option value="Ventas en mostrador">Ventas en mostrador</option><option value="Nómina y empleados">Nómina y empleados</option></select></label>
-      <label>¿Cómo es tu operación?<select name="tamano" required><option value="Estoy empezando">Estoy empezando</option><option value="Tengo una operación pequeña">Tengo una operación pequeña</option><option value="Tengo varias personas o sedes">Tengo varias personas o sedes</option><option value="Trabajo como contador">Trabajo como contador</option></select></label>
-      <label>¿Qué productos te interesan? <input name="productos" placeholder="Ej.: ERP y Nómina"></label>
-      <button class="btn-primary" type="submit">Recibir recomendación <span>→</span></button>
-    </form>
+<!-- ASISTENTE DE RECOMENDACIÓN -->
+<section class="asistente-section" id="diagnostico">
+  <div class="container asistente-layout">
+    <div class="asistente-copy">
+      <div class="section-eyebrow">ENCUENTRA TU PUNTO DE PARTIDA</div>
+      <h2>Háblale a Doravia. Te recomienda el punto de partida correcto.</h2>
+      <p>Un asistente breve que entiende tu operación y te muestra qué producto conviene activar primero. Sin formularios ni letras pequeñas.</p>
+      <div class="asistente-benefits"><span>✓ Recomendación en menos de un minuto</span><span>✓ Productos que crecen contigo</span></div>
+    </div>
+    <div class="asistente-chat" aria-live="polite">
+      <div class="asistente-chat-head"><div class="asistente-avatar" aria-hidden="true">D</div><div><b>Asistente Doravia</b><span><i></i> Disponible ahora</span></div><button class="asistente-reset" type="button" aria-label="Reiniciar conversación">↻</button></div>
+      <div class="asistente-messages" id="asistente-messages">
+        <div class="assistant-message">Hola, soy el asistente de Doravia. ¿Qué quieres resolver primero?</div>
+      </div>
+      <div class="asistente-options" id="asistente-options">
+        <button type="button" data-value="Facturación electrónica">Facturación electrónica</button>
+        <button type="button" data-value="Administración e inventario">Administración e inventario</button>
+        <button type="button" data-value="Ventas en mostrador">Ventas en mostrador</button>
+        <button type="button" data-value="Nómina y empleados">Nómina y empleados</button>
+      </div>
+      <p class="asistente-hint">Tus respuestas solo se usan para preparar tu recomendación.</p>
+    </div>
   </div>
 </section>
 
@@ -325,8 +337,28 @@
     });
   }
   document.querySelectorAll('.faq-question').forEach(q=>{ q.addEventListener('click',()=>{ const item=q.closest('.faq-item'); const was=item.classList.contains('open'); document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open')); if(!was)item.classList.add('open'); }); });
-  const diagnostico = document.querySelector('#diagnostico-form');
-  diagnostico?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(diagnostico); const mensaje = `Hola, quiero una recomendación para Doravia.\n\nNecesito: ${data.get('necesidad')}\nOperación: ${data.get('tamano')}\nProductos de interés: ${data.get('productos') || 'Aún no estoy seguro'}`; window.open(`https://wa.me/573125587055?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener'); });
+  const assistantMessages = document.querySelector('#asistente-messages');
+  const assistantOptions = document.querySelector('#asistente-options');
+  const assistantReset = document.querySelector('.asistente-reset');
+  const assistantState = { necesidad: '', operacion: '' };
+  const assistantAddMessage = (text, who = 'assistant') => { const message = document.createElement('div'); message.className = `${who}-message`; message.textContent = text; assistantMessages.append(message); assistantMessages.scrollTop = assistantMessages.scrollHeight; };
+  const assistantSetOptions = (options) => { assistantOptions.innerHTML = ''; options.forEach(({ label, value }) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.dataset.value = value; assistantOptions.append(button); }); };
+  const assistantRecommend = () => {
+    const recommendations = {
+      'Facturación electrónica': { product: 'Origen', text: 'Te recomiendo comenzar con Origen: facturación electrónica, clientes y documentos listos para tu operación.' },
+      'Administración e inventario': { product: 'ERP', text: 'Te recomiendo ERP: conecta inventario, compras, gastos, cartera y contabilidad en una sola operación.' },
+      'Ventas en mostrador': { product: 'Punto', text: 'Te recomiendo Punto: ventas ágiles, caja controlada e inventario sincronizado en cada turno.' },
+      'Nómina y empleados': { product: 'Nómina', text: 'Te recomiendo Nómina: gestiona colaboradores y prepara tu nómina electrónica desde Doravia.' }
+    };
+    const result = recommendations[assistantState.necesidad];
+    const complement = assistantState.operacion === 'Tengo varias personas o sedes' ? ' Por tu tamaño, podemos ayudarte a dejar la operación preparada para crecer.' : '';
+    assistantAddMessage(`${result.text}${complement}`);
+    const card = document.createElement('div'); card.className = 'assistant-recommendation'; card.innerHTML = `<small>RECOMENDACIÓN PARA TI</small><b>${result.product}</b><span>Habla con Ventas para configurar tu plan.</span><a class="btn-primary" target="_blank" rel="noopener" href="https://wa.me/573125587055?text=${encodeURIComponent(`Hola, quiero conocer ${result.product}. Mi operación es: ${assistantState.operacion}.`)}">Hablar con Ventas <span>→</span></a>`; assistantMessages.append(card);
+    assistantOptions.innerHTML = '<button type="button" class="assistant-again">Hacer otra consulta</button>';
+  };
+  const assistantStart = () => { assistantState.necesidad = ''; assistantState.operacion = ''; assistantMessages.innerHTML = '<div class="assistant-message">Hola, soy el asistente de Doravia. ¿Qué quieres resolver primero?</div>'; assistantSetOptions([{label:'Facturación electrónica',value:'Facturación electrónica'},{label:'Administración e inventario',value:'Administración e inventario'},{label:'Ventas en mostrador',value:'Ventas en mostrador'},{label:'Nómina y empleados',value:'Nómina y empleados'}]); };
+  assistantOptions?.addEventListener('click', (event) => { const button = event.target.closest('button'); if (!button) return; if (button.classList.contains('assistant-again')) return assistantStart(); if (!assistantState.necesidad) { assistantState.necesidad = button.dataset.value; assistantAddMessage(button.dataset.value, 'user'); assistantAddMessage('Perfecto. ¿Cómo es tu operación hoy?'); assistantSetOptions([{label:'Estoy empezando',value:'Estoy empezando'},{label:'Tengo una operación pequeña',value:'Tengo una operación pequeña'},{label:'Tengo varias personas o sedes',value:'Tengo varias personas o sedes'},{label:'Trabajo como contador',value:'Trabajo como contador'}]); return; } assistantState.operacion = button.dataset.value; assistantAddMessage(button.dataset.value, 'user'); assistantRecommend(); });
+  assistantReset?.addEventListener('click', assistantStart);
 </script>
 </body>
 </html>

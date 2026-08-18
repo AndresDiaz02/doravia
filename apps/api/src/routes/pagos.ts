@@ -1,8 +1,8 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador, pool_documentos_nomina_tenant } from "@workspace/db";
+import { db, plans, tenants, wompi_events, user_accesos, comisiones_contador, pool_documentos_nomina_tenant, product_subscriptions } from "@workspace/db";
 import { completarRegistroPendiente } from "../services/auth.service.js";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, gte } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 import { activarSuscripcionProducto } from "../services/product-subscription.service.js";
 
@@ -13,6 +13,14 @@ const WOMPI_PRV_KEY = process.env.WOMPI_PRV_KEY ?? "";
 const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET ?? "";
 const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
 const IS_PROD = process.env.NODE_ENV === "production";
+
+function descuentoPaquete(productoNuevo: string, productosActivos: Set<string>) {
+  const productos = new Set(productosActivos);
+  productos.add(productoNuevo);
+  if (productos.has("erp") && productos.has("pos") && productos.has("nomina")) return 15;
+  if ((productos.has("erp") && productos.has("nomina")) || (productos.has("pos") && productos.has("facturacion"))) return 10;
+  return 0;
+}
 
 // POST /api/pagos/checkout
 // Genera los parámetros necesarios para el widget de Wompi (modo redirect)
@@ -39,8 +47,12 @@ router.post("/checkout", authenticate, async (req, res) => {
     }
 
     // Referencia única — incluye los primeros 8 chars del UUID (ya son suficientemente únicos)
+    const suscripciones = await db.select({ product: product_subscriptions.product }).from(product_subscriptions)
+      .where(and(eq(product_subscriptions.tenant_id, req.tenantId), eq(product_subscriptions.status, "active"), gte(product_subscriptions.ends_at, new Date())));
+    const descuento_pct = descuentoPaquete(plan.product, new Set(suscripciones.map((s) => s.product)));
+    const precio_final_cop = Math.round(plan.precio_anual_cop * (1 - descuento_pct / 100));
     const referencia = `DOR-${req.tenantId.slice(0, 8)}-${plan_slug}-${Date.now()}`;
-    const monto_centavos = plan.precio_anual_cop * 100;
+    const monto_centavos = precio_final_cop * 100;
     const moneda = "COP";
     const redirect_url = `${APP_URL}/pago/resultado`;
 
@@ -57,6 +69,8 @@ router.post("/checkout", authenticate, async (req, res) => {
       plan_slug,
       plan_nombre: plan.nombre,
       plan_precio_cop: plan.precio_anual_cop,
+      descuento_pct,
+      precio_final_cop,
     });
   } catch (err) {
     console.error("Error en POST /pagos/checkout:", err);

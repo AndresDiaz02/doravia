@@ -8,9 +8,58 @@
   --brand: #3B1E8C;
   --accent-blue: #2E9BF5;
   --accent-orange: #FF9233;
+  --dv-page: #f7f8fc;
+  --dv-panel: #ffffff;
+  --dv-panel-muted: #f8f6ff;
+  --dv-text: #18233a;
+  --dv-muted: #64748b;
+  --dv-border: #e2e8f0;
+  --dv-focus: rgba(123, 47, 247, .22);
+  --dv-shadow: 0 12px 30px rgba(30, 41, 59, .07);
+}
+
+.dark {
+  --dv-page: #080b16;
+  --dv-panel: #11172a;
+  --dv-panel-muted: #172036;
+  --dv-text: #f8fafc;
+  --dv-muted: #94a3b8;
+  --dv-border: #293650;
+  --dv-focus: rgba(147, 197, 253, .22);
+  --dv-shadow: 0 16px 36px rgba(0, 0, 0, .28);
 }
 
 @layer components {
+  .dv-app-shell { background: var(--dv-page); color: var(--dv-text); }
+  .dv-card {
+    border: 1px solid var(--dv-border);
+    border-radius: 14px;
+    background: var(--dv-panel);
+    box-shadow: var(--dv-shadow);
+  }
+  .dv-card-header { border-bottom: 1px solid var(--dv-border); }
+  .dv-input {
+    border: 1px solid var(--dv-border);
+    border-radius: 10px;
+    background: var(--dv-panel);
+    color: var(--dv-text);
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+  }
+  .dv-input:focus {
+    border-color: var(--action);
+    box-shadow: 0 0 0 4px var(--dv-focus);
+  }
+  .dv-button-primary {
+    background: linear-gradient(135deg, #7B2FF7 0%, #4A6FF5 55%, #2E9BF5 100%);
+    box-shadow: 0 8px 18px rgba(91, 47, 194, .22);
+  }
+  .dv-button-primary:hover { box-shadow: 0 12px 25px rgba(91, 47, 194, .30); transform: translateY(-1px); }
+  .dv-button-secondary { border: 1px solid var(--dv-border); background: var(--dv-panel); color: var(--dv-text); }
+  .dv-button-secondary:hover { background: var(--dv-panel-muted); border-color: #b8a7e6; }
+  .dv-button-ghost { color: var(--dv-muted); }
+  .dv-button-ghost:hover { color: var(--dv-text); background: var(--dv-panel-muted); }
+  .dv-dialog-backdrop { background: rgba(8, 11, 22, .62); backdrop-filter: blur(3px); }
+  .dv-dialog { border: 1px solid var(--dv-border); border-radius: 16px; background: var(--dv-panel); box-shadow: 0 28px 70px rgba(8, 11, 22, .35); }
   .btn-primary-gradient {
     background: linear-gradient(135deg, #7B2FF7 0%, #4A6FF5 55%, #2E9BF5 100%);
   }

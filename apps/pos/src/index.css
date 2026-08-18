@@ -4,8 +4,26 @@
 
 /* Mantiene los controles nativos, barras de desplazamiento y formularios en el
    mismo tema que eligió el cajero. Evita pantallas claras dentro de un POS oscuro. */
-.pos-app { color-scheme: light; }
-.dark .pos-app { color-scheme: dark; }
+.pos-app {
+  color-scheme: light;
+  --pos-page: #f7f8fc;
+  --pos-surface: #ffffff;
+  --pos-surface-muted: #f1f5f9;
+  --pos-text: #18233a;
+  --pos-muted: #64748b;
+  --pos-border: #dbe3ef;
+  background: var(--pos-page);
+  color: var(--pos-text);
+}
+.dark .pos-app {
+  color-scheme: dark;
+  --pos-page: #080b16;
+  --pos-surface: #10172a;
+  --pos-surface-muted: #182238;
+  --pos-text: #f8fafc;
+  --pos-muted: #94a3b8;
+  --pos-border: #2c3851;
+}
 .dark .pos-app ::selection { background: rgb(124 58 237 / 0.55); color: white; }
 
 /* Las pantallas históricas de POS usan utilidades claras. Este alcance permite

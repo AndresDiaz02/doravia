@@ -248,7 +248,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="dv-app-shell flex h-screen overflow-hidden">
 
       {/* Overlay móvil (toca para cerrar sidebar) */}
       {sidebarOpen && (

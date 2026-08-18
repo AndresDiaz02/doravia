@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { ReceiptText, TrendingUp, WalletCards } from "lucide-react";
 import { apiFetch, cop } from "../lib/api";
 
 interface ReportePOS {
@@ -36,18 +37,19 @@ export default function Reportes() {
 
   const horasConVentas = data?.por_hora.filter((h) => h.total > 0) ?? [];
   const horasPico = [...(data?.por_hora ?? [])].sort((a, b) => b.total - a.total).slice(0, 3);
+  const ticketPromedio = data && data.cantidad > 0 ? data.total / data.cantidad : 0;
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-slate-50 dark:bg-[#080b16]">
+    <div className="flex h-full flex-col overflow-y-auto bg-gradient-to-br from-slate-50 via-violet-50/35 to-slate-100 dark:from-[#080b16] dark:via-[#10132a] dark:to-[#080b16]">
       {/* Selector de fecha */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-[#0b1020]">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-[#0b1020]/85">
         <p className="font-semibold text-slate-900 dark:text-white">Reportes del día</p>
         <input
           type="date"
           value={fecha}
           max={HOY}
           onChange={(e) => setFecha(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-violet-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-violet-950"
         />
       </div>
 
@@ -70,14 +72,18 @@ export default function Reportes() {
       ) : (
         <div className="p-4 space-y-4">
           {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-violet-50 p-4 text-center dark:bg-violet-950/35">
-              <p className="text-xs font-medium text-violet-600 dark:text-violet-300">Total ventas</p>
-              <p className="mt-1 text-2xl font-bold text-violet-800 dark:text-violet-100">{cop(data.total)}</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-600 to-indigo-600 p-4 text-white shadow-lg shadow-violet-500/20 dark:border-violet-700/40">
+              <div className="flex items-center justify-between"><p className="text-xs font-medium text-violet-100">Total vendido</p><TrendingUp className="h-4 w-4 text-violet-200" /></div>
+              <p className="mt-2 text-2xl font-bold tracking-tight">{cop(data.total)}</p>
             </div>
-            <div className="rounded-xl bg-slate-100 p-4 text-center dark:bg-slate-800">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Transacciones</p>
-              <p className="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-100">{data.cantidad}</p>
+            <div className="rounded-2xl border border-white bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/90">
+              <div className="flex items-center justify-between"><p className="text-xs font-medium text-slate-500 dark:text-slate-400">Transacciones</p><ReceiptText className="h-4 w-4 text-violet-500" /></div>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">{data.cantidad}</p>
+            </div>
+            <div className="col-span-2 rounded-2xl border border-white bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 lg:col-span-1">
+              <div className="flex items-center justify-between"><p className="text-xs font-medium text-slate-500 dark:text-slate-400">Ticket promedio</p><WalletCards className="h-4 w-4 text-emerald-500" /></div>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">{cop(ticketPromedio)}</p>
             </div>
           </div>
 

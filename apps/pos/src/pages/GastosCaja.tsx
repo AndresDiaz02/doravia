@@ -26,6 +26,16 @@ const CONCEPTOS: { value: string; label: string }[] = [
 
 const CONCEPTO_LABELS: Record<string, string> = Object.fromEntries(CONCEPTOS.map((c) => [c.value, c.label]));
 
+/** La caja opera en pesos enteros; el separador facilita validar importes altos. */
+function formatearPesos(valor: string) {
+  const digitos = valor.replace(/\D/g, "");
+  return digitos ? new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Number(digitos)) : "";
+}
+
+function pesosAEntero(valor: string) {
+  return Number(valor.replace(/\D/g, "")) || 0;
+}
+
 export default function GastosCaja({ turnoId, cajaId }: Props) {
   const [gastos, setGastos] = useState<GastoCaja[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +55,7 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
   }
 
   async function registrar() {
-    const montoNum = Number(monto);
+    const montoNum = pesosAEntero(monto);
     if (!montoNum || montoNum <= 0) { setError("Ingresa un monto válido."); return; }
     setGuardando(true);
     setError(null);
@@ -140,12 +150,13 @@ export default function GastosCaja({ turnoId, cajaId }: Props) {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Monto ($)</label>
                 <input
-                  type="number" min="0" step="1000" autoFocus
+                  type="text" inputMode="numeric" pattern="[0-9]*" autoFocus
                   value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
+                  onChange={(e) => setMonto(formatearPesos(e.target.value))}
                   className="w-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-2xl font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="0"
                 />
+                <p className="text-center text-xs text-gray-400 dark:text-slate-500">Ejemplo: 25.000</p>
               </div>
 
               <div className="space-y-1">

@@ -4,17 +4,20 @@ import { and, eq } from "drizzle-orm";
 export type ProductCode = "erp" | "pos" | "facturacion" | "nomina";
 export function productFromPlan(product: string): ProductCode { return product === "origen" ? "facturacion" : product as ProductCode; }
 
+/** Productos que quedan cubiertos por el plan principal, sin una compra duplicada. */
+export function productosIncluidosPorPlan(product: string, features: Record<string, boolean>): ProductCode[] {
+  if (product !== "erp") return [];
+  return features.facturacion_ilimitada ? ["facturacion"] : [];
+}
+
 /**
  * Evita cobrar o mostrar dos veces un producto que el plan ERP ya incluye.
  * La suscripciÃ³n independiente queda cancelada para conservar el historial;
  * el acceso continÃºa por la funcionalidad incluida en el ERP.
  */
 async function desactivarProductosIncluidosEnERP(tenantId: string, plan: typeof plans.$inferSelect, now: Date) {
-  if (plan.product !== "erp") return [] as ProductCode[];
-
   const features = plan.features as Record<string, boolean>;
-  const incluidos: ProductCode[] = [];
-  if (features.facturacion_ilimitada) incluidos.push("facturacion");
+  const incluidos = productosIncluidosPorPlan(plan.product, features);
 
   for (const product of incluidos) {
     await db.update(product_subscriptions)

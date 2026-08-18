@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
-import { Download } from "lucide-react";
+import { Download, Scale } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
 
 interface Cuenta {
   codigo: string;
@@ -63,11 +65,12 @@ export default function BalancePrueba() {
     : [];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Balance de Prueba</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Saldos de movimiento por período — verificación de cuadratura contable</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Contabilidad</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"><Scale className="h-5 w-5 text-action" />Balance de Prueba</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Verifica la cuadratura y los saldos por periodo.</p>
         </div>
       </div>
 
@@ -77,7 +80,7 @@ export default function BalancePrueba() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
+            className="dv-input px-3 py-2 text-sm"
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
           />
@@ -86,21 +89,18 @@ export default function BalancePrueba() {
           <label className="block text-xs font-medium text-gray-600 mb-1">Hasta</label>
           <input
             type="date"
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-action"
+            className="dv-input px-3 py-2 text-sm"
             value={hasta}
             onChange={(e) => setHasta(e.target.value)}
           />
         </div>
-        <button
-          onClick={() => void cargar()}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover transition-colors"
-        >
+        <Button onClick={() => void cargar()}>
           Generar
-        </button>
+        </Button>
         {data && (
           <a
             href={`/api/contabilidad/exportar/balance-prueba?desde=${desde}&hasta=${hasta}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="dv-button-secondary inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium"
           >
             <Download className="h-4 w-4" />
             Excel
@@ -123,7 +123,7 @@ export default function BalancePrueba() {
               : `⚠ Descuadre: diferencia de $${Math.abs(data.totales.debitos - data.totales.creditos).toLocaleString("es-CO")}`}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <Card className="overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
@@ -183,7 +183,7 @@ export default function BalancePrueba() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </Card>
 
           {data.cuentas.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-6">

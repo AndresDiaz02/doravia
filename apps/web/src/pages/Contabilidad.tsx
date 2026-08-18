@@ -234,9 +234,13 @@ export function Contabilidad() {
   }, [tab]);
 
   return (
-    <div className="flex-1 space-y-6 p-6 dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-50]:border-slate-800 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-800]:text-slate-100 dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Contabilidad</h1>
+    <div className="flex-1 space-y-6 p-4 sm:p-6 dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-50]:border-slate-800 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-800]:text-slate-100 dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Finanzas y cumplimiento</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Contabilidad</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Libros, estados financieros, ajustes y cierre en un mismo flujo.</p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           {tab === "diario" && (
             <Button variant="secondary" onClick={() => void descargarExcel(`/api/contabilidad/exportar/diario?desde=${desde}&hasta=${hasta}`, `libro_diario_${desde}_${hasta}.xlsx`)}>
@@ -257,7 +261,7 @@ export function Contabilidad() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-gray-200 bg-white p-1 w-fit flex-wrap">
+      <div className="flex w-full gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
         <TabBtn active={tab === "diario"} onClick={() => setTab("diario")}>
           Libro diario
         </TabBtn>
@@ -329,7 +333,7 @@ export function Contabilidad() {
                   <select
                     value={codigoMayor}
                     onChange={(e) => setCodigoMayor(e.target.value)}
-                    className="block w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                    className="dv-input block w-64 px-3 py-2 text-sm"
                   >
                     <option value="">— Seleccionar cuenta —</option>
                     {cuentas.map((c) => (
@@ -721,12 +725,12 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+      className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all flex items-center gap-1.5 ${
         locked
-          ? "text-gray-300 cursor-not-allowed"
+          ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
           : active
           ? "bg-gradient-cold text-white"
-          : "text-gray-500 hover:text-gray-900"
+          : "text-gray-500 hover:bg-action/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-gray-100"
       }`}
       title={locked ? "Requiere plan Raíz o superior" : undefined}
     >

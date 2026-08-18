@@ -97,7 +97,7 @@ export function Facturas() {
   }, [cargar, busqueda]);
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-4 sm:p-6">
       {mostrarTutorial && (
         <TutorialOverlay
           slug="facturas"
@@ -109,7 +109,10 @@ export function Facturas() {
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Facturas</h1>
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Facturacion electronica</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Facturas</h1>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button type="button" variant="secondary" size="sm" onClick={relanzarTutorial} title="Ver tutorial">
               <BookOpen className="h-4 w-4" />
@@ -117,7 +120,7 @@ export function Facturas() {
             {!isContador && (
               <Link
                 to="/facturas/nueva"
-                className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover"
+                className="dv-button-primary inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
               >
                 <Plus className="h-4 w-4" />
                 Nueva factura
@@ -133,7 +136,7 @@ export function Facturas() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por número, cliente o NIT…"
-              className="w-64 rounded-md border border-gray-300 bg-white pl-8 pr-7 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="dv-input w-64 pl-8 pr-7 py-1.5 text-sm"
             />
             {busqueda && (
               <button onClick={() => setBusqueda("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -142,7 +145,7 @@ export function Facturas() {
             )}
           </div>
           <select value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+            className="dv-input px-2 py-1.5 text-sm">
             <option value="">Todos los estados</option>
             <option value="aceptada">Aceptada</option>
             <option value="borrador">Borrador</option>
@@ -151,9 +154,9 @@ export function Facturas() {
             <option value="anulada">Anulada</option>
           </select>
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+            className="dv-input px-2 py-1.5 text-sm" />
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+            className="dv-input px-2 py-1.5 text-sm" />
           <Button variant="secondary" size="sm" disabled={exportando} onClick={() => {
             setExportando(true);
             const qs = new URLSearchParams();
@@ -178,7 +181,7 @@ export function Facturas() {
             {!isContador && (
               <Link
                 to="/facturas/nueva"
-                className="mt-4 inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-action-hover"
+                className="dv-button-primary mt-4 inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold text-white"
               >
                 Crear primera factura
               </Link>

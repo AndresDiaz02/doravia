@@ -71,11 +71,12 @@ export default function NominaEmpleados() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <NominaBanner />
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-1.5 text-2xl font-semibold text-gray-900">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Nomina electronica</p>
+          <h1 className="flex items-center gap-1.5 text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
             Empleados
             <HelpTooltip text="Aquí gestionas la información de cada empleado: salario, tipo de contrato y datos bancarios. Cada empleado activo consume 1 documento del pool de nómina cuando se le emite una nómina." side="right" />
           </h1>
@@ -94,7 +95,7 @@ export default function NominaEmpleados() {
             key={estado}
             onClick={() => setFiltroEstado(estado)}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              filtroEstado === estado ? "bg-action text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              filtroEstado === estado ? "bg-action text-white shadow-sm shadow-action/20" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
             {estado === "activo" ? "Activos" : estado === "retirado" ? "Retirados" : "Inactivos"}
@@ -125,7 +126,7 @@ export default function NominaEmpleados() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
                   <th className="px-4 py-3">Nombre</th>
                   <th className="px-4 py-3">Cédula</th>
                   <th className="px-4 py-3">Cargo</th>
@@ -136,16 +137,16 @@ export default function NominaEmpleados() {
               </thead>
               <tbody>
                 {empleados.map((e) => (
-                  <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-slate-800/70">
                     <td className="px-4 py-3">
-                      <Link to={`/nomina/empleados/${e.id}`} className="font-medium text-gray-900 hover:text-action hover:underline">
+                      <Link to={`/nomina/empleados/${e.id}`} className="font-medium text-gray-900 hover:text-action hover:underline dark:text-gray-100">
                         {e.nombres} {e.apellidos}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{e.cedula}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{e.cedula}</td>
                     <td className="px-4 py-3 text-gray-600">{e.cargo ?? "—"}</td>
-                    <td className="px-4 py-3 text-gray-600">{TIPO_CONTRATO_LABEL[e.tipo_contrato] ?? e.tipo_contrato}</td>
-                    <td className="px-4 py-3 text-right text-gray-900">{cop(e.salario_base)}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{TIPO_CONTRATO_LABEL[e.tipo_contrato] ?? e.tipo_contrato}</td>
+                    <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">{cop(e.salario_base)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={e.estado === "activo" ? "green" : e.estado === "retirado" ? "gray" : "yellow"}>
                         {e.estado === "activo" ? "Activo" : e.estado === "retirado" ? "Retirado" : "Inactivo"}

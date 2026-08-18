@@ -112,6 +112,7 @@ app.use((req, res, next) => {
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((o) => o.trim());
+const PUBLIC_MARKETING_ORIGINS = ["https://doraviasoft.com", "https://www.doraviasoft.com"];
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -119,7 +120,7 @@ app.use(helmet({
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || PUBLIC_MARKETING_ORIGINS.includes(origin)) return cb(null, true);
     cb(new Error(`Origin ${origin} no permitido por CORS`));
   },
   credentials: true,

@@ -1263,6 +1263,8 @@ router.get("/cierre-dian", async (req, res) => {
         total: ventas_pos.total,
         tipo_documento: ventas_pos.tipo_documento,
         estado_dian: ventas_pos.estado_dian,
+        cufe: ventas_pos.cufe,
+        error_dian: ventas_pos.error_dian,
         fecha_limite_envio: ventas_pos.fecha_limite_envio,
         created_at: ventas_pos.created_at,
         nombre_cliente: ventas_pos.nombre_cliente,
@@ -1335,10 +1337,19 @@ router.post("/cierre-dian/enviar", async (req, res) => {
         ...calcularTotalesPlemsi(itemsPlemsi),
       });
       if (!resultado.ok) {
+        await db.update(ventas_pos).set({
+          estado_dian: "error",
+          error_dian: resultado.error ?? "Plemsi no confirmó el documento.",
+        }).where(eq(ventas_pos.id, venta.id));
         errores.push({ id, error: resultado.error ?? "Plemsi no confirmó el documento." });
         continue;
       }
-      await db.update(ventas_pos).set({ estado_dian: "enviado", enviado_en: new Date() }).where(eq(ventas_pos.id, venta.id));
+      await db.update(ventas_pos).set({
+        estado_dian: "enviado",
+        enviado_en: new Date(),
+        cufe: resultado.cufe ?? null,
+        error_dian: null,
+      }).where(eq(ventas_pos.id, venta.id));
       actualizadas++;
     }
 

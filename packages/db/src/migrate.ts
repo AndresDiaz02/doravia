@@ -417,6 +417,8 @@ const migrations = [
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS estado_dian varchar(30) NOT NULL DEFAULT 'pendiente_envio'`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS fecha_limite_envio timestamptz`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS enviado_en timestamptz`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS cufe varchar(150)`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS error_dian text`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_por uuid`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_en timestamptz`,
   `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS anulado_motivo text`,

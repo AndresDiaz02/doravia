@@ -1338,7 +1338,9 @@ router.post("/cierre-dian/enviar", async (req, res) => {
       });
       if (!resultado.ok) {
         await db.update(ventas_pos).set({
-          estado_dian: "error",
+          // Permanece en cola para un reintento manual; el detalle del error
+          // queda auditado en error_dian y nunca se informa como enviado.
+          estado_dian: "pendiente_envio",
           error_dian: resultado.error ?? "Plemsi no confirmó el documento.",
         }).where(eq(ventas_pos.id, venta.id));
         errores.push({ id, error: resultado.error ?? "Plemsi no confirmó el documento." });

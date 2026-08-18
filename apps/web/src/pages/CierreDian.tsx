@@ -9,6 +9,7 @@ interface VentaPendiente {
   total: string;
   tipo_documento: "factura_electronica" | "tiquete_pos";
   estado_dian: string;
+  error_dian: string | null;
   fecha_limite_envio: string | null;
   created_at: string;
   nombre_cliente: string | null;
@@ -222,7 +223,10 @@ export default function CierreDian() {
                           className="accent-green-600"
                         />
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{v.numero}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">
+                        <span className="block">{v.numero}</span>
+                        {v.error_dian && <span className="mt-1 block max-w-[220px] truncate font-sans text-[11px] text-red-600" title={v.error_dian}>Reintento: {v.error_dian}</span>}
+                      </td>
                       <td className="px-4 py-2.5 text-gray-600">{v.nombre_cliente ?? "—"}</td>
                       <td className="px-4 py-2.5">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${

@@ -89,11 +89,26 @@ export default function MiPlan() {
     ? Math.min(100, (uso.facturas_usadas_ano / uso.max_facturas_ano) * 100)
     : null;
   const esProductoERP = plan.product === "erp";
+  const productosCuenta = [
+    {
+      product: plan.product,
+      status: suscripcion.activo && suscripcion.dias_restantes > 0 ? "active" : "inactive",
+      plan_nombre: plan.nombre,
+      detalle: "Producto principal",
+    },
+    ...(esProductoERP && plan.features.facturacion_ilimitada === true
+      ? [{ product: "facturacion", status: "active", plan_nombre: "Incluido en tu ERP", detalle: "Sin plan adicional" }]
+      : []),
+    ...productos
+      .filter((producto) => producto.product !== plan.product && producto.status === "active")
+      .map((producto) => ({ ...producto, detalle: "Producto adicional" })),
+  ];
 
   return (
-    <div className="flex-1 space-y-6 p-6 max-w-2xl">
+    <div className="flex-1 space-y-6 p-4 sm:p-6 max-w-3xl">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Mi plan</h1>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Cuenta y cobertura</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Mi plan</h1>
         <p className="text-sm text-gray-500">Estado de tu suscripción y uso actual</p>
       </div>
 
@@ -171,14 +186,14 @@ export default function MiPlan() {
       <Card className="p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Productos Doravia</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Cobertura de tu cuenta</h2>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Cada producto funciona por separado y comparte clientes, empresa y datos cuando los tienes juntos.</p>
           </div>
           <Link to="/modulos" className="text-xs font-medium text-action hover:underline">Gestionar</Link>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {productos.length > 0 ? productos.map((producto) => {
-            const activo = producto.status === "active" && new Date(producto.ends_at) >= new Date();
+          {productosCuenta.map((producto) => {
+            const activo = producto.status === "active";
             return (
               <div key={`${producto.product}-${producto.plan_slug}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
                 <div className="min-w-0">
@@ -190,10 +205,9 @@ export default function MiPlan() {
                 </span>
               </div>
             );
-          }) : (
-            <p className="rounded-lg bg-gray-50 px-3 py-4 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400">Aún no hay productos adicionales contratados.</p>
-          )}
+          })}
         </div>
+        <p className="rounded-lg bg-action/5 px-3 py-2 text-xs leading-5 text-gray-600 dark:text-gray-300">Puedes sumar POS o Nomina cuando lo necesites. Si tu ERP incluye Facturacion, no se cobra ni se mantiene como un plan separado.</p>
       </Card>
 
       {/* Uso de documentos */}

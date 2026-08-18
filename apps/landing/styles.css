@@ -515,3 +515,12 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
   .diagnostico-section,.confianza-section{padding:72px 0;}.diagnostico-layout,.confianza-grid{grid-template-columns:1fr;gap:30px;}.diagnostico-form{padding:22px;}.confianza-grid article{min-height:0;}
   .hero-proof{margin:26px auto 28px;display:grid;grid-template-columns:1fr 1fr;border-radius:14px;}.hero-proof>div{padding:11px 12px;}.hero-proof>div:nth-child(2){border-right:0;}.hero-proof>div:nth-child(3){grid-column:1/-1;border-top:1px solid rgba(255,255,255,.1);}.hero-product-preview{padding:6px;border-radius:16px;}.hero-preview-bar{height:25px;}.hero-preview-bar b{display:none;}.hero-product-preview img{max-height:220px;border-radius:10px;}.hero-preview-float{display:none;}
 }
+
+/* Conversión: reglas aisladas para que ningún estilo de página interfiera con el formulario. */
+.home-page .diagnostico-section{padding:108px 0 !important;background:linear-gradient(135deg,#f7f3ff 0%,#fff 55%,#edf6ff 100%) !important;}
+.home-page .diagnostico-layout{display:grid !important;grid-template-columns:minmax(0,1.08fr) minmax(370px,.92fr) !important;gap:64px !important;align-items:center !important;}
+.home-page .diagnostico-form{display:flex !important;flex-direction:column !important;gap:16px !important;padding:32px !important;border:1px solid #e1d7f3 !important;border-radius:24px !important;background:#fff !important;box-shadow:0 24px 58px rgba(59,30,140,.12) !important;}
+.home-page .diagnostico-form label{display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:8px !important;color:#2d1660 !important;font:700 12px/1.35 'Poppins',sans-serif !important;}
+.home-page .diagnostico-form select,.home-page .diagnostico-form input{display:block !important;width:100% !important;min-height:46px !important;margin:0 !important;padding:12px 13px !important;border:1px solid #ddd4ef !important;border-radius:11px !important;background:#fff !important;color:#2d1660 !important;font:500 13px/1.3 'Poppins',sans-serif !important;}
+.home-page .diagnostico-form .btn-primary{width:100% !important;min-height:50px !important;margin-top:6px !important;justify-content:center !important;}
+@media(max-width:780px){.home-page .diagnostico-section{padding:72px 0 !important;}.home-page .diagnostico-layout{grid-template-columns:1fr !important;gap:34px !important;}.home-page .diagnostico-form{padding:22px !important;}}

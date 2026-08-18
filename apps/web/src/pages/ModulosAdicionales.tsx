@@ -164,7 +164,7 @@ export default function ModulosAdicionales() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-8">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-action">Doravia · Productos conectados</p>
         <h1 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">Planes y módulos</h1>
@@ -204,7 +204,7 @@ export default function ModulosAdicionales() {
             {PLANES_POS.map((p) => (
               <div
                 key={p.slug}
-                className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${
+                className={`relative rounded-2xl border bg-white p-5 flex flex-col gap-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 ${
                   p.destacado ? "border-blue-400 ring-1 ring-blue-200" : "border-gray-200"
                 }`}
               >
@@ -247,6 +247,14 @@ export default function ModulosAdicionales() {
       </section>
 
       {/* Facturación Electrónica independiente */}
+      <div className="grid gap-3 rounded-2xl border border-action/15 bg-gradient-to-r from-action/10 via-violet-50 to-blue-50 p-4 text-sm dark:from-action/15 dark:via-violet-950/25 dark:to-blue-950/25 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-gray-100">Construye la combinacion que necesita tu empresa</p>
+          <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">Puedes empezar con Facturacion, POS o Nomina. Al sumar ERP, todo conserva la misma empresa, clientes y documentos.</p>
+        </div>
+        <span className="w-fit rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-action shadow-sm dark:bg-slate-900/80">Sin duplicar informacion</span>
+      </div>
+
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Receipt className="h-5 w-5 text-emerald-600" />
@@ -257,7 +265,7 @@ export default function ModulosAdicionales() {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANES_FACTURACION.map((p) => (
-            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200 dark:border-emerald-500 dark:ring-emerald-900" : "border-gray-200 dark:border-slate-700"}`}>
+            <div key={p.slug} className={`relative rounded-2xl border bg-white p-5 flex flex-col gap-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200 dark:border-emerald-500 dark:ring-emerald-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
               <div><p className="font-bold text-gray-900 dark:text-white">{p.nombre}</p><p className="text-xl font-bold text-gray-800 mt-1 dark:text-slate-100">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1 dark:text-slate-500">/ año</span></p></div>
               <ul className="flex-1 space-y-1.5">{p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}</ul>
@@ -279,7 +287,7 @@ export default function ModulosAdicionales() {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANES_NOMINA.map((p) => (
-            <div key={p.slug} className={`relative rounded-xl border bg-white p-5 flex flex-col gap-4 shadow-sm dark:bg-slate-900 ${p.destacado ? "border-violet-400 ring-1 ring-violet-200 dark:border-violet-500 dark:ring-violet-900" : "border-gray-200 dark:border-slate-700"}`}>
+            <div key={p.slug} className={`relative rounded-2xl border bg-white p-5 flex flex-col gap-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 ${p.destacado ? "border-violet-400 ring-1 ring-violet-200 dark:border-violet-500 dark:ring-violet-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
               <div>
                 <p className="font-bold text-gray-900 dark:text-white">{p.nombre}</p>

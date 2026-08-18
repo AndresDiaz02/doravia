@@ -153,7 +153,7 @@ export default function Inventario() {
   if (loading) return <p className="p-8 text-gray-500 dark:text-slate-400">Cargando inventario…</p>;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto dark:[&_.bg-white]:bg-slate-900 dark:[&_.bg-gray-50]:bg-slate-800/70 dark:[&_.border-gray-100]:border-slate-800 dark:[&_.border-gray-200]:border-slate-700 dark:[&_.border-gray-300]:border-slate-600 dark:[&_.text-gray-900]:text-white dark:[&_.text-gray-700]:text-slate-200 dark:[&_.text-gray-600]:text-slate-300 dark:[&_.text-gray-500]:text-slate-400 dark:[&_.text-gray-400]:text-slate-500 dark:[&_.hover\:bg-gray-50:hover]:bg-slate-800">
       {mostrarTutorial && (
         <TutorialOverlay
           slug="inventario"
@@ -163,12 +163,13 @@ export default function Inventario() {
         />
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Inventario</h1>
-          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">Control de existencias por bodega</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Operacion</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Inventario</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Existencias, movimientos y control por bodega.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={relanzarTutorial} title="Ver tutorial">
             <BookOpen className="h-4 w-4" />
           </Button>
@@ -264,15 +265,15 @@ export default function Inventario() {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
         {(["stock", "movimientos"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               tab === t
-                ? "border-green-600 text-green-700"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "bg-action text-white shadow-sm shadow-action/20"
+                : "text-gray-500 hover:bg-action/5 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-100"
             }`}
           >
             {t === "stock" ? "Stock actual" : "Historial de movimientos"}
@@ -298,10 +299,10 @@ export default function Inventario() {
                   value={busquedaStock}
                   onChange={(e) => setBusquedaStock(e.target.value)}
                   placeholder="Buscar por código o nombre…"
-                  className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm"
+                  className="dv-input w-full pl-8 pr-3 py-1.5 text-sm"
                 />
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <Card className="overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
@@ -329,14 +330,14 @@ export default function Inventario() {
                       ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
             </>
           )}
         </>
       )}
 
       {tab === "movimientos" && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <Card className="overflow-hidden">
           {movimientos.length === 0 ? (
             <div className="py-16 flex flex-col items-center text-gray-500 gap-2">
               <p>Sin movimientos registrados.</p>
@@ -377,7 +378,7 @@ export default function Inventario() {
               </tbody>
             </table>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Dialog nuevo movimiento */}

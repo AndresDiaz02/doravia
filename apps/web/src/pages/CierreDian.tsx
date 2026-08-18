@@ -20,6 +20,12 @@ interface CierreDianResponse {
   cantidad: number;
 }
 
+interface EnvioDianResponse {
+  actualizadas: number;
+  mensaje: string;
+  errores?: Array<{ id: string; error: string }>;
+}
+
 export default function CierreDian() {
   const [data, setData] = useState<CierreDianResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,11 +70,16 @@ export default function CierreDian() {
     setEnviando(true);
     setMensaje(null);
     try {
-      const res = await apiFetch<{ actualizadas: number; mensaje: string }>("/api/pos/cierre-dian/enviar", {
+      const res = await apiFetch<EnvioDianResponse>("/api/pos/cierre-dian/enviar", {
         method: "POST",
         body: JSON.stringify({ ids: [...seleccionadas] }),
       });
-      setMensaje({ tipo: "ok", texto: res.mensaje });
+      setMensaje({
+        tipo: res.errores?.length ? "error" : "ok",
+        texto: res.errores?.length
+          ? `${res.mensaje} ${res.errores.length} documento(s) no fueron aceptados: ${res.errores.map((e) => e.error).join(" · ")}`
+          : res.mensaje,
+      });
       await cargar();
     } catch (err) {
       setMensaje({ tipo: "error", texto: err instanceof ApiError ? err.message : "Error al enviar." });

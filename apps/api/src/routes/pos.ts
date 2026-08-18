@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos } from "@workspace/db";
+import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos, resoluciones_dian } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray } from "drizzle-orm";
 import { users } from "@workspace/db";
@@ -7,6 +7,8 @@ import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearA
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
+import { buildItems, calcularTotalesPlemsi, emitirDocumentoPOS, metodoPagoId } from "../services/plemsi.service.js";
+import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 
 const router = Router();
 const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
@@ -14,6 +16,10 @@ const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplat
 /** Un cajero solo puede operar el turno que abrió; administración conserva supervisión total. */
 function puedeOperarTurno(req: { userId: string; userRole: string }, turno: { usuario_id: string }) {
   return req.userRole === "admin" || turno.usuario_id === req.userId;
+}
+
+function puedeOperarDian(req: { userRole: string; userDian?: boolean }) {
+  return req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian === true);
 }
 
 // ── Cajas ─────────────────────────────────────────────────────────────────────
@@ -1248,6 +1254,7 @@ router.get("/reportes", async (req, res) => {
 
 // GET /api/pos/cierre-dian — ventas pendientes de envío a la DIAN
 router.get("/cierre-dian", async (req, res) => {
+  if (!puedeOperarDian(req)) return res.status(403).json({ error: "No tienes permisos para revisar el cierre DIAN." });
   try {
     const ventas = await db
       .select({
@@ -1277,31 +1284,67 @@ router.get("/cierre-dian", async (req, res) => {
 
 // POST /api/pos/cierre-dian/enviar — marcar lote como enviado a la DIAN
 router.post("/cierre-dian/enviar", async (req, res) => {
+  if (!puedeOperarDian(req)) return res.status(403).json({ error: "No tienes permisos para enviar documentos a la DIAN." });
   try {
     const { ids } = req.body as { ids?: string[] };
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: "Se requiere un array 'ids' con los IDs de ventas a enviar." });
     }
 
-    const ahora = new Date();
+    if (ids.length > 100) return res.status(400).json({ error: "Puedes enviar máximo 100 documentos por lote." });
+    const { apiKey, ambiente } = await getPlemsiCredentials(req.tenantId);
+    const [resolucion] = await db.select().from(resoluciones_dian).where(and(
+      eq(resoluciones_dian.tenant_id, req.tenantId),
+      eq(resoluciones_dian.activa, true),
+    )).limit(1);
+    if (!resolucion) return res.status(422).json({ error: "No hay una resolución DIAN activa para el documento equivalente POS." });
 
-    // Solo actualizar ventas que pertenezcan al tenant y estén pendientes
     let actualizadas = 0;
+    const errores: Array<{ id: string; error: string }> = [];
     for (const id of ids) {
-      const [result] = await db
-        .update(ventas_pos)
-        .set({ estado_dian: "enviado", enviado_en: ahora })
-        .where(and(
-          eq(ventas_pos.id, id),
-          eq(ventas_pos.tenant_id, req.tenantId),
-          eq(ventas_pos.estado_dian, "pendiente_envio"),
-        ))
-        .returning({ id: ventas_pos.id });
-      if (result) actualizadas++;
+      const [venta] = await db.select().from(ventas_pos).where(and(
+        eq(ventas_pos.id, id),
+        eq(ventas_pos.tenant_id, req.tenantId),
+        eq(ventas_pos.estado_dian, "pendiente_envio"),
+      )).limit(1);
+      if (!venta) continue;
+      if (venta.consecutivo < resolucion.consecutivo_desde || venta.consecutivo > resolucion.consecutivo_hasta) {
+        errores.push({ id, error: "El consecutivo POS está fuera del rango de la resolución activa." });
+        continue;
+      }
+      const items = await db.select().from(items_venta_pos).where(eq(items_venta_pos.venta_id, venta.id));
+      const itemsPlemsi = buildItems(items.map((item) => ({
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario,
+        descuento: item.descuento_pct,
+        iva_porcentaje: item.iva_pct,
+        impoconsumo_porcentaje: item.impoconsumo_pct,
+      })));
+      const ahoraColombia = new Date(Date.now() - 5 * 60 * 60 * 1000);
+      const resultado = await emitirDocumentoPOS({
+        apiKey,
+        ambiente,
+        prefix: resolucion.prefijo,
+        number: venta.consecutivo,
+        resolution: resolucion.numero_resolucion,
+        date: ahoraColombia.toISOString().slice(0, 10),
+        time: ahoraColombia.toISOString().slice(11, 19),
+        items: itemsPlemsi,
+        payment_method_id: metodoPagoId(venta.metodo_pago),
+        ...calcularTotalesPlemsi(itemsPlemsi),
+      });
+      if (!resultado.ok) {
+        errores.push({ id, error: resultado.error ?? "Plemsi no confirmó el documento." });
+        continue;
+      }
+      await db.update(ventas_pos).set({ estado_dian: "enviado", enviado_en: new Date() }).where(eq(ventas_pos.id, venta.id));
+      actualizadas++;
     }
 
-    res.json({ actualizadas, mensaje: `${actualizadas} ventas marcadas como enviadas a la DIAN.` });
+    res.json({ actualizadas, errores, mensaje: `${actualizadas} documentos fueron aceptados por el proveedor electrónico.` });
   } catch (err) {
+    if (err instanceof PlemsiNotConfiguredError) return res.status(422).json({ error: err.message });
     console.error("Error en POST /pos/cierre-dian/enviar:", err);
     res.status(500).json({ error: "Error interno del servidor." });
   }

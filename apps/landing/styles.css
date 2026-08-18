@@ -43,7 +43,7 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .nav-mobile-cta{display:none;}
 
 /* HERO */
-.hero{min-height:92vh;display:flex;align-items:center;background:var(--navy);position:relative;overflow:hidden;padding-top:90px;}
+.hero{min-height:92vh;display:flex;align-items:center;background:var(--navy);position:relative;overflow:hidden;padding:128px 0 74px;}
 .hero-bg-glow{position:absolute;top:-20%;right:-10%;width:60%;height:140%;background:radial-gradient(circle,rgba(123,47,247,0.18) 0%,transparent 65%);pointer-events:none;}
 .hero-inner{max-width:1200px;margin:0 auto;padding:0 32px;text-align:center;width:100%;}
 .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:1.5px;color:var(--yellow);background:rgba(255,146,51,0.12);padding:8px 18px;border-radius:30px;margin-bottom:30px;}
@@ -58,6 +58,12 @@ nav a:hover,nav a.active{opacity:1;color:var(--action);}
 .hero-lines{display:flex;gap:40px;justify-content:center;margin-top:56px;flex-wrap:wrap;}
 .hero-line-item{display:flex;align-items:center;gap:10px;font-size:14px;color:#D5C8F8;}
 .hero-line-emoji{font-size:18px;}
+.hero-proof{display:flex;justify-content:center;gap:0;max-width:760px;margin:34px auto 44px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(17,9,53,.38);backdrop-filter:blur(12px);overflow:hidden;}
+.hero-proof>div{flex:1;padding:15px 18px;text-align:left;border-right:1px solid rgba(255,255,255,.1);}
+.hero-proof>div:last-child{border-right:0;}.hero-proof strong{display:block;color:#fff;font-size:13px;letter-spacing:.01em;}.hero-proof span{display:block;margin-top:3px;color:#BEB2EA;font-size:10.5px;line-height:1.35;}
+.hero-product-preview{position:relative;max-width:940px;margin:0 auto;border:1px solid rgba(255,255,255,.16);border-radius:22px;background:#17103b;padding:10px;box-shadow:0 32px 84px rgba(5,0,30,.55),0 0 0 8px rgba(123,47,247,.07);text-align:left;}
+.hero-preview-bar{height:31px;display:flex;align-items:center;gap:6px;padding:0 9px;color:#a9a0c8;}.hero-preview-bar span{width:7px;height:7px;border-radius:50%;background:#ff705f;}.hero-preview-bar span:nth-child(2){background:#ffbd48;}.hero-preview-bar span:nth-child(3){background:#42cf70;}.hero-preview-bar p{margin-left:8px;flex:1;border-radius:9px;background:rgba(255,255,255,.08);padding:4px 10px;font:10px/1 monospace;color:#aea6cf;}.hero-preview-bar b{font-size:10px;color:#ded8f7;font-weight:600;}.hero-product-preview img{display:block;width:100%;max-height:410px;object-fit:cover;object-position:top;border-radius:13px;opacity:.96;}
+.hero-preview-float{position:absolute;border:1px solid rgba(255,255,255,.17);background:rgba(27,17,69,.91);box-shadow:0 18px 36px rgba(0,0,0,.28);backdrop-filter:blur(12px);border-radius:14px;padding:13px 15px;}.hero-preview-float small{display:block;color:#b9afe0;font-size:8.5px;font-weight:700;letter-spacing:.1em;}.hero-preview-float strong{display:block;color:#fff;font-size:12px;margin:4px 0;}.hero-preview-float span{font-size:10px;color:#9bd4ff;}.hero-preview-float-top{right:-30px;top:92px;}.hero-preview-float-bottom{left:-28px;bottom:30px;display:flex;align-items:center;gap:9px;}.hero-preview-float-bottom i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#34c78b;color:#092b22;font-size:14px;font-style:normal;font-weight:800;}
 
 /* PAGE HERO (subpages) */
 .page-hero{background:var(--navy);padding:130px 0 80px;position:relative;overflow:hidden;text-align:center;}
@@ -504,4 +510,5 @@ footer{background:var(--navy-deep);padding:56px 0 32px;}
   .home-page .hero-title { font-size: 42px; }
   .home-page .hero-lines { justify-content: flex-start; max-width: 330px; margin-left: auto; margin-right: auto; }
   .home-page .comparativa-section { padding: 72px 0; }
+  .hero-proof{margin:26px auto 28px;display:grid;grid-template-columns:1fr 1fr;border-radius:14px;}.hero-proof>div{padding:11px 12px;}.hero-proof>div:nth-child(2){border-right:0;}.hero-proof>div:nth-child(3){grid-column:1/-1;border-top:1px solid rgba(255,255,255,.1);}.hero-product-preview{padding:6px;border-radius:16px;}.hero-preview-bar{height:25px;}.hero-preview-bar b{display:none;}.hero-product-preview img{max-height:220px;border-radius:10px;}.hero-preview-float{display:none;}
 }

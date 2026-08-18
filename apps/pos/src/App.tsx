@@ -129,7 +129,7 @@ function AppInner() {
 
   return (
     <div className="pos-app h-screen flex flex-col overflow-hidden bg-slate-100 dark:bg-[#080b16]">
-      <nav className="relative z-30 h-16 flex-shrink-0 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-3 shadow-[0_4px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-5 dark:border-slate-800 dark:bg-[#0b1020]/95 dark:shadow-black/20 flex items-center gap-1">
+      <nav className="relative z-30 flex h-16 flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-3 shadow-[0_4px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-5 dark:border-slate-800 dark:bg-[#0b1020]/95 dark:shadow-black/20">
         <div className="flex items-center gap-2 mr-2 sm:mr-4 flex-shrink-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-violet-500 to-blue-500 shadow-lg shadow-violet-500/25 ring-2 ring-violet-100 dark:ring-violet-950/70">
             <span className="text-white text-xs font-black">D</span>
@@ -144,10 +144,10 @@ function AppInner() {
           <button
             key={id}
             onClick={() => setVista(id)}
-            className={`flex flex-shrink-0 items-center gap-1.5 px-2.5 sm:px-3 h-full text-sm font-medium border-b-2 transition-colors ${
+            className={`flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-all sm:px-3 ${
               vista === id
-                ? "border-violet-500 bg-violet-50/80 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
-                : "border-transparent text-gray-400 dark:text-slate-500 hover:bg-slate-50 hover:text-gray-700 dark:hover:bg-slate-800/70 dark:hover:text-slate-300"
+                ? "bg-violet-600 text-white shadow-md shadow-violet-500/20"
+                : "text-gray-400 dark:text-slate-500 hover:bg-violet-50/80 hover:text-violet-700 dark:hover:bg-slate-800/70 dark:hover:text-slate-300"
             }`}
           >
             {icon}

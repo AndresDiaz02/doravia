@@ -168,13 +168,16 @@ export default function HistorialVentas({ turnoId }: Props) {
   const totalDevuelto = devoluciones.reduce((s, d) => s + Number(d.monto_devuelto), 0);
 
   return (
-    <div className="flex h-full flex-col bg-gray-50 dark:bg-[#0B0E1A]">
-      <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-3 flex-shrink-0">
+    <div className="flex h-full flex-col bg-gradient-to-br from-slate-50 via-violet-50/25 to-slate-100 dark:from-[#080b16] dark:via-[#0d1024] dark:to-[#080b16]">
+      <div className="border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-semibold text-gray-900 dark:text-white">Ventas del turno</p>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-500">Operacion de caja</p>
+            <p className="font-semibold text-gray-900 dark:text-white">Ventas del turno</p>
+          </div>
           <div className="text-right">
             <p className="text-xs text-gray-400 dark:text-slate-500">{ventas.filter((v) => v.estado === "completada").length} ventas</p>
-            <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{cop(total)}</p>
+            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">{cop(total)}</p>
           </div>
         </div>
         <div className="relative">
@@ -216,7 +219,7 @@ export default function HistorialVentas({ turnoId }: Props) {
                 <tr
                   key={v.id}
                   onClick={() => void verDetalle(v.id)}
-                  className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800/60 transition-colors ${v.estado === "anulada" ? "opacity-40 line-through" : ""}`}
+                  className={`cursor-pointer hover:bg-violet-50/80 dark:hover:bg-slate-800/60 transition-colors ${v.estado === "anulada" ? "opacity-40 line-through" : ""}`}
                 >
                   <td className="px-4 py-2.5 text-gray-500 dark:text-slate-400">
                     {new Date(v.created_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}

@@ -12,6 +12,7 @@ const WOMPI_PUB_KEY = process.env.WOMPI_PUB_KEY ?? "";
 const WOMPI_PRV_KEY = process.env.WOMPI_PRV_KEY ?? "";
 const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET ?? "";
 const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
+const IS_PROD = process.env.NODE_ENV === "production";
 
 // POST /api/pagos/checkout
 // Genera los parámetros necesarios para el widget de Wompi (modo redirect)
@@ -66,6 +67,13 @@ router.post("/checkout", authenticate, async (req, res) => {
 // POST /api/pagos/webhook  (sin authenticate — viene de Wompi)
 router.post("/webhook", async (req, res) => {
   try {
+    // En producciÃ³n un webhook sin secreto no es una degradaciÃ³n aceptable: podrÃ­a
+    // activar suscripciones a partir de eventos no verificables.
+    if (IS_PROD && !WOMPI_EVENTS_SECRET) {
+      console.error("[Wompi] WEBHOOK rechazado: WOMPI_EVENTS_SECRET no estÃ¡ configurado.");
+      return res.status(503).json({ error: "Webhook de pagos no configurado de forma segura." });
+    }
+
     const event = req.body as {
       event: string;
       data: {

@@ -6,9 +6,16 @@
 <title>Doravia — Gestión empresarial clara para Colombia</title>
 <meta name="description" content="Facturación electrónica, ERP, punto de venta y nómina conectados para administrar tu negocio con claridad.">
 <link rel="canonical" href="https://doraviasoft.com/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CO">
+<meta property="og:title" content="Doravia — Gestión empresarial clara para Colombia">
+<meta property="og:description" content="Facturación electrónica, ERP, POS y nómina: empieza con lo que necesitas y conecta tu operación cuando crezcas.">
+<meta property="og:url" content="https://doraviasoft.com/">
+<meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700;800&family=Sora:wght@800&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/assets/brand/doravia-favicon.svg">
 <link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Doravia","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://doraviasoft.com/","description":"Facturación electrónica, ERP, punto de venta y nómina para empresas colombianas.","provider":{"@type":"Organization","name":"Doravia SAS","email":"soporte@doraviasoft.com","address":{"@type":"PostalAddress","addressLocality":"Bogotá","addressCountry":"CO"}}}</script>
 </head>
 <body class="home-page">
 
@@ -61,6 +68,19 @@
       <div class="hero-preview-float hero-preview-float-top"><small>OPERACIÓN AL DÍA</small><strong>Ventas, caja y cartera</strong><span>Información conectada</span></div>
       <div class="hero-preview-float hero-preview-float-bottom"><i>✓</i><div><small>UN SOLO ECOSISTEMA</small><strong>Sin volver a digitar</strong></div></div>
     </div>
+  </div>
+</section>
+
+<!-- DIAGNÓSTICO COMERCIAL -->
+<section class="diagnostico-section" id="diagnostico">
+  <div class="container diagnostico-layout">
+    <div class="diagnostico-copy"><div class="section-eyebrow">ENCUENTRA TU PUNTO DE PARTIDA</div><h2>Cuéntanos cómo operas. Te orientamos sin complicarte.</h2><p>En menos de un minuto identifica la combinación de productos que mejor encaja hoy y cómo puede crecer contigo.</p><div class="diagnostico-note"><b>Sin formularios largos.</b><span>La recomendación se abre directamente por WhatsApp.</span></div></div>
+    <form class="diagnostico-form" id="diagnostico-form">
+      <label>¿Qué quieres resolver primero?<select name="necesidad" required><option value="Facturación electrónica">Facturación electrónica</option><option value="Administración, inventario y contabilidad">Administración, inventario y contabilidad</option><option value="Ventas en mostrador">Ventas en mostrador</option><option value="Nómina y empleados">Nómina y empleados</option></select></label>
+      <label>¿Cómo es tu operación?<select name="tamano" required><option value="Estoy empezando">Estoy empezando</option><option value="Tengo una operación pequeña">Tengo una operación pequeña</option><option value="Tengo varias personas o sedes">Tengo varias personas o sedes</option><option value="Trabajo como contador">Trabajo como contador</option></select></label>
+      <label>¿Qué productos te interesan? <input name="productos" placeholder="Ej.: ERP y Nómina"></label>
+      <button class="btn-primary" type="submit">Recibir recomendación <span>→</span></button>
+    </form>
   </div>
 </section>
 
@@ -216,6 +236,11 @@
   </div>
 </section>
 
+<!-- CONFIANZA -->
+<section class="confianza-section">
+  <div class="container"><div class="section-head"><div class="section-eyebrow">UNA RELACIÓN CLARA</div><h2>Información, soporte y condiciones visibles</h2><p>Antes de contratar, sabes qué producto eliges, cómo se conecta a tu empresa y dónde encontrar ayuda.</p></div><div class="confianza-grid"><article><b>Productos independientes</b><span>Contrata Facturación, ERP, POS o Nómina por separado; combínalos cuando lo necesites.</span></article><article><b>Condiciones a la vista</b><span>Planes, límites y políticas accesibles desde la plataforma y esta página.</span></article><article><b>Acompañamiento directo</b><span>Un canal claro para orientación comercial, implementación y soporte.</span></article></div></div>
+</section>
+
 <!-- QUIÉNES SOMOS -->
 <section class="diferenciales-section" id="nosotros" style="background:#fff;">
   <div class="container">
@@ -300,6 +325,8 @@
     });
   }
   document.querySelectorAll('.faq-question').forEach(q=>{ q.addEventListener('click',()=>{ const item=q.closest('.faq-item'); const was=item.classList.contains('open'); document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open')); if(!was)item.classList.add('open'); }); });
+  const diagnostico = document.querySelector('#diagnostico-form');
+  diagnostico?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(diagnostico); const mensaje = `Hola, quiero una recomendación para Doravia.\n\nNecesito: ${data.get('necesidad')}\nOperación: ${data.get('tamano')}\nProductos de interés: ${data.get('productos') || 'Aún no estoy seguro'}`; window.open(`https://wa.me/573125587055?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener'); });
 </script>
 </body>
 </html>

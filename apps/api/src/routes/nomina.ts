@@ -19,9 +19,10 @@ const router = Router();
 const nominaModo = () => (process.env.NOMINA_MODO ?? "pruebas").trim().toLowerCase();
 
 async function limiteEmpleadosNomina(tenantId: string) {
-  const [subscription] = await db.select({ max_empleados: plans.max_empleados })
+  const [subscription] = await db.select({ max_empleados: plans.max_empleados, addons: tenants.addons })
     .from(product_subscriptions)
     .innerJoin(plans, eq(product_subscriptions.plan_id, plans.id))
+    .innerJoin(tenants, eq(product_subscriptions.tenant_id, tenants.id))
     .where(and(
       eq(product_subscriptions.tenant_id, tenantId),
       eq(product_subscriptions.product, "nomina"),
@@ -29,7 +30,10 @@ async function limiteEmpleadosNomina(tenantId: string) {
       gte(product_subscriptions.ends_at, new Date()),
     ))
     .limit(1);
-  return subscription?.max_empleados ?? null;
+  if (!subscription?.max_empleados) return null;
+  const addons = (subscription.addons ?? {}) as Record<string, unknown>;
+  const adicionales = Math.max(0, Math.floor(Number(addons.nomina_empleados_adicionales ?? 0)));
+  return subscription.max_empleados + adicionales;
 }
 
 // Columnas seguras para listados (nunca datos_bancarios_encrypted)

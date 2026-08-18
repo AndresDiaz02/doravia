@@ -961,7 +961,8 @@ router.post("/fiados", async (req, res) => {
   }));
   const monto_total = itemsNormalizados.reduce((s, i) => s + i.total, 0);
 
-  const [fiado] = await db.insert(fiados).values({
+  const fiado = await db.transaction(async (tx) => {
+  const [fiado] = await tx.insert(fiados).values({
     tenant_id: req.tenantId,
     caja_id: caja_id ?? null,
     cliente_id: cliente_id ?? null,
@@ -972,7 +973,7 @@ router.post("/fiados", async (req, res) => {
     notas: notas ?? null,
   }).returning();
 
-  await db.insert(items_fiado).values(
+  await tx.insert(items_fiado).values(
     itemsNormalizados.map((i) => ({
       fiado_id: fiado.id,
       producto_id: i.producto_id ?? null,
@@ -986,7 +987,7 @@ router.post("/fiados", async (req, res) => {
   // Descontar inventario para ítems con producto_id (misma lógica que ventas POS)
   const itemsConProducto = itemsNormalizados.filter((i) => i.producto_id);
   if (itemsConProducto.length > 0) {
-    const [bodega] = await db
+    const [bodega] = await tx
       .select({ id: bodegas.id })
       .from(bodegas)
       .where(and(eq(bodegas.tenant_id, req.tenantId), eq(bodegas.activo, true)))
@@ -994,11 +995,23 @@ router.post("/fiados", async (req, res) => {
 
     if (bodega) {
       for (const item of itemsConProducto) {
-        await db
+        const permiteInventarioNegativo = req.tenant.pos_config?.permitir_inventario_negativo === true;
+        const condicionStockFiado = permiteInventarioNegativo
+          ? and(eq(productos.id, item.producto_id!), eq(productos.tenant_id, req.tenantId))
+          : and(
+              eq(productos.id, item.producto_id!),
+              eq(productos.tenant_id, req.tenantId),
+              sql`COALESCE(${productos.stock_actual}, 0) >= ${Number(item.cantidad)}`,
+            );
+        const descontado = await tx
           .update(productos)
           .set({ stock_actual: sql`COALESCE(stock_actual, 0) - ${Number(item.cantidad)}` })
-          .where(and(eq(productos.id, item.producto_id!), eq(productos.tenant_id, req.tenantId)));
-        await db.insert(movimientos_inventario).values({
+          .where(condicionStockFiado)
+          .returning({ id: productos.id });
+        if (!permiteInventarioNegativo && descontado.length !== 1) {
+          throw new Error(`Stock insuficiente para ${item.descripcion}.`);
+        }
+        await tx.insert(movimientos_inventario).values({
           tenant_id: req.tenantId, bodega_id: bodega.id,
           producto_id: item.producto_id!, tipo: "salida",
           cantidad: String(item.cantidad), costo_unitario: String(item.precio_unitario),
@@ -1008,6 +1021,9 @@ router.post("/fiados", async (req, res) => {
       }
     }
   }
+
+  return fiado;
+  });
 
   try {
     const asientoId = await crearAsientoFiado(req.tenantId, fiado);

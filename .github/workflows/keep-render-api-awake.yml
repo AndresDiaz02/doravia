@@ -4,7 +4,7 @@ on:
   schedule:
     # Render Free suspende servicios inactivos. Este ping ligero mantiene
     # disponible el inicio de sesión sin tocar datos ni ejecutar operaciones.
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,13 @@ permissions:
 jobs:
   healthcheck:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    # Render Free puede tardar mÃ¡s de un minuto en despertar tras una pausa o despliegue.
+    # Conservamos la alerta si no responde tras los reintentos, pero evitamos falsos fallos.
+    timeout-minutes: 6
     steps:
       - name: Verify API health
-        run: curl --fail --silent --show-error --max-time 60 https://doravia-api.onrender.com/health
+        run: >-
+          curl --fail --silent --show-error
+          --retry 3 --retry-delay 15 --retry-all-errors
+          --connect-timeout 20 --max-time 75
+          https://doravia-api.onrender.com/health

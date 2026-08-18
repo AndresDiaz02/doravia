@@ -132,9 +132,12 @@ export function Clientes() {
   );
 
   return (
-    <div className="flex-1 space-y-6 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">Clientes</h1>
+    <div className="flex-1 space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Relacion comercial</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Clientes</h1>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="secondary" disabled={exportando} onClick={() => {
             setExportando(true);
@@ -247,7 +250,7 @@ export function Clientes() {
               <select
                 value={form.tipo_persona}
                 onChange={(e) => set("tipo_persona", e.target.value)}
-                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className="dv-input block w-full px-3 py-2 text-sm"
               >
                 {TIPOS_PERSONA.map((t) => (
                   <option key={t} value={t}>{t === "natural" ? "Natural" : "Jurídica"}</option>
@@ -259,7 +262,7 @@ export function Clientes() {
               <select
                 value={form.tipo_documento}
                 onChange={(e) => set("tipo_documento", e.target.value)}
-                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className="dv-input block w-full px-3 py-2 text-sm"
               >
                 {TIPOS_DOC.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>

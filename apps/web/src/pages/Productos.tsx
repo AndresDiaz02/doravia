@@ -172,9 +172,12 @@ export function Productos() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Productos y servicios</h1>
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Catalogo</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Productos y servicios</h1>
+        </div>
         <div className="flex gap-2 flex-wrap items-center">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
@@ -183,7 +186,7 @@ export function Productos() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar…"
-              className="rounded-md border border-gray-300 pl-8 pr-3 py-1.5 text-sm w-44"
+              className="dv-input w-44 pl-8 pr-3 py-1.5 text-sm"
             />
           </div>
           <Button variant="secondary" onClick={() => void descargarExcel("/api/exportar/productos", "productos.xlsx")}>
@@ -313,7 +316,7 @@ export function Productos() {
                 value={form.tipo}
                 onChange={(e) => set("tipo", e.target.value)}
                 disabled={!!editing}
-                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-50"
+                className="dv-input block w-full px-3 py-2 text-sm disabled:bg-gray-50"
               >
                 <option value="producto">Producto</option>
                 <option value="servicio">Servicio</option>
@@ -380,7 +383,7 @@ export function Productos() {
               <select
                 value={form.iva_pct}
                 onChange={(e) => set("iva_pct", e.target.value)}
-                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className="dv-input block w-full px-3 py-2 text-sm"
               >
                 <option value="0">0%</option>
                 <option value="5">5%</option>
@@ -404,7 +407,7 @@ export function Productos() {
               <select
                 value={form.impoconsumo_pct}
                 onChange={(e) => set("impoconsumo_pct", e.target.value)}
-                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className="dv-input block w-full px-3 py-2 text-sm"
               >
                 <option value="0">0% (no aplica)</option>
                 <option value="8">8% (restaurantes, bares)</option>

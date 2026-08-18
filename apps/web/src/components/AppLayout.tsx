@@ -609,7 +609,7 @@ export function AppLayout() {
       </div>
 
       {/* Chat de soporte flotante */}
-      <SoporteChat />
+      <SoporteChat currentPath={location.pathname} />
 
       {/* Búsqueda global */}
       <GlobalSearch />
@@ -777,7 +777,40 @@ function NotifDropdown({
 // ─────────────────────────────────────────────────────────────
 interface ChatMsg { role: "user" | "assistant"; content: string }
 
-function SoporteChat() {
+const AYUDA_POR_MODULO: Array<{ coincide: (path: string) => boolean; etiqueta: string; preguntas: string[] }> = [
+  {
+    coincide: (path) => path.startsWith("/facturas") || path.startsWith("/notas-"),
+    etiqueta: "Facturación electrónica",
+    preguntas: ["¿Cómo creo una factura?", "¿Cómo hago una nota crédito?", "¿Cómo reviso el estado DIAN?"],
+  },
+  {
+    coincide: (path) => path.startsWith("/contabilidad") || path.startsWith("/conciliacion"),
+    etiqueta: "Contabilidad",
+    preguntas: ["¿Cómo genero el balance de prueba?", "¿Cómo concilio un extracto bancario?", "¿Dónde reviso el IVA?"],
+  },
+  {
+    coincide: (path) => path.startsWith("/inventario") || path.startsWith("/bodegas") || path.startsWith("/productos"),
+    etiqueta: "Inventario",
+    preguntas: ["¿Cómo ajusto inventario?", "¿Cómo creo una bodega?", "¿Cómo consulto el kardex?"],
+  },
+  {
+    coincide: (path) => path.startsWith("/nomina"),
+    etiqueta: "Nómina",
+    preguntas: ["¿Cómo creo un empleado?", "¿Cómo liquido un período?", "¿Cómo verifico mi plan de nómina?"],
+  },
+  {
+    coincide: (path) => path.startsWith("/pos"),
+    etiqueta: "Punto de venta",
+    preguntas: ["¿Cómo abro un turno?", "¿Cómo cierro una caja?", "¿Cómo creo un cajero?"],
+  },
+];
+
+const AYUDA_GENERAL = {
+  etiqueta: "Doravia",
+  preguntas: ["¿Cómo creo mi primera factura?", "¿Cómo invito a mi contador?", "¿Dónde configuro mi empresa?"],
+};
+
+function SoporteChat({ currentPath }: { currentPath: string }) {
   const [open, setOpen] = useState(false);
   const [mensajes, setMensajes] = useState<ChatMsg[]>([
     { role: "assistant", content: "¡Hola! Soy el asistente de Doravia. ¿En qué te puedo ayudar hoy?" },
@@ -786,6 +819,7 @@ function SoporteChat() {
   const [enviando, setEnviando] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const ayudaActual = AYUDA_POR_MODULO.find((modulo) => modulo.coincide(currentPath)) ?? AYUDA_GENERAL;
 
   useEffect(() => {
     if (open) {
@@ -796,8 +830,8 @@ function SoporteChat() {
     }
   }, [open, mensajes]);
 
-  const enviar = useCallback(async () => {
-    const texto = input.trim();
+  const enviar = useCallback(async (textoPredefinido?: string) => {
+    const texto = (textoPredefinido ?? input).trim();
     if (!texto || enviando) return;
 
     const nuevosMensajes: ChatMsg[] = [...mensajes, { role: "user", content: texto }];
@@ -808,7 +842,7 @@ function SoporteChat() {
     try {
       const res = await apiFetch<{ respuesta: string }>("/api/soporte/chat", {
         method: "POST",
-        body: JSON.stringify({ mensajes: nuevosMensajes }),
+        body: JSON.stringify({ mensajes: nuevosMensajes, contexto: ayudaActual.etiqueta }),
       });
       setMensajes((prev) => [...prev, { role: "assistant", content: res.respuesta }]);
     } catch {
@@ -880,6 +914,24 @@ function SoporteChat() {
             )}
             <div ref={bottomRef} />
           </div>
+
+          {mensajes.length === 1 && !enviando && (
+            <div className="border-t border-gray-100 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-slate-400">Ayuda con {ayudaActual.etiqueta}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ayudaActual.preguntas.map((pregunta) => (
+                  <button
+                    key={pregunta}
+                    type="button"
+                    onClick={() => void enviar(pregunta)}
+                    className="rounded-full border border-action/25 px-2.5 py-1 text-left text-xs font-medium text-action transition-colors hover:bg-action/10"
+                  >
+                    {pregunta}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Input */}
           <div className="flex gap-2 border-t border-gray-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">

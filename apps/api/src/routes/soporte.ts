@@ -19,6 +19,8 @@ Reglas:
 - No inventes funcionalidades que no existen
 - Para temas de factura electrónica DIAN, recuerda que la empresa debe tener resolución de numeración vigente
 - Máximo 3 párrafos por respuesta — sé directo
+- Cuando expliques un proceso, usa pasos numerados y termina con una pregunta breve para confirmar si la persona pudo hacerlo.
+- Si el usuario está en un módulo concreto, relaciona la respuesta con ese módulo. No afirmes que viste datos de su empresa ni que ejecutaste acciones.
 
 Módulos disponibles en Doravia:
 - Facturas (emisión, DIAN, notas crédito, reenvío)
@@ -41,7 +43,7 @@ interface Mensaje {
 
 // POST /api/soporte/chat
 router.post("/chat", async (req, res) => {
-  const { mensajes } = req.body as { mensajes?: Mensaje[] };
+  const { mensajes, contexto } = req.body as { mensajes?: Mensaje[]; contexto?: string };
   if (!Array.isArray(mensajes) || mensajes.length === 0) {
     return res.status(400).json({ error: "mensajes es requerido." });
   }
@@ -57,10 +59,13 @@ router.post("/chat", async (req, res) => {
   }
 
   try {
+    const contextoSeguro = typeof contexto === "string"
+      ? contexto.replace(/[^a-záéíóúñü0-9 .,-]/gi, "").slice(0, 80)
+      : "";
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
-      system: SYSTEM_SOPORTE,
+      system: `${SYSTEM_SOPORTE}${contextoSeguro ? `\n\nLa persona se encuentra en el módulo: ${contextoSeguro}.` : ""}`,
       messages: historial.map((m) => ({ role: m.role, content: m.content })),
     });
 

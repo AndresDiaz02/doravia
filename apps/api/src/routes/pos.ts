@@ -1045,11 +1045,22 @@ router.post("/fiados/:id/abonos", async (req, res) => {
     notas: notas ?? null,
   }).returning();
 
-  await db.update(fiados).set({
+  // Actualización optimista: si otro cajero abonó antes, se elimina este intento y se pide recargar.
+  // Así no queda un abono creado con un saldo que ya cambió.
+  const [fiadoActualizado] = await db.update(fiados).set({
     monto_pagado: String(nuevoPagado),
     estado: nuevoEstado,
     updated_at: new Date(),
-  }).where(eq(fiados.id, fiado.id));
+  }).where(and(
+    eq(fiados.id, fiado.id),
+    eq(fiados.tenant_id, req.tenantId),
+    eq(fiados.monto_pagado, fiado.monto_pagado),
+  )).returning();
+
+  if (!fiadoActualizado) {
+    await db.delete(abonos_fiado).where(eq(abonos_fiado.id, abono.id));
+    return res.status(409).json({ error: "El saldo cambiÃ³ mientras registrabas el abono. Actualiza la cuenta e intÃ©ntalo de nuevo.", code: "FIADO_SALDO_CONFLICT" });
+  }
 
   try {
     await crearAsientoAbonoFiado(req.tenantId, abono, fiado.nombre_cliente);

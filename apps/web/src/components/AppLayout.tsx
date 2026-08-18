@@ -349,6 +349,7 @@ export function AppLayout() {
           <div className="mb-1.5">
             <SearchTrigger />
           </div>
+          <NavSection label="Operacion" />
           {NAV_BASE.map(({ to, label, icon: Icon, feature }) => {
             if (feature) {
               const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.[feature] === true;
@@ -372,6 +373,7 @@ export function AppLayout() {
             </>
           )}
 
+          {!isVendedor && <NavSection label="Ventas y compras" />}
           {NAV_VENTAS.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.cotizaciones === true;
             if (!hasFeature && isContador) return null;
@@ -384,7 +386,7 @@ export function AppLayout() {
             return <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} locked={!hasFeature} />;
           })}
 
-          <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
+          <NavSection label="Inventario y recaudo" />
           {NAV_INVENTARIO.map(({ to, label, icon: Icon }) => {
             const hasFeature = (plan?.features as Record<string, boolean> | undefined)?.inventario === true;
             if (!hasFeature && isContador) return null;
@@ -431,6 +433,7 @@ export function AppLayout() {
 
           {((plan?.features as Record<string, boolean> | undefined)?.pos === true || tenant?.addons?.pos === true) && (
             <>
+              <NavSection label="Punto de venta" />
               {!isContador && <NavItem to="/pos/cajas" label="Cajas POS" icon={Monitor} isActive={active("/pos/cajas")} />}
               {!isContador && <NavItem to="/pos/cajeros" label="Cajeros" icon={Users} isActive={active("/pos/cajeros")} />}
               {tenant?.facturacion_electronica && (
@@ -477,7 +480,7 @@ export function AppLayout() {
             />
           )}
 
-          <div className="my-2 border-t border-gray-100 dark:border-gray-800" />
+          {!isContador && !isVendedor && <NavSection label="Configuracion" />}
 
           {!isContador && !isVendedor && CONFIG_BASE.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} isActive={active(to)} />
@@ -904,7 +907,12 @@ function SoporteChat() {
 }
 
 function NavSection({ label }: { label: string }) {
-  return <p className="mt-3 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>;
+  return (
+    <div className="mt-4 mb-1 flex items-center gap-2 px-3">
+      <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">{label}</p>
+      <span className="h-px flex-1 bg-gray-100 dark:bg-gray-800" />
+    </div>
+  );
 }
 
 function NavItem({
@@ -937,13 +945,13 @@ function NavItem({
     <Link
       to={to}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150",
         isActive
-          ? "bg-action/10 font-medium text-action"
-          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
+          ? "bg-action/10 font-semibold text-action shadow-[inset_2px_0_0_var(--dv-focus)]"
+          : "text-gray-600 dark:text-gray-400 hover:bg-action/5 hover:text-gray-900 dark:hover:bg-white/[0.06] dark:hover:text-gray-100",
       )}
     >
-      <Icon className="h-4 w-4 flex-shrink-0" />
+      <Icon className="h-4 w-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-105" />
       {label}
     </Link>
   );

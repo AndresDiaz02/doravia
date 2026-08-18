@@ -181,18 +181,19 @@ export function Dashboard() {
   const porcentajeLimite = limiteFacturas ? (usadas / limiteFacturas) * 100 : null;
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-4 sm:p-6">
       {/* Cabecera */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500">{tenant?.nombre}</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-action">Vista general</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Tu operacion, en un solo lugar</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{tenant?.nombre}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={mes}
             onChange={(e) => setMes(Number(e.target.value))}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+            className="dv-input w-full sm:w-auto px-3 py-1.5 text-sm"
           >
             {MESES.map((m, i) => (
               <option key={i + 1} value={i + 1}>{m}</option>
@@ -201,7 +202,7 @@ export function Dashboard() {
           <select
             value={anio}
             onChange={(e) => setAnio(Number(e.target.value))}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+            className="dv-input w-full sm:w-auto px-3 py-1.5 text-sm"
           >
             {[ahora.getFullYear() - 1, ahora.getFullYear()].map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -265,7 +266,7 @@ export function Dashboard() {
       )}
 
       {preparacion && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="dv-card p-4">
           <div className="mb-3 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-indigo-600" />
             <p className="text-sm font-semibold text-slate-900">Preparación operativa</p>
@@ -278,13 +279,13 @@ export function Dashboard() {
                 <Link
                   key={item.id}
                   to={item.ruta}
-                  className="rounded-lg border border-slate-100 p-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40"
+                  className="rounded-lg border border-slate-100 p-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-slate-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/30"
                 >
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
                     {listo ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : pendiente ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Circle className="h-4 w-4 text-slate-400" />}
                     {item.titulo}
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.detalle}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.detalle}</p>
                 </Link>
               );
             })}
@@ -539,8 +540,8 @@ function ComparativoCard({
   return (
     <Card>
       <CardContent className="py-4 px-4">
-        <p className="text-xs text-gray-500 mb-2">{label}</p>
-        <p className="text-lg font-semibold text-gray-900">{actual}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{label}</p>
+        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{actual}</p>
         <div className={`flex items-center gap-1 text-xs mt-1 ${sube ? "text-green-600" : igual ? "text-gray-400" : "text-red-500"}`}>
           {igual ? <Minus className="w-3 h-3" /> : sube ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
           <span>{sube ? "+" : ""}{variacion}%</span>
@@ -569,8 +570,8 @@ function SummaryCard({
       <CardContent className="flex items-center gap-4 py-5">
         <div className={`rounded-lg p-2.5 ${bg}`}>{icon}</div>
         <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-xl font-semibold text-gray-900">{value}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{value}</p>
           {sub && <p className="text-xs text-gray-400">{sub}</p>}
         </div>
       </CardContent>

@@ -35,11 +35,11 @@ const PROMO_POS = {
 
 // Nómina electrónica (FASE 10) — sin opción de 3 cuotas definida aún (pendiente de confirmar con Rose)
 const PROMO_NOMINA = {
-  nomina_semilla: { docsAno: 36,   anual: 99_000,  mensual: 9_500,  regular_anual: 130_000,   regular_mensual: 13_000 },
-  nomina_raiz:    { docsAno: 120,  anual: 230_000, mensual: 21_500, regular_anual: 290_000,   regular_mensual: 29_000 },
-  nomina_brote:   { docsAno: 300,  anual: 470_000, mensual: 44_000, regular_anual: 590_000,   regular_mensual: 59_000 },
-  nomina_plus:    { docsAno: null, anual: 630_000, mensual: 59_000, regular_anual: 790_000,   regular_mensual: 79_000 },
-  nomina_pro:     { docsAno: null, anual: 870_000, mensual: 81_000, regular_anual: 1_090_000, regular_mensual: 109_000 },
+  nomina_semilla: { docsAno: 36,   empleados: 3,   anual: 99_000,  mensual: 9_500,  regular_anual: 130_000,   regular_mensual: 13_000 },
+  nomina_raiz:    { docsAno: 120,  empleados: 10,  anual: 230_000, mensual: 21_500, regular_anual: 290_000,   regular_mensual: 29_000 },
+  nomina_brote:   { docsAno: 300,  empleados: 25,  anual: 470_000, mensual: 44_000, regular_anual: 590_000,   regular_mensual: 59_000 },
+  nomina_plus:    { docsAno: null, empleados: 50,  anual: 630_000, mensual: 59_000, regular_anual: 790_000,   regular_mensual: 79_000 },
+  nomina_pro:     { docsAno: null, empleados: 100, anual: 870_000, mensual: 81_000, regular_anual: 1_090_000, regular_mensual: 109_000 },
 } as const;
 
 const noFeatures: PlanFeatures = {
@@ -349,6 +349,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_facturas_ano: null,
     max_ia_docs_mes: 0,
     document_limit: PROMO_NOMINA.nomina_semilla.docsAno,
+    max_empleados:   PROMO_NOMINA.nomina_semilla.empleados,
     accounting_level: 0,
     features: { ...noFeatures },
     precio_anual_cop:           PROMO_NOMINA.nomina_semilla.anual,
@@ -366,6 +367,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_facturas_ano: null,
     max_ia_docs_mes: 0,
     document_limit: PROMO_NOMINA.nomina_raiz.docsAno,
+    max_empleados:   PROMO_NOMINA.nomina_raiz.empleados,
     accounting_level: 0,
     features: { ...noFeatures },
     precio_anual_cop:           PROMO_NOMINA.nomina_raiz.anual,
@@ -383,6 +385,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_facturas_ano: null,
     max_ia_docs_mes: 0,
     document_limit: PROMO_NOMINA.nomina_brote.docsAno,
+    max_empleados:   PROMO_NOMINA.nomina_brote.empleados,
     accounting_level: 0,
     features: { ...noFeatures },
     precio_anual_cop:           PROMO_NOMINA.nomina_brote.anual,
@@ -400,6 +403,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_facturas_ano: null,
     max_ia_docs_mes: 0,
     document_limit: PROMO_NOMINA.nomina_plus.docsAno, // null = ilimitado (empleados)
+    max_empleados:   PROMO_NOMINA.nomina_plus.empleados,
     accounting_level: 0,
     features: { ...noFeatures },
     precio_anual_cop:           PROMO_NOMINA.nomina_plus.anual,
@@ -417,6 +421,7 @@ export const PLAN_SEEDS: NewPlan[] = [
     max_facturas_ano: null,
     max_ia_docs_mes: 0,
     document_limit: PROMO_NOMINA.nomina_pro.docsAno, // null = ilimitado (empleados)
+    max_empleados:   PROMO_NOMINA.nomina_pro.empleados,
     accounting_level: 0,
     features: { ...noFeatures },
     precio_anual_cop:           PROMO_NOMINA.nomina_pro.anual,

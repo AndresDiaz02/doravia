@@ -42,6 +42,7 @@ interface PlanPOS {
   slug: string;
   nombre: string;
   precio: number;
+  mensual?: number;
   features: string[];
   destacado?: boolean;
 }
@@ -69,9 +70,11 @@ const PLANES_FACTURACION: PlanPOS[] = [
 ];
 
 const PLANES_NOMINA: PlanPOS[] = [
-  { slug: "nomina_semilla", nombre: "Nómina Semilla", precio: 99_000, features: ["36 documentos al año", "Empleados y contratos", "Períodos mensuales o quincenales", "Historial centralizado"] },
-  { slug: "nomina_raiz", nombre: "Nómina Raíz", precio: 230_000, features: ["120 documentos al año", "Cálculos por período", "Estado de emisión", "Soporte para crecer"], destacado: true },
-  { slug: "nomina_brote", nombre: "Nómina Brote", precio: 470_000, features: ["300 documentos al año", "Operación de nómina completa", "Documentos acumulables", "Conectada a tu empresa"] },
+  { slug: "nomina_semilla", nombre: "Nómina Semilla", precio: 99_000, mensual: 9_500, features: ["Hasta 3 empleados activos", "36 documentos al año", "Empleados y contratos", "Períodos mensuales o quincenales"] },
+  { slug: "nomina_raiz", nombre: "Nómina Raíz", precio: 230_000, mensual: 21_500, features: ["Hasta 10 empleados activos", "120 documentos al año", "Cálculos por período", "Estado de emisión"], destacado: true },
+  { slug: "nomina_brote", nombre: "Nómina Brote", precio: 470_000, mensual: 44_000, features: ["Hasta 25 empleados activos", "300 documentos al año", "Operación de nómina completa", "Conectada a tu empresa"] },
+  { slug: "nomina_plus", nombre: "Nómina Plus", precio: 630_000, mensual: 59_000, features: ["Hasta 50 empleados activos", "Documentos según uso razonable", "Liquidación y emisión", "Acompañamiento prioritario"] },
+  { slug: "nomina_pro", nombre: "Nómina Pro", precio: 870_000, mensual: 81_000, features: ["Hasta 100 empleados activos", "Documentos según uso razonable", "Operación avanzada", "Más de 100: hablar con ventas"] },
 ];
 
 const NOMINA_VENTAS_URL = "https://wa.me/573125587055?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20N%C3%B3mina%20Doravia";
@@ -263,7 +266,7 @@ export default function ModulosAdicionales() {
         <p className="text-sm text-gray-500 dark:text-slate-400">
           Contrátala como producto independiente o añádela a tu ERP y POS. Tu empresa conserva una sola base de clientes y documentos.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           {PLANES_FACTURACION.map((p) => (
             <div key={p.slug} className={`relative rounded-2xl border bg-white p-5 flex flex-col gap-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-900 ${p.destacado ? "border-emerald-400 ring-1 ring-emerald-200 dark:border-emerald-500 dark:ring-emerald-900" : "border-gray-200 dark:border-slate-700"}`}>
               {p.destacado && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Recomendado</span></div>}
@@ -292,6 +295,7 @@ export default function ModulosAdicionales() {
               <div>
                 <p className="font-bold text-gray-900 dark:text-white">{p.nombre}</p>
                 <p className="text-xl font-bold text-gray-800 mt-1 dark:text-slate-100">${p.precio.toLocaleString("es-CO")}<span className="text-sm font-normal text-gray-400 ml-1 dark:text-slate-500">/ año</span></p>
+                {p.mensual && <p className="mt-1 text-xs font-medium text-violet-600 dark:text-violet-300">o ${p.mensual.toLocaleString("es-CO")}/mes</p>}
               </div>
               <ul className="flex-1 space-y-1.5">
                 {p.features.map((f) => <li key={f} className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300"><Check className="h-3.5 w-3.5 text-green-500 shrink-0" />{f}</li>)}

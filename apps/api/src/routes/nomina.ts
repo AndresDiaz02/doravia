@@ -1,9 +1,9 @@
 import { Router } from "express";
 import {
   db, empleados, contratos_empleado, nominas_periodo, nominas_detalle,
-  centros_costos, tenants, nomina_config_global, documentos_soporte_nomina,
+  centros_costos, tenants, nomina_config_global, documentos_soporte_nomina, product_subscriptions, plans,
 } from "@workspace/db";
-import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, inArray, gte } from "drizzle-orm";
 import { requireRole } from "../middleware/require-plan-feature.js";
 import { encrypt, decrypt } from "../services/encryption.js";
 import { TIPOS_CONTRATO, ESTADOS_EMPLEADO } from "@workspace/db";
@@ -17,6 +17,20 @@ const router = Router();
 // consumir documentos. El cálculo, la revisión y la generación de borradores sí
 // permanecen disponibles para el entorno de pruebas.
 const nominaModo = () => (process.env.NOMINA_MODO ?? "pruebas").trim().toLowerCase();
+
+async function limiteEmpleadosNomina(tenantId: string) {
+  const [subscription] = await db.select({ max_empleados: plans.max_empleados })
+    .from(product_subscriptions)
+    .innerJoin(plans, eq(product_subscriptions.plan_id, plans.id))
+    .where(and(
+      eq(product_subscriptions.tenant_id, tenantId),
+      eq(product_subscriptions.product, "nomina"),
+      eq(product_subscriptions.status, "active"),
+      gte(product_subscriptions.ends_at, new Date()),
+    ))
+    .limit(1);
+  return subscription?.max_empleados ?? null;
+}
 
 // Columnas seguras para listados (nunca datos_bancarios_encrypted)
 const EMPLEADO_COLUMNAS_LISTADO = {
@@ -103,6 +117,15 @@ router.post("/empleados", requireRole(["admin"]), async (req, res) => {
     }
     if (!Number.isFinite(salario_base) || salario_base <= 0) {
       return res.status(400).json({ error: "salario_base debe ser un número mayor que cero." });
+    }
+
+    const limite = await limiteEmpleadosNomina(req.tenantId);
+    if (limite !== null) {
+      const [actuales] = await db.select({ total: sql<number>`count(*)::int` }).from(empleados)
+        .where(and(eq(empleados.tenant_id, req.tenantId), eq(empleados.estado, "activo")));
+      if ((actuales?.total ?? 0) >= limite) {
+        return res.status(403).json({ error: `Tu plan de Nómina admite hasta ${limite} empleados activos. Mejora tu plan para agregar otro empleado.` });
+      }
     }
 
     if (centro_costos_id) {

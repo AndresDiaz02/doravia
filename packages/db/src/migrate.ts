@@ -27,6 +27,7 @@ if (!process.env.DATABASE_URL) {
 const sql = postgres(process.env.DATABASE_URL!);
 
 const migrations = [
+  `ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_empleados smallint`,
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS bodega_id uuid REFERENCES bodegas(id)`,
   `CREATE TABLE IF NOT EXISTS product_subscriptions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,

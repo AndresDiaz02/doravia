@@ -14,6 +14,8 @@ export const plans = pgTable("plans", {
   max_facturas_mes: integer("max_facturas_mes"),
   max_facturas_ano: integer("max_facturas_ano"),
   max_ia_docs_mes:  integer("max_ia_docs_mes"),
+  // Tope de empleados activos para Nómina. NULL = sin límite (solo para planes empresariales).
+  max_empleados:    smallint("max_empleados"),
   // Cupo anual de documentos electrónicos (planes Origen y Nómina). NULL = sin límite. Prerrequisito FASE 3.
   document_limit:   integer("document_limit"),
 

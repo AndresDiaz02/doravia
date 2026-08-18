@@ -71,31 +71,6 @@
   </div>
 </section>
 
-<!-- ASISTENTE DE RECOMENDACIÓN -->
-<section class="asistente-section" id="diagnostico">
-  <div class="container asistente-layout">
-    <div class="asistente-copy">
-      <div class="section-eyebrow">ENCUENTRA TU PUNTO DE PARTIDA</div>
-      <h2>Háblale a Doravia. Te recomienda el punto de partida correcto.</h2>
-      <p>Un asistente breve que entiende tu operación y te muestra qué producto conviene activar primero. Sin formularios ni letras pequeñas.</p>
-      <div class="asistente-benefits"><span>✓ Recomendación en menos de un minuto</span><span>✓ Productos que crecen contigo</span></div>
-    </div>
-    <div class="asistente-chat" aria-live="polite">
-      <div class="asistente-chat-head"><div class="asistente-avatar" aria-hidden="true">D</div><div><b>Asistente Doravia</b><span><i></i> Disponible ahora</span></div><button class="asistente-reset" type="button" aria-label="Reiniciar conversación">↻</button></div>
-      <div class="asistente-messages" id="asistente-messages">
-        <div class="assistant-message">Hola, soy el asistente de Doravia. ¿Qué quieres resolver primero?</div>
-      </div>
-      <div class="asistente-options" id="asistente-options">
-        <button type="button" data-value="Facturación electrónica">Facturación electrónica</button>
-        <button type="button" data-value="Administración e inventario">Administración e inventario</button>
-        <button type="button" data-value="Ventas en mostrador">Ventas en mostrador</button>
-        <button type="button" data-value="Nómina y empleados">Nómina y empleados</button>
-      </div>
-      <p class="asistente-hint">Tus respuestas solo se usan para preparar tu recomendación.</p>
-    </div>
-  </div>
-</section>
-
 <!-- ¿QUÉ NECESITO? -->
 <section class="comparativa-section" id="que-necesito">
   <div class="container">
@@ -325,6 +300,24 @@
   </div>
 </footer>
 
+<!-- ASISTENTE FLOTANTE -->
+<aside class="doravia-assistant-widget" aria-label="Asistente de ayuda Doravia">
+  <section class="doravia-assistant-panel" id="asistente-panel" aria-hidden="true">
+    <div class="asistente-chat" aria-live="polite">
+      <div class="asistente-chat-head"><div class="asistente-avatar" aria-hidden="true">D</div><div><b>Asistente Doravia</b><span><i></i> Disponible ahora</span></div><button class="asistente-reset" type="button" aria-label="Reiniciar conversación">↻</button></div>
+      <div class="asistente-messages" id="asistente-messages"><div class="assistant-message">Hola, soy el asistente de Doravia. ¿Qué quieres resolver primero?</div></div>
+      <div class="asistente-options" id="asistente-options">
+        <button type="button" data-value="Facturación electrónica">Facturación electrónica</button>
+        <button type="button" data-value="Administración e inventario">Administración e inventario</button>
+        <button type="button" data-value="Ventas en mostrador">Ventas en mostrador</button>
+        <button type="button" data-value="Nómina y empleados">Nómina y empleados</button>
+      </div>
+      <p class="asistente-hint">Tus respuestas solo se usan para preparar tu recomendación.</p>
+    </div>
+  </section>
+  <button class="doravia-assistant-trigger" id="asistente-trigger" type="button" aria-expanded="false" aria-controls="asistente-panel"><span class="doravia-assistant-icon" aria-hidden="true">✦</span><span>¿Necesitas ayuda?</span></button>
+</aside>
+
 <script>
   const toggle = document.querySelector('.mobile-toggle');
   const nav = document.querySelector('nav');
@@ -337,6 +330,9 @@
     });
   }
   document.querySelectorAll('.faq-question').forEach(q=>{ q.addEventListener('click',()=>{ const item=q.closest('.faq-item'); const was=item.classList.contains('open'); document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open')); if(!was)item.classList.add('open'); }); });
+  const assistantPanel = document.querySelector('#asistente-panel');
+  const assistantTrigger = document.querySelector('#asistente-trigger');
+  assistantTrigger?.addEventListener('click', () => { const open = assistantTrigger.getAttribute('aria-expanded') === 'true'; assistantTrigger.setAttribute('aria-expanded', String(!open)); assistantPanel.setAttribute('aria-hidden', String(open)); });
   const assistantMessages = document.querySelector('#asistente-messages');
   const assistantOptions = document.querySelector('#asistente-options');
   const assistantReset = document.querySelector('.asistente-reset');

@@ -8,7 +8,10 @@ services:
     # además detiene el despliegue si detecta que el schema real tiene drift.
     # Para una base nueva, inicializar primero con el procedimiento de OPERACIONES.md.
     preDeployCommand: pnpm db:migrate
-    startCommand: pnpm --filter @workspace/api start
+    # El preDeploy puede no ejecutarse en todos los tipos de instancia o al
+    # recrear un servicio. Ejecutar además las migraciones idempotentes al
+    # iniciar evita que la API quede atendiendo contra un schema atrasado.
+    startCommand: pnpm db:migrate && pnpm --filter @workspace/api start
     # Solo valida que el proceso de Node está vivo. La comprobación /health
     # conserva el diagnóstico de Neon, pero no reinicia la API por una latencia
     # puntual de la base de datos.

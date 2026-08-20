@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, FileText } from "lucide-react";
+import { Calendar, CheckCircle2, CircleAlert, FileText } from "lucide-react";
 import { apiFetch, ApiError, fecha } from "../lib/api";
 import { Card } from "../components/ui/card";
 import { NominaBanner } from "../components/NominaBanner";
@@ -15,6 +15,16 @@ interface PoolNomina {
   limite_acumulacion: number;
 }
 
+interface AlistamientoPlemsi {
+  ambiente: "pruebas" | "produccion";
+  token_configurado: boolean;
+  habilitado: boolean;
+  numeracion_individual_configurada: boolean;
+  numeracion_ajuste_configurada: boolean;
+  empleados_incompletos: Array<{ id: string; nombre: string }>;
+  listo_para_prueba: boolean;
+}
+
 const PLAN_LABEL: Record<string, string> = {
   nomina_semilla: "Nómina Semilla",
   nomina_raiz: "Nómina Raíz",
@@ -27,12 +37,14 @@ export default function NominaMiPlan() {
   const [pool, setPool] = useState<PoolNomina | null>(null);
   const [activa, setActiva] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [alistamiento, setAlistamiento] = useState<AlistamientoPlemsi | null>(null);
 
   useEffect(() => {
     apiFetch<PoolNomina>("/api/nomina/pool")
       .then((p) => { setPool(p); setActiva(true); })
       .catch((err) => { if (err instanceof ApiError && err.status === 403) setActiva(false); })
       .finally(() => setLoading(false));
+    void apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi").then(setAlistamiento).catch(() => {});
   }, []);
 
   if (loading) {
@@ -113,6 +125,29 @@ export default function NominaMiPlan() {
           Los documentos no usados se acumulan al siguiente ciclo hasta un máximo de {pool.limite_acumulacion} (2× tu plan).
         </p>
       </Card>
+
+      {alistamiento && (
+        <Card className="p-5 space-y-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800 dark:text-white">Alistamiento para prueba DIAN</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Entorno: {alistamiento.ambiente}. La emisión seguirá bloqueada hasta validar con Plemsi.</p>
+            </div>
+            {alistamiento.listo_para_prueba ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <CircleAlert className="h-5 w-5 text-amber-500" />}
+          </div>
+          {[
+            [alistamiento.token_configurado, "Token de nómina configurado"],
+            [alistamiento.habilitado, "Integración habilitada para pruebas"],
+            [alistamiento.numeracion_individual_configurada, "Numeración de nómina individual"],
+            [alistamiento.numeracion_ajuste_configurada, "Numeración de ajustes"],
+          ].map(([ok, label]) => (
+            <div key={String(label)} className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+              {ok ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <CircleAlert className="h-4 w-4 text-amber-500" />} {String(label)}
+            </div>
+          ))}
+          {alistamiento.empleados_incompletos.length > 0 && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Faltan datos Plemsi en {alistamiento.empleados_incompletos.length} empleado(s). Completa su ficha antes de emitir.</p>}
+        </Card>
+      )}
     </div>
   );
 }

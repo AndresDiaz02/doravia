@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   db, empleados, contratos_empleado, nominas_periodo, nominas_detalle,
-  centros_costos, tenants, nomina_config_global, documentos_soporte_nomina, product_subscriptions, plans,
+  centros_costos, tenants, nomina_config_global, documentos_soporte_nomina, product_subscriptions, plans, nomina_plemsi_config,
 } from "@workspace/db";
 import { eq, and, desc, isNull, sql, inArray, gte } from "drizzle-orm";
 import { requireRole } from "../middleware/require-plan-feature.js";
@@ -49,9 +49,56 @@ const EMPLEADO_COLUMNAS_LISTADO = {
   estado: empleados.estado,
   fecha_retiro: empleados.fecha_retiro,
   centro_costos_id: empleados.centro_costos_id,
+  municipio_dian_id: empleados.municipio_dian_id,
+  direccion: empleados.direccion,
+  tipo_trabajador_plemsi_id: empleados.tipo_trabajador_plemsi_id,
+  subtipo_trabajador_plemsi_id: empleados.subtipo_trabajador_plemsi_id,
+  tipo_contrato_plemsi_id: empleados.tipo_contrato_plemsi_id,
+  salario_integral: empleados.salario_integral,
+  pension_alto_riesgo: empleados.pension_alto_riesgo,
   created_at: empleados.created_at,
   updated_at: empleados.updated_at,
 };
+
+// ── Alistamiento Plemsi (sin exponer el token) ───────────────────────────────
+router.get("/alistamiento-plemsi", async (req, res) => {
+  const [config] = await db.select().from(nomina_plemsi_config)
+    .where(eq(nomina_plemsi_config.tenant_id, req.tenantId)).limit(1);
+  const activos = await db.select({
+    id: empleados.id, nombre: sql<string>`${empleados.nombres} || ' ' || ${empleados.apellidos}`,
+    municipio: empleados.municipio_dian_id, direccion: empleados.direccion,
+    tipoTrabajador: empleados.tipo_trabajador_plemsi_id, subtipoTrabajador: empleados.subtipo_trabajador_plemsi_id,
+    tipoContrato: empleados.tipo_contrato_plemsi_id,
+  }).from(empleados).where(and(eq(empleados.tenant_id, req.tenantId), eq(empleados.estado, "activo")));
+  const empleadosIncompletos = activos.filter((e) => !e.municipio || !e.direccion || !e.tipoTrabajador || !e.subtipoTrabajador || !e.tipoContrato)
+    .map((e) => ({ id: e.id, nombre: e.nombre }));
+  res.json({
+    ambiente: config?.ambiente ?? "pruebas",
+    token_configurado: !!config?.api_key_encrypted,
+    habilitado: config?.habilitado ?? false,
+    numeracion_individual_configurada: !!(config?.resolucion_individual && config?.prefijo_individual),
+    numeracion_ajuste_configurada: !!(config?.resolucion_ajuste && config?.prefijo_ajuste),
+    empleados_incompletos: empleadosIncompletos,
+    listo_para_prueba: !!config?.habilitado && !!config?.api_key_encrypted && !!config?.resolucion_individual && !!config?.prefijo_individual && empleadosIncompletos.length === 0,
+  });
+});
+
+router.patch("/alistamiento-plemsi", requireRole(["admin"]), async (req, res) => {
+  const { token, ambiente } = req.body as Record<string, unknown>;
+  if (ambiente !== undefined && ambiente !== "pruebas" && ambiente !== "produccion") return res.status(400).json({ error: "ambiente debe ser pruebas o produccion." });
+  const values: Record<string, unknown> = { tenant_id: req.tenantId, updated_at: new Date() };
+  if (typeof token === "string" && token.trim()) values.api_key_encrypted = encrypt(token.trim());
+  for (const key of ["ambiente", "habilitado", "resolucion_individual", "prefijo_individual", "resolucion_ajuste", "prefijo_ajuste"] as const) {
+    if (req.body[key] !== undefined) values[key] = req.body[key];
+  }
+  for (const key of ["siguiente_numero_individual", "siguiente_numero_ajuste"] as const) {
+    if (req.body[key] !== undefined && Number.isInteger(Number(req.body[key])) && Number(req.body[key]) > 0) values[key] = Number(req.body[key]);
+  }
+  const [saved] = await db.insert(nomina_plemsi_config).values(values as typeof nomina_plemsi_config.$inferInsert)
+    .onConflictDoUpdate({ target: nomina_plemsi_config.tenant_id, set: values })
+    .returning();
+  res.json({ ...saved, api_key_encrypted: saved.api_key_encrypted ? "configurado" : null });
+});
 
 // ── Empleados ────────────────────────────────────────────────────────────────
 
@@ -104,11 +151,15 @@ router.post("/empleados", requireRole(["admin"]), async (req, res) => {
   try {
     const {
       cedula, nombres, apellidos, cargo, fecha_ingreso,
-      salario_base, tipo_contrato, centro_costos_id, datos_bancarios,
+      salario_base, tipo_contrato, centro_costos_id, datos_bancarios, municipio_dian_id, direccion,
+      tipo_trabajador_plemsi_id, subtipo_trabajador_plemsi_id, tipo_contrato_plemsi_id,
+      salario_integral, pension_alto_riesgo,
     } = req.body as {
       cedula?: string; nombres?: string; apellidos?: string; cargo?: string;
       fecha_ingreso?: string; salario_base?: number; tipo_contrato?: string;
-      centro_costos_id?: string; datos_bancarios?: Record<string, unknown>;
+      centro_costos_id?: string; datos_bancarios?: Record<string, unknown>; municipio_dian_id?: number;
+      direccion?: string; tipo_trabajador_plemsi_id?: number; subtipo_trabajador_plemsi_id?: number;
+      tipo_contrato_plemsi_id?: number; salario_integral?: boolean; pension_alto_riesgo?: boolean;
     };
 
     if (!cedula || !nombres || !apellidos || !fecha_ingreso || salario_base == null || !tipo_contrato) {
@@ -151,6 +202,13 @@ router.post("/empleados", requireRole(["admin"]), async (req, res) => {
         tipo_contrato: tipo_contrato as (typeof TIPOS_CONTRATO)[number],
         centro_costos_id: centro_costos_id ?? null,
         datos_bancarios_encrypted: datos_bancarios ? encrypt(JSON.stringify(datos_bancarios)) : null,
+        municipio_dian_id: Number.isInteger(municipio_dian_id) ? municipio_dian_id : null,
+        direccion: direccion?.trim() || null,
+        tipo_trabajador_plemsi_id: Number.isInteger(tipo_trabajador_plemsi_id) ? tipo_trabajador_plemsi_id : null,
+        subtipo_trabajador_plemsi_id: Number.isInteger(subtipo_trabajador_plemsi_id) ? subtipo_trabajador_plemsi_id : null,
+        tipo_contrato_plemsi_id: Number.isInteger(tipo_contrato_plemsi_id) ? tipo_contrato_plemsi_id : null,
+        salario_integral: salario_integral === true,
+        pension_alto_riesgo: pension_alto_riesgo === true,
       })
       .returning(EMPLEADO_COLUMNAS_LISTADO);
 
@@ -180,10 +238,14 @@ router.patch("/empleados/:id", requireRole(["admin"]), async (req, res) => {
     if (!row) return res.status(404).json({ error: "Empleado no encontrado." });
 
     const {
-      nombres, apellidos, cargo, centro_costos_id, datos_bancarios,
+      nombres, apellidos, cargo, centro_costos_id, datos_bancarios, municipio_dian_id, direccion,
+      tipo_trabajador_plemsi_id, subtipo_trabajador_plemsi_id, tipo_contrato_plemsi_id,
+      salario_integral, pension_alto_riesgo,
     } = req.body as {
       nombres?: string; apellidos?: string; cargo?: string;
-      centro_costos_id?: string | null; datos_bancarios?: Record<string, unknown>;
+      centro_costos_id?: string | null; datos_bancarios?: Record<string, unknown>; municipio_dian_id?: number | null;
+      direccion?: string | null; tipo_trabajador_plemsi_id?: number | null; subtipo_trabajador_plemsi_id?: number | null;
+      tipo_contrato_plemsi_id?: number | null; salario_integral?: boolean; pension_alto_riesgo?: boolean;
     };
 
     const patch: Partial<typeof empleados.$inferInsert> = { updated_at: new Date() };
@@ -200,6 +262,13 @@ router.patch("/empleados/:id", requireRole(["admin"]), async (req, res) => {
       patch.centro_costos_id = centro_costos_id;
     }
     if (datos_bancarios !== undefined) patch.datos_bancarios_encrypted = encrypt(JSON.stringify(datos_bancarios));
+    if (municipio_dian_id !== undefined) patch.municipio_dian_id = municipio_dian_id;
+    if (direccion !== undefined) patch.direccion = direccion;
+    if (tipo_trabajador_plemsi_id !== undefined) patch.tipo_trabajador_plemsi_id = tipo_trabajador_plemsi_id;
+    if (subtipo_trabajador_plemsi_id !== undefined) patch.subtipo_trabajador_plemsi_id = subtipo_trabajador_plemsi_id;
+    if (tipo_contrato_plemsi_id !== undefined) patch.tipo_contrato_plemsi_id = tipo_contrato_plemsi_id;
+    if (salario_integral !== undefined) patch.salario_integral = salario_integral;
+    if (pension_alto_riesgo !== undefined) patch.pension_alto_riesgo = pension_alto_riesgo;
 
     const [updated] = await db.update(empleados).set(patch)
       .where(and(eq(empleados.id, req.params.id), eq(empleados.tenant_id, req.tenantId)))

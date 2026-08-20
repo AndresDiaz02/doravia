@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import {
   db, empleados, nominas_periodo, nominas_detalle, documentos_soporte_nomina,
-  pool_documentos_nomina_tenant, tenants,
+  pool_documentos_nomina_tenant, tenants, nomina_plemsi_config,
 } from "@workspace/db";
 import type { NominaPeriodo, NominaDetalle, Empleado, Tenant } from "@workspace/db";
 import { eq, and, or, gte, lte, isNull, count } from "drizzle-orm";
@@ -9,7 +9,7 @@ import { calcularNominaEmpleado, type AjusteEmpleado } from "./nomina/calculador
 import { getParametrosNominaAnio, ParametrosNominaNotFoundError } from "./parametros-nomina.service.js";
 import { getTaxParameter } from "./tax-parameters.service.js";
 import { TAX_PARAM_KEYS } from "@workspace/db";
-import { getPlemsiCredentials, PlemsiNotConfiguredError } from "./get-plemsi-credentials.js";
+import { decrypt } from "./encryption.js";
 import { emitirNominaIndividual } from "./plemsi.service.js";
 import { crearAsientoNomina } from "./contabilidad.service.js";
 
@@ -172,39 +172,58 @@ async function enviarNominaAPlemsi(
   periodo: NominaPeriodo,
   numeroSecuencial: number,
 ): Promise<{ ok: boolean; error?: string }> {
-  let creds: { apiKey: string; ambiente: string };
-  try {
-    creds = await getPlemsiCredentials(tenant.id);
-  } catch (e) {
-    if (e instanceof PlemsiNotConfiguredError) {
-      await db.insert(documentos_soporte_nomina).values({
-        tenant_id: tenant.id,
-        nomina_detalle_id: detalle.id,
-        estado_dian: "error",
-        error_dian: "Plemsi no está configurado para esta empresa.",
-      });
-      return { ok: false, error: "Plemsi no configurado" };
-    }
-    throw e;
+  const [config] = await db.select().from(nomina_plemsi_config)
+    .where(eq(nomina_plemsi_config.tenant_id, tenant.id)).limit(1);
+  if (!config?.habilitado || !config.api_key_encrypted || !config.resolucion_individual || !config.prefijo_individual) {
+    await db.insert(documentos_soporte_nomina).values({
+      tenant_id: tenant.id,
+      nomina_detalle_id: detalle.id,
+      estado_dian: "error",
+      error_dian: "La configuración de nómina Plemsi está incompleta para esta empresa.",
+    }).onConflictDoUpdate({
+      target: documentos_soporte_nomina.nomina_detalle_id,
+      set: { estado_dian: "error", error_dian: "La configuración de nómina Plemsi está incompleta para esta empresa." },
+    });
+    return { ok: false, error: "Plemsi nómina no configurado" };
   }
+
+  const datosBancarios = empleado.datos_bancarios_encrypted
+    ? JSON.parse(decrypt(empleado.datos_bancarios_encrypted)) as Record<string, string>
+    : {};
 
   const { inicio, fin } = periodoRangoFechas(periodo);
   const resultado = await emitirNominaIndividual({
-    apiKey: creds.apiKey,
-    ambiente: creds.ambiente,
+    apiKey: decrypt(config.api_key_encrypted),
+    ambiente: config.ambiente,
+    numeracion: {
+      resolucion: config.resolucion_individual,
+      prefijo: config.prefijo_individual,
+      numero: config.siguiente_numero_individual,
+    },
     periodo: {
       fechaIngreso: empleado.fecha_ingreso,
       fechaLiquidacionInicio: inicio,
       fechaLiquidacionFin: fin,
       fechaGeneracion: new Date().toISOString().slice(0, 10),
     },
-    numeroSecuencial,
     empleado: {
-      tipoDocumento: "CC",
       numeroDocumento: empleado.cedula,
       nombres: empleado.nombres,
       apellidos: empleado.apellidos,
-      cargo: empleado.cargo,
+      salario: Number(detalle.salario_base),
+      municipioDianId: empleado.municipio_dian_id,
+      direccion: empleado.direccion,
+      tipoTrabajadorId: empleado.tipo_trabajador_plemsi_id,
+      subtipoTrabajadorId: empleado.subtipo_trabajador_plemsi_id,
+      tipoContratoId: empleado.tipo_contrato_plemsi_id,
+      salarioIntegral: empleado.salario_integral,
+      pensionAltoRiesgo: empleado.pension_alto_riesgo,
+    },
+    pago: {
+      metodoId: Number(datosBancarios.metodo_pago_id ?? 10),
+      banco: datosBancarios.banco,
+      tipoCuenta: datosBancarios.tipo_cuenta,
+      numeroCuenta: datosBancarios.cuenta,
     },
     devengos: {
       salarioBase: Number(detalle.salario_base),
@@ -227,8 +246,17 @@ async function enviarNominaAPlemsi(
     cude: resultado.cufe ?? null,
     estado_dian: resultado.ok ? "emitida" : "error",
     fecha_emision: resultado.ok ? new Date() : null,
-    plemsi_response: null,
+    plemsi_response: resultado.respuesta ?? null,
     error_dian: resultado.ok ? null : (resultado.error ?? null),
+  }).onConflictDoUpdate({
+    target: documentos_soporte_nomina.nomina_detalle_id,
+    set: {
+      cude: resultado.cufe ?? null,
+      estado_dian: resultado.ok ? "emitida" : "error",
+      fecha_emision: resultado.ok ? new Date() : null,
+      plemsi_response: resultado.respuesta ?? null,
+      error_dian: resultado.ok ? null : (resultado.error ?? null),
+    },
   });
 
   if (!resultado.ok) {
@@ -239,6 +267,12 @@ async function enviarNominaAPlemsi(
       scope.setContext("documento", { nomina_detalle_id: detalle.id, tenant_id: tenant.id, empleado_id: empleado.id });
       Sentry.captureException(new Error(`Plemsi nomina emission failed: ${resultado.error}`));
     });
+  }
+
+  if (resultado.ok) {
+    await db.update(nomina_plemsi_config)
+      .set({ siguiente_numero_individual: config.siguiente_numero_individual + 1, updated_at: new Date() })
+      .where(eq(nomina_plemsi_config.tenant_id, tenant.id));
   }
 
   return resultado;

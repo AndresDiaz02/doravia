@@ -952,6 +952,28 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_sales_activities_owner_due ON sales_activities(owner_id, estado, scheduled_at)`,
   `CREATE INDEX IF NOT EXISTS idx_sales_timeline_account ON sales_timeline_events(account_id, created_at DESC)`,
   `ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS fuente_adquisicion varchar(50)`,
+  // Nómina Plemsi: alistamiento por empresa, separado de credenciales de facturación.
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS municipio_dian_id integer`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS direccion varchar(300)`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS tipo_trabajador_plemsi_id integer`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS subtipo_trabajador_plemsi_id integer`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS tipo_contrato_plemsi_id integer`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS salario_integral boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE empleados ADD COLUMN IF NOT EXISTS pension_alto_riesgo boolean NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS nomina_plemsi_config (
+    tenant_id uuid PRIMARY KEY REFERENCES tenants(id),
+    api_key_encrypted text,
+    ambiente varchar(20) NOT NULL DEFAULT 'pruebas',
+    habilitado boolean NOT NULL DEFAULT false,
+    resolucion_individual varchar(100),
+    prefijo_individual varchar(30),
+    siguiente_numero_individual integer NOT NULL DEFAULT 1,
+    resolucion_ajuste varchar(100),
+    prefijo_ajuste varchar(30),
+    siguiente_numero_ajuste integer NOT NULL DEFAULT 1,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_documento_nomina_detalle ON documentos_soporte_nomina(nomina_detalle_id)`,
 ];
 
 for (const migration of migrations) {

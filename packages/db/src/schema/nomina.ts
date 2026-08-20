@@ -30,6 +30,16 @@ export const empleados = pgTable("empleados", {
   centro_costos_id: uuid("centro_costos_id").references(() => centros_costos.id),
   // AES-256-GCM, mismo patrón que tenants.plemsi_api_key_encrypted (services/encryption.ts)
   datos_bancarios_encrypted: text("datos_bancarios_encrypted"),
+  // Datos requeridos por el documento soporte de nómina de Plemsi/DIAN. Son
+  // opcionales durante el alistamiento, pero la validación previa impide emitir
+  // hasta que estén completos.
+  municipio_dian_id: integer("municipio_dian_id"),
+  direccion: varchar("direccion", { length: 300 }),
+  tipo_trabajador_plemsi_id: integer("tipo_trabajador_plemsi_id"),
+  subtipo_trabajador_plemsi_id: integer("subtipo_trabajador_plemsi_id"),
+  tipo_contrato_plemsi_id: integer("tipo_contrato_plemsi_id"),
+  salario_integral: boolean("salario_integral").notNull().default(false),
+  pension_alto_riesgo: boolean("pension_alto_riesgo").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -38,6 +48,24 @@ export const empleados = pgTable("empleados", {
 
 export type Empleado = typeof empleados.$inferSelect;
 export type NewEmpleado = typeof empleados.$inferInsert;
+
+// Configuración aislada por empresa. El token de nómina no se comparte con la
+// facturación y nunca se devuelve al navegador.
+export const nomina_plemsi_config = pgTable("nomina_plemsi_config", {
+  tenant_id: uuid("tenant_id").primaryKey().references(() => tenants.id),
+  api_key_encrypted: text("api_key_encrypted"),
+  ambiente: varchar("ambiente", { length: 20 }).notNull().default("pruebas"),
+  habilitado: boolean("habilitado").notNull().default(false),
+  resolucion_individual: varchar("resolucion_individual", { length: 100 }),
+  prefijo_individual: varchar("prefijo_individual", { length: 30 }),
+  siguiente_numero_individual: integer("siguiente_numero_individual").notNull().default(1),
+  resolucion_ajuste: varchar("resolucion_ajuste", { length: 100 }),
+  prefijo_ajuste: varchar("prefijo_ajuste", { length: 30 }),
+  siguiente_numero_ajuste: integer("siguiente_numero_ajuste").notNull().default(1),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type NominaPlemsiConfig = typeof nomina_plemsi_config.$inferSelect;
 
 // ── Contratos (historial por empleado — cada fila es un contrato) ────────────
 export const contratos_empleado = pgTable("contratos_empleado", {
@@ -122,7 +150,9 @@ export const documentos_soporte_nomina = pgTable("documentos_soporte_nomina", {
   plemsi_response: jsonb("plemsi_response"),
   error_dian: text("error_dian"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  uq_documento_nomina_detalle: unique("uq_documento_nomina_detalle").on(t.nomina_detalle_id),
+}));
 
 export type DocumentoSoporteNomina = typeof documentos_soporte_nomina.$inferSelect;
 export type NewDocumentoSoporteNomina = typeof documentos_soporte_nomina.$inferInsert;

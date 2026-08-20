@@ -178,6 +178,7 @@ export interface ResultadoPlemsi {
   cufe?: string;
   plemsi_id?: string;
   error?: string;
+  respuesta?: Record<string, unknown>;
 }
 
 type PlemsiItems = ReturnType<typeof buildItems>;
@@ -335,6 +336,7 @@ export async function emitirFactura(params: {
       ok: true,
       cufe: (data.cude ?? data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cude ?? json.cufe ?? json.uuid) as string | undefined,
       plemsi_id: (data.id ?? json.id ?? json.uuid) as string | undefined,
+      respuesta: json,
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };
@@ -592,52 +594,85 @@ export async function registrarResolucion(params: {
 /**
  * Emite un documento soporte de nómina electrónica individual.
  *
- * ⚠️ ENDPOINT NO CONFIRMADO — Plemsi expone nómina electrónica como un producto separado de
- * facturación (`/api/billing/*`). El path `/api/payroll/individual` usado abajo sigue la misma
- * convención REST que el resto de este archivo pero NO fue verificado contra la documentación
- * real de Plemsi para nómina. Confirmar el path y el shape exacto del body con Plemsi antes de
- * habilitar esto en producción (requiere credenciales de prueba reales, que no están disponibles
- * en este entorno). El código de manejo de respuesta (fallback de CUDE, manejo de errores) sí
- * sigue el patrón ya probado del resto del archivo y no debería necesitar cambios.
+ * Basado en Public Plemsi API Payroll Draft 1.0:
+ * POST /api/epayroll/individual con Bearer Token por empresa emisora.
  */
 export async function emitirNominaIndividual(params: {
   apiKey: string;
   ambiente?: string;
+  numeracion: { resolucion: string; prefijo: string; numero: number };
   periodo: { fechaIngreso: string; fechaLiquidacionInicio: string; fechaLiquidacionFin: string; fechaGeneracion: string };
-  numeroSecuencial: number;
-  empleado: { tipoDocumento: string; numeroDocumento: string; nombres: string; apellidos: string; cargo?: string | null };
+  empleado: {
+    numeroDocumento: string; nombres: string; apellidos: string; salario: number;
+    municipioDianId?: number | null; direccion?: string | null; tipoTrabajadorId?: number | null;
+    subtipoTrabajadorId?: number | null; tipoContratoId?: number | null; salarioIntegral?: boolean;
+    pensionAltoRiesgo?: boolean;
+  };
+  pago: { metodoId: number; banco?: string; tipoCuenta?: string; numeroCuenta?: string };
   devengos: { salarioBase: number; horasExtra: number; recargos: number; comisiones: number };
   deducciones: { saludEmpleado: number; pensionEmpleado: number; retencionFuente: number; otras: number };
   netoPagar: number;
 }): Promise<ResultadoPlemsi> {
   try {
     const body = {
-      novedad: false,
-      periodo: params.periodo,
-      numeroSecuencialNomina: params.numeroSecuencial,
-      trabajador: {
-        tipoDocumento: params.empleado.tipoDocumento,
-        numeroDocumento: params.empleado.numeroDocumento,
-        primerNombre: params.empleado.nombres,
-        primerApellido: params.empleado.apellidos,
-        cargo: params.empleado.cargo ?? undefined,
+      resolution: params.numeracion.resolucion,
+      prefix: params.numeracion.prefijo,
+      number: params.numeracion.numero,
+      novelty: { novelty: false, uuid: null },
+      worker: {
+        type_worker_id: params.empleado.tipoTrabajadorId,
+        sub_type_worker_id: params.empleado.subtipoTrabajadorId,
+        type_document_identification_id: 3, // CC; Doravia solo admite cédula actualmente.
+        worker_code: params.empleado.numeroDocumento,
+        municipality_id: params.empleado.municipioDianId ?? 0,
+        type_contract_id: params.empleado.tipoContratoId ?? 0,
+        high_risk_pension: params.empleado.pensionAltoRiesgo ?? false,
+        identification_number: params.empleado.numeroDocumento,
+        surname: params.empleado.apellidos,
+        first_name: params.empleado.nombres,
+        fullname: `${params.empleado.nombres} ${params.empleado.apellidos}`.trim(),
+        address: params.empleado.direccion ?? "",
+        integral_salary: params.empleado.salarioIntegral ?? false,
+        salary: params.empleado.salario.toFixed(2),
       },
-      devengados: {
-        salarioBase: params.devengos.salarioBase,
-        horasExtra: params.devengos.horasExtra,
-        recargos: params.devengos.recargos,
-        comisiones: params.devengos.comisiones,
+      period_id: 4, // Mensual; la quincena se reporta en las fechas de pago.
+      period: {
+        admision_date: params.periodo.fechaIngreso,
+        settlement_start_date: params.periodo.fechaLiquidacionInicio,
+        settlement_end_date: params.periodo.fechaLiquidacionFin,
+        worked_time: "240.00",
+        issue_date: params.periodo.fechaGeneracion,
       },
-      deducciones: {
-        saludEmpleado: params.deducciones.saludEmpleado,
-        pensionEmpleado: params.deducciones.pensionEmpleado,
-        retencionFuente: params.deducciones.retencionFuente,
-        otras: params.deducciones.otras,
+      payment_dates: [{ payment_date: params.periodo.fechaLiquidacionFin }],
+      payrollPeriod: {
+        year: Number(params.periodo.fechaLiquidacionFin.slice(0, 4)),
+        month: Number(params.periodo.fechaLiquidacionFin.slice(5, 7)),
       },
-      netoPagar: params.netoPagar,
+      payment: {
+        payment_method_id: params.pago.metodoId,
+        ...(params.pago.banco ? { bank_name: params.pago.banco } : {}),
+        ...(params.pago.tipoCuenta ? { account_type: params.pago.tipoCuenta } : {}),
+        ...(params.pago.numeroCuenta ? { account_number: params.pago.numeroCuenta } : {}),
+      },
+      accrued: {
+        worked_days: 30,
+        salary: params.devengos.salarioBase.toFixed(2),
+        transportation_allowance: "0.00",
+        commissions: params.devengos.comisiones > 0 ? [{ commission: params.devengos.comisiones.toFixed(2) }] : [],
+        accrued_total: (params.devengos.salarioBase + params.devengos.horasExtra + params.devengos.recargos + params.devengos.comisiones).toFixed(2),
+      },
+      deductions: {
+        eps_type_law_deductions_id: 1,
+        eps_deduction: params.deducciones.saludEmpleado.toFixed(2),
+        pension_type_law_deductions_id: 5,
+        pension_deduction: params.deducciones.pensionEmpleado.toFixed(2),
+        withholding_at_source: params.deducciones.retencionFuente.toFixed(2),
+        other_deductions: params.deducciones.otras > 0 ? [{ other_deduction: params.deducciones.otras.toFixed(2) }] : [],
+        deductions_total: (params.deducciones.saludEmpleado + params.deducciones.pensionEmpleado + params.deducciones.retencionFuente + params.deducciones.otras).toFixed(2),
+      },
     };
 
-    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/payroll/individual`, {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/epayroll/individual`, {
       method: "POST",
       headers: headersParaTenant(params.apiKey),
       body: JSON.stringify(body),
@@ -645,7 +680,7 @@ export async function emitirNominaIndividual(params: {
     });
 
     const rawText = await res.text();
-    console.log(`[PLEMSI] POST /api/payroll/individual → status=${res.status} bytes=${rawText.length}`);
+    console.log(`[PLEMSI] POST /api/epayroll/individual → status=${res.status} bytes=${rawText.length}`);
 
     let json: Record<string, unknown>;
     try {
@@ -661,6 +696,7 @@ export async function emitirNominaIndividual(params: {
       ok: true,
       cufe: (data.cude ?? data.cufe ?? data.uuid ?? data.XmlDocumentKey ?? json.cude ?? json.cufe ?? json.uuid) as string | undefined,
       plemsi_id: (data.id ?? json.id ?? json.uuid) as string | undefined,
+      respuesta: json,
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };

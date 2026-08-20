@@ -20,6 +20,13 @@ interface EmpleadoDetalle {
   tipo_contrato: string;
   estado: "activo" | "inactivo" | "retirado";
   fecha_retiro: string | null;
+  municipio_dian_id: number | null;
+  direccion: string | null;
+  tipo_trabajador_plemsi_id: number | null;
+  subtipo_trabajador_plemsi_id: number | null;
+  tipo_contrato_plemsi_id: number | null;
+  salario_integral: boolean;
+  pension_alto_riesgo: boolean;
   datos_bancarios: { banco?: string; cuenta?: string } | null;
 }
 
@@ -42,6 +49,7 @@ const TIPOS_CONTRATO = [
 const emptyForm = {
   cedula: "", nombres: "", apellidos: "", cargo: "", fecha_ingreso: "",
   salario_base: "", tipo_contrato: "indefinido", banco: "", cuenta: "",
+  municipio_dian_id: "", direccion: "", tipo_trabajador_plemsi_id: "", subtipo_trabajador_plemsi_id: "", tipo_contrato_plemsi_id: "", salario_integral: false, pension_alto_riesgo: false,
 };
 
 export default function NominaEmpleadoForm() {
@@ -70,6 +78,9 @@ export default function NominaEmpleadoForm() {
           cargo: emp.cargo ?? "", fecha_ingreso: emp.fecha_ingreso,
           salario_base: emp.salario_base, tipo_contrato: emp.tipo_contrato,
           banco: emp.datos_bancarios?.banco ?? "", cuenta: emp.datos_bancarios?.cuenta ?? "",
+          municipio_dian_id: String(emp.municipio_dian_id ?? ""), direccion: emp.direccion ?? "",
+          tipo_trabajador_plemsi_id: String(emp.tipo_trabajador_plemsi_id ?? ""), subtipo_trabajador_plemsi_id: String(emp.subtipo_trabajador_plemsi_id ?? ""),
+          tipo_contrato_plemsi_id: String(emp.tipo_contrato_plemsi_id ?? ""), salario_integral: emp.salario_integral, pension_alto_riesgo: emp.pension_alto_riesgo,
         });
         setEstado(emp.estado);
         setContratos(hist);
@@ -95,13 +106,23 @@ export default function NominaEmpleadoForm() {
             cargo: form.cargo || undefined, fecha_ingreso: form.fecha_ingreso,
             salario_base: Number(form.salario_base), tipo_contrato: form.tipo_contrato,
             datos_bancarios,
+            municipio_dian_id: form.municipio_dian_id ? Number(form.municipio_dian_id) : undefined, direccion: form.direccion || undefined,
+            tipo_trabajador_plemsi_id: form.tipo_trabajador_plemsi_id ? Number(form.tipo_trabajador_plemsi_id) : undefined,
+            subtipo_trabajador_plemsi_id: form.subtipo_trabajador_plemsi_id ? Number(form.subtipo_trabajador_plemsi_id) : undefined,
+            tipo_contrato_plemsi_id: form.tipo_contrato_plemsi_id ? Number(form.tipo_contrato_plemsi_id) : undefined,
+            salario_integral: form.salario_integral, pension_alto_riesgo: form.pension_alto_riesgo,
           }),
         });
         navigate(`/nomina/empleados/${nuevo.id}`);
       } else {
         await apiFetch(`/api/nomina/empleados/${id}`, {
           method: "PATCH",
-          body: JSON.stringify({ nombres: form.nombres, apellidos: form.apellidos, cargo: form.cargo || null, datos_bancarios }),
+          body: JSON.stringify({ nombres: form.nombres, apellidos: form.apellidos, cargo: form.cargo || null, datos_bancarios,
+            municipio_dian_id: form.municipio_dian_id ? Number(form.municipio_dian_id) : null, direccion: form.direccion || null,
+            tipo_trabajador_plemsi_id: form.tipo_trabajador_plemsi_id ? Number(form.tipo_trabajador_plemsi_id) : null,
+            subtipo_trabajador_plemsi_id: form.subtipo_trabajador_plemsi_id ? Number(form.subtipo_trabajador_plemsi_id) : null,
+            tipo_contrato_plemsi_id: form.tipo_contrato_plemsi_id ? Number(form.tipo_contrato_plemsi_id) : null,
+            salario_integral: form.salario_integral, pension_alto_riesgo: form.pension_alto_riesgo }),
         });
         navigate("/nomina/empleados");
       }
@@ -193,6 +214,24 @@ export default function NominaEmpleadoForm() {
                   <HelpTooltip text="Salario mensual antes de deducciones. Si el empleado gana hasta 2 salarios mínimos, recibirá auxilio de transporte automáticamente al calcular su nómina." side="right" />
                 </Label>
                 <Input id="salario_base" type="number" value={form.salario_base} onChange={(e) => setForm({ ...form, salario_base: e.target.value })} disabled={!esNuevo} required />
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Datos para nómina electrónica</p>
+                <p className="text-xs text-gray-500">Se solicitan al emitir ante Plemsi; completa los IDs según sus catálogos oficiales.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label htmlFor="direccion">Dirección</Label><Input id="direccion" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></div>
+                <div><Label htmlFor="municipio">ID municipio DIAN</Label><Input id="municipio" type="number" value={form.municipio_dian_id} onChange={(e) => setForm({ ...form, municipio_dian_id: e.target.value })} /></div>
+                <div><Label htmlFor="tipo-trabajador">ID tipo trabajador</Label><Input id="tipo-trabajador" type="number" value={form.tipo_trabajador_plemsi_id} onChange={(e) => setForm({ ...form, tipo_trabajador_plemsi_id: e.target.value })} /></div>
+                <div><Label htmlFor="subtipo-trabajador">ID subtipo trabajador</Label><Input id="subtipo-trabajador" type="number" value={form.subtipo_trabajador_plemsi_id} onChange={(e) => setForm({ ...form, subtipo_trabajador_plemsi_id: e.target.value })} /></div>
+                <div><Label htmlFor="tipo-contrato-plemsi">ID contrato Plemsi</Label><Input id="tipo-contrato-plemsi" type="number" value={form.tipo_contrato_plemsi_id} onChange={(e) => setForm({ ...form, tipo_contrato_plemsi_id: e.target.value })} /></div>
+              </div>
+              <div className="flex gap-5 text-sm text-gray-700">
+                <label className="flex items-center gap-2"><input type="checkbox" checked={form.salario_integral} onChange={(e) => setForm({ ...form, salario_integral: e.target.checked })} /> Salario integral</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={form.pension_alto_riesgo} onChange={(e) => setForm({ ...form, pension_alto_riesgo: e.target.checked })} /> Pensión alto riesgo</label>
               </div>
             </div>
 

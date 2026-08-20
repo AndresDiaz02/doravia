@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { db, pool_documentos_nomina_tenant } from "@workspace/db";
-import { eq, lte } from "drizzle-orm";
+import { db, pool_documentos_nomina_tenant, product_subscriptions } from "@workspace/db";
+import { and, eq, gte, lte } from "drizzle-orm";
 
 /**
  * Renovación de ciclo de pools de nómina (Fase 10, regla de negocio #3):
@@ -15,11 +15,19 @@ export async function procesarRenovacionesNomina(): Promise<{ procesados: number
   const hoy = new Date().toISOString().slice(0, 10);
 
   const vencidos = await db
-    .select()
+    .select({ pool: pool_documentos_nomina_tenant })
     .from(pool_documentos_nomina_tenant)
-    .where(lte(pool_documentos_nomina_tenant.fecha_renovacion, hoy));
+    .innerJoin(product_subscriptions, and(
+      eq(product_subscriptions.tenant_id, pool_documentos_nomina_tenant.tenant_id),
+      eq(product_subscriptions.product, "nomina"),
+    ))
+    .where(and(
+      lte(pool_documentos_nomina_tenant.fecha_renovacion, hoy),
+      eq(product_subscriptions.status, "active"),
+      gte(product_subscriptions.ends_at, new Date()),
+    ));
 
-  for (const pool of vencidos) {
+  for (const { pool } of vencidos) {
     const noUsados = Math.max(0, pool.documentos_incluidos - pool.documentos_consumidos_ciclo);
     const acumuladosNuevos = Math.min(pool.documentos_acumulados_previos + noUsados, pool.limite_acumulacion);
 

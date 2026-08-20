@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, pool_documentos_nomina_tenant } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, pool_documentos_nomina_tenant, product_subscriptions } from "@workspace/db";
+import { and, eq, gte } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -17,15 +17,28 @@ declare global {
  */
 export async function requireNominaActivo(req: Request, res: Response, next: NextFunction) {
   try {
-    const [pool] = await db
-      .select()
-      .from(pool_documentos_nomina_tenant)
-      .where(eq(pool_documentos_nomina_tenant.tenant_id, req.tenantId))
-      .limit(1);
+    const ahora = new Date();
+    const [pool, subscription] = await Promise.all([
+      db.select()
+        .from(pool_documentos_nomina_tenant)
+        .where(eq(pool_documentos_nomina_tenant.tenant_id, req.tenantId))
+        .limit(1)
+        .then((rows) => rows[0]),
+      db.select({ id: product_subscriptions.id })
+        .from(product_subscriptions)
+        .where(and(
+          eq(product_subscriptions.tenant_id, req.tenantId),
+          eq(product_subscriptions.product, "nomina"),
+          eq(product_subscriptions.status, "active"),
+          gte(product_subscriptions.ends_at, ahora),
+        ))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ]);
 
-    if (!pool) {
+    if (!pool || !subscription) {
       return res.status(403).json({
-        error: "Tu empresa no tiene nomina electronica activa. Contacta a soporte para habilitar el modulo.",
+        error: "Tu suscripción de nómina electrónica no está activa. Renueva o activa el producto para continuar.",
         code: "NOMINA_NOT_ACTIVE",
       });
     }

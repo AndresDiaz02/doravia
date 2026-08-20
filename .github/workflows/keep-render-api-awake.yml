@@ -13,13 +13,19 @@ permissions:
 jobs:
   healthcheck:
     runs-on: ubuntu-latest
-    # Render Free puede tardar mÃ¡s de un minuto en despertar tras una pausa o despliegue.
-    # Conservamos la alerta si no responde tras los reintentos, pero evitamos falsos fallos.
-    timeout-minutes: 6
+    # Render Free puede tardar más de un minuto en despertar tras una pausa o despliegue.
+    # Este trabajo mantiene caliente la API; no debe generar correos por una
+    # indisponibilidad transitoria. Los errores quedan como warning en el run.
+    timeout-minutes: 10
     steps:
       - name: Verify API health
-        run: >-
-          curl --fail --silent --show-error
-          --retry 3 --retry-delay 15 --retry-all-errors
-          --connect-timeout 20 --max-time 75
-          https://doravia-api.onrender.com/health
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4; do
+            if curl --fail --silent --show-error --connect-timeout 30 --max-time 120 https://doravia-api.onrender.com/health; then
+              exit 0
+            fi
+            echo "Intento ${attempt}/4 sin respuesta; se reintentará."
+            sleep 20
+          done
+          echo "::warning::La API no respondió al monitor. El flujo se completa para evitar alertas repetitivas por cold starts."

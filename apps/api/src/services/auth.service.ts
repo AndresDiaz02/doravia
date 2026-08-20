@@ -272,12 +272,12 @@ export async function login(email: string, password: string) {
     .from(user_accesos)
     .where(eq(user_accesos.user_id, user.id));
 
-  const todasLasEntradas = [
+  const entradasSinDuplicados = [
     { tenant_id: user.tenant_id, role: user.role as string },
     ...accesosExtra.map((a) => ({ tenant_id: a.tenant_id, role: a.role as string })),
-  ];
+  ].filter((entrada, indice, entradas) => entradas.findIndex((candidata) => candidata.tenant_id === entrada.tenant_id) === indice);
 
-  if (todasLasEntradas.length === 1) {
+  if (entradasSinDuplicados.length === 1) {
     // Una sola empresa — flujo normal
     const [tenant] = await db
       .select()
@@ -295,7 +295,7 @@ export async function login(email: string, password: string) {
   const tenantRows = await db
     .select({ id: tenants.id, nombre: tenants.nombre, nit: tenants.nit, activo: tenants.activo })
     .from(tenants)
-    .where(inArray(tenants.id, todasLasEntradas.map((e) => e.tenant_id)));
+    .where(inArray(tenants.id, entradasSinDuplicados.map((e) => e.tenant_id)));
 
   const empresas = tenantRows
     .filter((t) => t.activo)
@@ -303,7 +303,7 @@ export async function login(email: string, password: string) {
       tenant_id: t.id,
       tenant_nombre: t.nombre,
       nit: t.nit,
-      role: todasLasEntradas.find((e) => e.tenant_id === t.id)?.role ?? user.role,
+      role: entradasSinDuplicados.find((e) => e.tenant_id === t.id)?.role ?? user.role,
     }));
 
   return {
@@ -412,21 +412,21 @@ export async function getEmpresasUsuario(userId: string, currentTenantId: string
     .from(user_accesos)
     .where(eq(user_accesos.user_id, userId));
 
-  const todasLasEntradas = [
+  const entradasSinDuplicados = [
     { tenant_id: user.tenant_id, role: user.role as string },
     ...accesosExtra.map((a) => ({ tenant_id: a.tenant_id, role: a.role as string })),
-  ];
+  ].filter((entrada, indice, entradas) => entradas.findIndex((candidata) => candidata.tenant_id === entrada.tenant_id) === indice);
 
   const tenantRows = await db
     .select({ id: tenants.id, nombre: tenants.nombre, nit: tenants.nit })
     .from(tenants)
-    .where(inArray(tenants.id, todasLasEntradas.map((e) => e.tenant_id)));
+    .where(inArray(tenants.id, entradasSinDuplicados.map((e) => e.tenant_id)));
 
   return tenantRows.map((t) => ({
     tenant_id: t.id,
     tenant_nombre: t.nombre,
     nit: t.nit,
-    role: todasLasEntradas.find((e) => e.tenant_id === t.id)?.role ?? user.role,
+    role: entradasSinDuplicados.find((e) => e.tenant_id === t.id)?.role ?? user.role,
     es_activa: t.id === currentTenantId,
   }));
 }

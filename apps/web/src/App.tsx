@@ -109,7 +109,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Suspense fallback={<div className="flex h-screen items-center justify-center text-sm text-slate-500">Cargando módulo…</div>}>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Cargando módulo…</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />

@@ -209,7 +209,9 @@ export function Login() {
               {loading ? (slowLogin ? "Conectando con Doravia..." : "Ingresando...") : "Ingresar"}
             </Button>
             {loading && slowLogin && (
-              <p className="text-center text-xs text-gray-500">Estamos preparando tu sesión. No cierres esta ventana.</p>
+              <div className="rounded-lg bg-violet-50 px-3 py-2.5 text-center text-xs leading-5 text-violet-800">
+                <span className="font-semibold">Estamos despertando tu espacio de trabajo.</span> Puede tomar unos segundos si estuvo inactivo; no cierres esta ventana.
+              </div>
             )}
           </form>
         </div>

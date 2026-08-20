@@ -14,6 +14,7 @@
     "seed:contador": "tsx src/seed/contador.ts",
     "seed:pos-demo": "tsx src/seed/sync-pos-demo.ts",
     "seed:demo-cosecha": "tsx src/seed/sync-demo-cosecha.ts",
+    "seed:nomina-pruebas": "tsx src/seed/nomina-pruebas.ts",
     "push": "drizzle-kit push --force",
     "migrate": "tsx src/migrate.ts",
     "studio": "drizzle-kit studio",

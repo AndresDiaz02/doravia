@@ -609,7 +609,7 @@ export async function emitirNominaIndividual(params: {
     pensionAltoRiesgo?: boolean;
   };
   pago: { metodoId: number; banco?: string; tipoCuenta?: string; numeroCuenta?: string };
-  devengos: { salarioBase: number; horasExtra: number; recargos: number; comisiones: number };
+  devengos: { salarioBase: number; auxilioTransporte: number; horasExtra: number; recargos: number; comisiones: number };
   deducciones: { saludEmpleado: number; pensionEmpleado: number; retencionFuente: number; otras: number };
   netoPagar: number;
 }): Promise<ResultadoPlemsi> {
@@ -657,9 +657,9 @@ export async function emitirNominaIndividual(params: {
       accrued: {
         worked_days: 30,
         salary: params.devengos.salarioBase.toFixed(2),
-        transportation_allowance: "0.00",
+        transportation_allowance: params.devengos.auxilioTransporte.toFixed(2),
         commissions: params.devengos.comisiones > 0 ? [{ commission: params.devengos.comisiones.toFixed(2) }] : [],
-        accrued_total: (params.devengos.salarioBase + params.devengos.horasExtra + params.devengos.recargos + params.devengos.comisiones).toFixed(2),
+        accrued_total: (params.devengos.salarioBase + params.devengos.auxilioTransporte + params.devengos.horasExtra + params.devengos.recargos + params.devengos.comisiones).toFixed(2),
       },
       deductions: {
         eps_type_law_deductions_id: 1,
@@ -701,6 +701,42 @@ export async function emitirNominaIndividual(params: {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Error de conexión con Plemsi" };
   }
+}
+
+export async function registrarNumeracionNomina(params: {
+  apiKey: string; ambiente?: string; tipoDocumentoId: 9 | 10; resolucion: string; prefijo: string; desde: number; hasta: number;
+}): Promise<ResultadoPlemsi> {
+  try {
+    const res = await fetch(`${getPlemsiBase(params.ambiente)}/api/epayroll/resolution`, {
+      method: "POST", headers: headersParaTenant(params.apiKey),
+      body: JSON.stringify({ type_document_id: params.tipoDocumentoId, resolution: params.resolucion, prefix: params.prefijo, from: params.desde, to: params.hasta }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const raw = await res.text();
+    let respuesta: Record<string, unknown> = {};
+    try { respuesta = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { return { ok: false, error: `Plemsi devolvió respuesta no JSON: ${raw.slice(0, 200)}` }; }
+    return res.ok ? { ok: true, plemsi_id: String(respuesta.id ?? "") || undefined, respuesta } : { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(respuesta)}`, respuesta };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Error de conexión con Plemsi" }; }
+}
+
+export async function listarNumeracionesNomina(apiKey: string, ambiente?: string): Promise<ResultadoPlemsi> {
+  try {
+    const res = await fetch(`${getPlemsiBase(ambiente)}/api/epayroll/resolution?page=1&perPage=100`, { headers: headersParaTenant(apiKey), signal: AbortSignal.timeout(30_000) });
+    const raw = await res.text();
+    let respuesta: Record<string, unknown> = {};
+    try { respuesta = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { return { ok: false, error: `Plemsi devolvió respuesta no JSON: ${raw.slice(0, 200)}` }; }
+    return res.ok ? { ok: true, respuesta } : { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(respuesta)}`, respuesta };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Error de conexión con Plemsi" }; }
+}
+
+export async function consultarNominaAjuste(apiKey: string, cuneOConsecutivo: string, ambiente?: string): Promise<ResultadoPlemsi> {
+  try {
+    const res = await fetch(`${getPlemsiBase(ambiente)}/api/epayroll/note/one/${encodeURIComponent(cuneOConsecutivo)}`, { headers: headersParaTenant(apiKey), signal: AbortSignal.timeout(30_000) });
+    const raw = await res.text();
+    let respuesta: Record<string, unknown> = {};
+    try { respuesta = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { return { ok: false, error: `Plemsi devolvió respuesta no JSON: ${raw.slice(0, 200)}` }; }
+    return res.ok ? { ok: true, respuesta } : { ok: false, error: `Plemsi ${res.status}: ${JSON.stringify(respuesta)}`, respuesta };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Error de conexión con Plemsi" }; }
 }
 
 /** Consulta folios restantes */

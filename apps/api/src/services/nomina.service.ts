@@ -15,7 +15,7 @@ import { crearAsientoNomina } from "./contabilidad.service.js";
 
 export class NominaEstadoError extends Error {
   constructor(
-    public readonly code: "ESTADO_INVALIDO" | "PERIODO_NO_ENCONTRADO" | "SIN_EMPLEADOS" | "POOL_INSUFICIENTE",
+    public readonly code: "ESTADO_INVALIDO" | "PERIODO_NO_ENCONTRADO" | "SIN_EMPLEADOS" | "POOL_INSUFICIENTE" | "PLEMSI_NO_LISTO",
     message: string,
   ) {
     super(message);
@@ -32,6 +32,27 @@ function periodoRangoFechas(periodo: NominaPeriodo): { inicio: string; fin: stri
     return { inicio: `${periodo.ano}-${String(periodo.mes).padStart(2, "0")}-16`, fin: `${periodo.ano}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}` };
   }
   return { inicio: `${periodo.ano}-${String(periodo.mes).padStart(2, "0")}-01`, fin: `${periodo.ano}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}` };
+}
+
+async function validarAlistamientoParaEmitir(tenantId: string, detalles: NominaDetalle[]): Promise<void> {
+  const [config] = await db.select().from(nomina_plemsi_config)
+    .where(eq(nomina_plemsi_config.tenant_id, tenantId)).limit(1);
+  const pendientes: string[] = [];
+  if (!config?.habilitado || !config.api_key_encrypted) pendientes.push("token de nómina Plemsi");
+  if (!config?.resolucion_individual || !config.prefijo_individual) pendientes.push("numeración individual");
+
+  const ids = [...new Set(detalles.map((detalle) => detalle.empleado_id))];
+  const rows = await db.select().from(empleados).where(and(eq(empleados.tenant_id, tenantId)));
+  for (const empleado of rows.filter((row) => ids.includes(row.id))) {
+    if (!empleado.municipio_dian_id || !empleado.direccion || !empleado.tipo_trabajador_plemsi_id || !empleado.subtipo_trabajador_plemsi_id || !empleado.tipo_contrato_plemsi_id) {
+      pendientes.push(`datos Plemsi de ${empleado.nombres} ${empleado.apellidos}`);
+    }
+  }
+  const conConceptosPendientes = detalles.filter((detalle) => Number(detalle.horas_extras_valor) > 0 || Number(detalle.recargos_valor) > 0);
+  if (conConceptosPendientes.length > 0) pendientes.push("equivalencias Plemsi para horas extra o recargos");
+  if (pendientes.length > 0) {
+    throw new NominaEstadoError("PLEMSI_NO_LISTO", `No se puede emitir: falta ${pendientes.join(", ")}.`);
+  }
 }
 
 async function getPeriodoTenant(tenantId: string, periodoId: string): Promise<NominaPeriodo> {
@@ -227,6 +248,7 @@ async function enviarNominaAPlemsi(
     },
     devengos: {
       salarioBase: Number(detalle.salario_base),
+      auxilioTransporte: Number(detalle.auxilio_transporte),
       horasExtra: Number(detalle.horas_extras_valor),
       recargos: Number(detalle.recargos_valor),
       comisiones: Number(detalle.comisiones_valor),
@@ -297,6 +319,10 @@ export async function emitirPeriodo(
   if (detalles.length === 0) {
     throw new NominaEstadoError("SIN_EMPLEADOS", "El período no tiene empleados calculados.");
   }
+
+  // Nunca enviar datos parciales al proveedor: este chequeo sucede antes de
+  // consumir pool, crear asiento o reservar consecutivos.
+  await validarAlistamientoParaEmitir(tenantId, detalles);
 
   const [pool] = await db.select().from(pool_documentos_nomina_tenant).where(eq(pool_documentos_nomina_tenant.tenant_id, tenantId)).limit(1);
   if (!pool) throw new NominaEstadoError("POOL_INSUFICIENTE", "Tu empresa no tiene un pool de nómina activo.");

@@ -78,6 +78,12 @@ router.get("/alistamiento-plemsi", async (req, res) => {
     habilitado: config?.habilitado ?? false,
     numeracion_individual_configurada: !!(config?.resolucion_individual && config?.prefijo_individual),
     numeracion_ajuste_configurada: !!(config?.resolucion_ajuste && config?.prefijo_ajuste),
+    resolucion_individual: config?.resolucion_individual ?? "",
+    prefijo_individual: config?.prefijo_individual ?? "",
+    siguiente_numero_individual: config?.siguiente_numero_individual ?? 1,
+    resolucion_ajuste: config?.resolucion_ajuste ?? "",
+    prefijo_ajuste: config?.prefijo_ajuste ?? "",
+    siguiente_numero_ajuste: config?.siguiente_numero_ajuste ?? 1,
     empleados_incompletos: empleadosIncompletos,
     listo_para_prueba: !!config?.habilitado && !!config?.api_key_encrypted && !!config?.resolucion_individual && !!config?.prefijo_individual && empleadosIncompletos.length === 0,
   });

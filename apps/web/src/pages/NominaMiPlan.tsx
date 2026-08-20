@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Calendar, CheckCircle2, CircleAlert, FileText } from "lucide-react";
 import { apiFetch, ApiError, fecha } from "../lib/api";
 import { Card } from "../components/ui/card";
@@ -23,6 +23,8 @@ interface AlistamientoPlemsi {
   numeracion_ajuste_configurada: boolean;
   empleados_incompletos: Array<{ id: string; nombre: string }>;
   listo_para_prueba: boolean;
+  resolucion_individual: string; prefijo_individual: string; siguiente_numero_individual: number;
+  resolucion_ajuste: string; prefijo_ajuste: string; siguiente_numero_ajuste: number;
 }
 
 const PLAN_LABEL: Record<string, string> = {
@@ -38,13 +40,19 @@ export default function NominaMiPlan() {
   const [activa, setActiva] = useState(true);
   const [loading, setLoading] = useState(true);
   const [alistamiento, setAlistamiento] = useState<AlistamientoPlemsi | null>(null);
+  const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [configForm, setConfigForm] = useState({ token: "", resolucion_individual: "", prefijo_individual: "", siguiente_numero_individual: "1", resolucion_ajuste: "", prefijo_ajuste: "", siguiente_numero_ajuste: "1", habilitado: false });
+  const [guardandoConfig, setGuardandoConfig] = useState(false);
 
   useEffect(() => {
     apiFetch<PoolNomina>("/api/nomina/pool")
       .then((p) => { setPool(p); setActiva(true); })
       .catch((err) => { if (err instanceof ApiError && err.status === 403) setActiva(false); })
       .finally(() => setLoading(false));
-    void apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi").then(setAlistamiento).catch(() => {});
+    void apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi").then((data) => {
+      setAlistamiento(data);
+      setConfigForm((form) => ({ ...form, resolucion_individual: data.resolucion_individual, prefijo_individual: data.prefijo_individual, siguiente_numero_individual: String(data.siguiente_numero_individual), resolucion_ajuste: data.resolucion_ajuste, prefijo_ajuste: data.prefijo_ajuste, siguiente_numero_ajuste: String(data.siguiente_numero_ajuste), habilitado: data.habilitado }));
+    }).catch(() => {});
   }, []);
 
   if (loading) {
@@ -68,6 +76,15 @@ export default function NominaMiPlan() {
   }
 
   const porcentajeUso = Math.min(100, (pool.documentos_consumidos_ciclo / pool.documentos_incluidos) * 100);
+
+  async function guardarConfig(e: FormEvent) {
+    e.preventDefault(); setGuardandoConfig(true);
+    try {
+      const data = await apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi", { method: "PATCH", body: JSON.stringify({ ...configForm, siguiente_numero_individual: Number(configForm.siguiente_numero_individual), siguiente_numero_ajuste: Number(configForm.siguiente_numero_ajuste), ambiente: "pruebas" }) });
+      void data;
+      const actualizado = await apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi"); setAlistamiento(actualizado); setConfigForm((form) => ({ ...form, token: "" }));
+    } finally { setGuardandoConfig(false); }
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6 max-w-2xl mx-auto">
@@ -146,6 +163,13 @@ export default function NominaMiPlan() {
             </div>
           ))}
           {alistamiento.empleados_incompletos.length > 0 && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Faltan datos Plemsi en {alistamiento.empleados_incompletos.length} empleado(s). Completa su ficha antes de emitir.</p>}
+          <button type="button" onClick={() => setMostrarConfig((value) => !value)} className="text-xs font-medium text-action hover:underline">{mostrarConfig ? "Ocultar configuración" : "Configurar pruebas Plemsi"}</button>
+          {mostrarConfig && <form onSubmit={(e) => void guardarConfig(e)} className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 dark:border-slate-700">
+            <label className="col-span-2 text-xs text-gray-600 dark:text-slate-300">Bearer Token de pruebas (se cifra y no vuelve a mostrarse)<input type="password" value={configForm.token} onChange={(e) => setConfigForm({ ...configForm, token: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" placeholder={alistamiento.token_configurado ? "Token ya configurado; déjalo vacío para conservarlo" : "Token entregado por Plemsi"} /></label>
+            <label className="text-xs text-gray-600 dark:text-slate-300">Resolución individual<input required value={configForm.resolucion_individual} onChange={(e) => setConfigForm({ ...configForm, resolucion_individual: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label><label className="text-xs text-gray-600 dark:text-slate-300">Prefijo individual<input required value={configForm.prefijo_individual} onChange={(e) => setConfigForm({ ...configForm, prefijo_individual: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label>
+            <label className="text-xs text-gray-600 dark:text-slate-300">Resolución ajuste<input value={configForm.resolucion_ajuste} onChange={(e) => setConfigForm({ ...configForm, resolucion_ajuste: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label><label className="text-xs text-gray-600 dark:text-slate-300">Prefijo ajuste<input value={configForm.prefijo_ajuste} onChange={(e) => setConfigForm({ ...configForm, prefijo_ajuste: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label>
+            <label className="col-span-2 flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300"><input type="checkbox" checked={configForm.habilitado} onChange={(e) => setConfigForm({ ...configForm, habilitado: e.target.checked })} /> Habilitar solo para pruebas</label><button disabled={guardandoConfig} className="col-span-2 rounded-md bg-action px-3 py-2 text-sm font-medium text-white disabled:opacity-60">{guardandoConfig ? "Guardando…" : "Guardar configuración de pruebas"}</button>
+          </form>}
         </Card>
       )}
     </div>

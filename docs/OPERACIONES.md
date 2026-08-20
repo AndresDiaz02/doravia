@@ -1,154 +1,125 @@
 # Manual de Operaciones — Doravia
 
-Procedimientos para backup, restauración, despliegue y contingencias.
+Procedimientos vigentes para Doravia sobre **Render, Neon y Cloudflare**. No
+usar Railway: ya no es parte de la operación.
 
----
+## 1. Servicios y responsabilidades
 
-## 1. Backups de base de datos
+| Componente | Servicio | Comprobación |
+| --- | --- | --- |
+| API | Render (`doravia-api`) | `/live` confirma proceso; `/health` confirma proceso y Neon |
+| Base de datos | Neon PostgreSQL | Consola Neon y `/health` |
+| ERP y POS | Cloudflare Pages | `app.doraviasoft.com` y `pos.doraviasoft.com` |
+| Facturación/Nómina electrónica | Plemsi | Panel de Plemsi y estados guardados por tenant |
 
-### 1.1 Backups automáticos en Railway
+`/live` no consulta la base y es el health check de Render. `/health` incluye
+la conectividad de Neon para diagnóstico; no debe usarse como señal de reinicio.
 
-Railway hace backups automáticos del volumen de PostgreSQL. Para verificar:
+## 2. Despliegue seguro
 
-1. Abre [railway.app](https://railway.app) → proyecto Doravia → servicio **Postgres**
-2. Ve a la pestaña **Backups**
-3. Confirma que el backup más reciente tenga menos de 24 h de antigüedad
-4. Railway retiene backups por 7 días en el plan Starter y 30 días en planes superiores
+1. Ejecutar en local antes del push:
 
-### 1.2 Backup manual con script
+   ```powershell
+   pnpm --filter @workspace/api typecheck
+   pnpm --filter @workspace/api test
+   pnpm --filter @workspace/web build
+   pnpm --filter @workspace/pos build
+   ```
 
-Requiere `pg_dump` instalado localmente (incluido en PostgreSQL).
+2. Hacer push a `main`.
+3. Verificar en GitHub Actions los builds de ERP, POS y landing.
+4. En Render, abrir `doravia-api` y confirmar que el commit más reciente esté
+   **Live**. Si los despliegues automáticos no aparecen, usar **Manual Deploy →
+   Deploy latest commit**.
+5. Validar públicamente:
 
-```bash
-# Copia DATABASE_URL desde Railway (Settings → Variables)
-export DATABASE_URL="postgres://usuario:clave@host:5432/railway"
+   ```powershell
+   Invoke-WebRequest https://doravia-api.onrender.com/live
+   Invoke-WebRequest https://doravia-api.onrender.com/health
+   ```
 
+6. Confirmar el login y una ruta de ERP/POS con una cuenta de prueba.
+
+El comando de Render aplica `pnpm db:migrate` antes de iniciar la API. Si una
+migración detecta drift, el despliegue se detiene para no iniciar con un esquema
+incompleto.
+
+## 3. Variables de entorno de Render
+
+Guardar secretos exclusivamente en el servicio `doravia-api`, nunca en Git ni
+en el frontend.
+
+| Variable | Uso |
+| --- | --- |
+| `DATABASE_URL` | Cadena SSL de Neon |
+| `JWT_SECRET` | Firma de sesiones; no regenerar sin plan de cierre de sesión |
+| `ENCRYPTION_KEY` | Descifra credenciales cifradas por tenant; no regenerar |
+| `ALLOWED_ORIGINS` | Dominios exactos de ERP, POS y landing |
+| `APP_URL` | URL pública del ERP para enlaces enviados por correo |
+| `DIAN_PROVEEDOR=plemsi` | Proveedor tecnológico activo |
+| `NOMINA_MODO=pruebas` | Mantener hasta completar la validación de nómina |
+| `RESEND_API_KEY`, `RESEND_FROM` | Correo transaccional |
+| `SENTRY_DSN` | Observabilidad, si se usa |
+
+Los tokens de Plemsi son por empresa y se guardan cifrados desde la interfaz;
+no se deben convertir en una variable global compartida.
+
+## 4. Base de datos: backup y restauración
+
+Programar y verificar backups en Neon. Antes de un cambio estructural, crear
+un backup lógico con `pg_dump` y conservarlo fuera del repositorio.
+
+```powershell
+$env:DATABASE_URL = '<cadena SSL de Neon>'
 node scripts/backup-db.mjs
 ```
 
-El archivo queda en `backups/doravia_YYYY-MM-DD_HH-MM-SS.dump`.
+Para restaurar, hacerlo primero en una base de pruebas. Una restauración en
+producción es destructiva y requiere detener las operaciones y validar el
+backup con el responsable técnico.
 
-### 1.3 Restaurar un backup
-
-```bash
-# Restaurar en una base local (para pruebas)
-pg_restore --clean --no-acl --no-owner \
-  -d "postgres://localhost:5432/doravia_local" \
-  backups/doravia_2026-06-22_14-35-00.dump
-
-# Restaurar en Railway (cuidado: sobreescribe producción)
-pg_restore --clean --no-acl --no-owner \
-  -d "$DATABASE_URL" \
-  backups/doravia_2026-06-22_14-35-00.dump
+```powershell
+pg_restore --clean --if-exists --no-owner --no-acl `
+  --dbname '<cadena SSL de Neon>' backups\doravia_FECHA.dump
 ```
 
-> **Schema en dos pasos:** La BD de producción se levanta con `drizzle-kit push` (schema base) + `migrate.ts` (incremental). Restaurar desde una BD vacía requiere ambos pasos, no solo `migrate.ts`.
+No ejecutar `db:push` sobre una base de producción existente. Para una base
+nueva sin datos: `pnpm db:push`, luego `pnpm db:seed` y finalmente
+`pnpm db:migrate`.
 
-> **Retención legal DIAN:** Plemsi almacena los documentos electrónicos (facturas, NC, ND) por **6 años** según exigencia DIAN. Aunque se pierda la base de datos local, los XML firmados y los CUFEs quedan en los servidores de Plemsi y pueden recuperarse vía su panel de administración.
+## 5. Runbook: API lenta o caída
 
----
+1. Abrir `https://doravia-api.onrender.com/live`.
+   - `200`: el proceso está disponible.
+   - `503 hibernate-wake-error`: Render no logró reactivar la instancia.
+2. Abrir `/health`.
+   - `200` y `db: connected`: API y Neon disponibles.
+   - `503` con respuesta JSON: revisar Neon y las variables de Render.
+3. Si hay `hibernate-wake-error`, en Render usar **Manual Deploy → Deploy
+   latest commit** y revisar los logs del arranque y de `pnpm db:migrate`.
+4. Si el servicio despierta lento de forma recurrente, el plan gratuito de
+   Render no es apto para clientes reales: mover la API a una instancia que no
+   se suspenda.
+5. Si la API funciona pero el ERP/POS no, revisar el último deploy de
+   Cloudflare Pages y las variables `VITE_API_URL` antes de modificar DNS.
 
-## 2. Despliegue (Railway + Cloudflare)
+## 6. Plemsi y DIAN
 
-### 2.1 API (Railway)
+- Facturación: confirmar empresa habilitada, resolución asociada y contrato de
+  firma vigente en Plemsi.
+- Nómina: usar `NOMINA_MODO=pruebas`, token propio por empresa, empleados
+  completos y numeraciones de nómina antes de emitir pruebas.
+- Una respuesta fallida de Plemsi deja el error guardado; no se debe reenviar
+  de forma masiva sin revisar el documento, la numeración y la causa.
+- Conservar documentos electrónicos y soportes según las obligaciones legales
+  aplicables y las políticas vigentes de Plemsi/DIAN.
 
-El deploy es automático al hacer push a `main`. Railway ejecuta:
-
-```
-pnpm db:migrate && pnpm db:seed && pnpm --filter @workspace/api run start
-```
-
-- `db:migrate` ejecuta `packages/db/src/migrate.ts`: aplica migraciones SQL explícitas y verifica drift entre el schema Drizzle y la BD. Si falla → `process.exit(1)` → Railway aborta el deploy sin arrancar el servidor
-- `db:seed` siembra planes y PUC. Solo siembra datos demo si `SEED_DEMO=true`
-- Para un deploy manual forzado: `railway up --service doravia` o Railway → proyecto → **Deploy** → "Trigger deploy"
-
-### 2.2 Web (Cloudflare Pages)
-
-El deploy es automático al hacer push a `main`. Para forzarlo:
-
-```bash
-cd apps/web
-pnpm build
-# Sube manualmente en Cloudflare Pages → proyecto → "Upload assets"
-```
-
-O via CLI:
-
-```bash
-npx wrangler pages deploy dist --project-name doravia
-```
-
-### 2.3 Variables de entorno requeridas en Railway
-
-| Variable | Descripción | Obligatoria |
-|---|---|---|
-| `DATABASE_URL` | URL de PostgreSQL (Railway la inyecta automáticamente) | Sí |
-| `JWT_SECRET` | Clave para firmar tokens | Sí |
-| `ALLOWED_ORIGINS` | Dominios del frontend separados por coma | Sí |
-| `RESEND_API_KEY` | API de Resend para emails | Sí |
-| `PLEMSI_API_KEY` | Clave de API Plemsi | Sí |
-| `PLEMSI_NIT` | NIT del emisor en Plemsi | Sí |
-| `DIAN_AMBIENTE` | `1` = producción, otro = pruebas | Sí |
-| `BOLD_SECRET_KEY` | Webhook secret de Bold | Sí |
-| `ENCRYPTION_KEY` | Clave AES-256 para credenciales de proveedores de pago (32 bytes base64) | Sí |
-| `ANTHROPIC_API_KEY` | Para el asistente IA | Sí |
-| `SEED_DEMO` | `true` solo en entorno demo | No |
-| `ROSE_SEED_PASSWORD` | Password de rose@doravia.com en seed | Solo si SEED_DEMO=true |
-| `SENTRY_DSN` | DSN de Sentry para monitoreo de errores | No |
-
----
-
-## 3. Runbook de caída de servicio
-
-### 3.1 API caída (Railway)
-
-1. Abre Railway → proyecto → servicio **api** → pestaña **Deployments**
-2. Revisa los logs del último deploy fallido
-3. Si es error de DB: verifica que el servicio Postgres esté activo
-4. Si es error de código: revisar logs, hacer rollback al deploy anterior con "Redeploy" en el deploy previo
-5. En caso extremo: Railway → Postgres → **Backups** → restaurar backup
-
-### 3.2 Web caída (Cloudflare Pages)
-
-1. Cloudflare Dashboard → Pages → doravia → pestaña **Deployments**
-2. Si el último deploy falló, haz "Rollback" al deploy anterior (botón en la lista)
-3. Si hay problema de DNS: Cloudflare → DNS → verificar que los registros CNAME apunten a `doravia.pages.dev`
-
-### 3.3 DIAN / Plemsi no responde
-
-- Las facturas quedan en estado `pendiente` en la DB — **no se pierden**
-- Plemsi tiene SLA de disponibilidad; revisar su página de estado
-- Si el problema persiste > 4 h, contactar soporte Plemsi
-- Los documentos se pueden reenviar manualmente con:
-  ```bash
-  node scripts/reenviar-facturas-error.mjs
-  node scripts/reenviar-nc-nd-dian.mjs
-  ```
-
----
-
-## 4. Habilitación DIAN (pendiente)
-
-Para activar la facturación electrónica real ante la DIAN:
-
-1. Cerrar acuerdo comercial con un agente Plemsi certificado
-2. Recibir credenciales de producción (`PLEMSI_API_KEY` producción + `PLEMSI_NIT`)
-3. Registrar resolución de facturación real ante la DIAN (Plemsi lo gestiona)
-4. Actualizar en Railway:
-   - `DIAN_AMBIENTE=1`
-   - `PLEMSI_API_KEY` (producción)
-5. El `TestSetId` de pruebas deja de usarse — el endpoint cambia a `api.plemsi.com`
-
-> El NIT de habilitación y el TestSetId **no deben estar en el repositorio**. Guardarse únicamente en Railway (Variables de entorno).
-
----
-
-## 5. Contactos de soporte
+## 7. Contactos
 
 | Servicio | Canal |
-|---|---|
-| Railway | support.railway.app |
-| Cloudflare | dash.cloudflare.com → Support |
-| Plemsi | soporte@plemsi.com o su panel de administración |
-| Resend | resend.com/support |
-| Sentry | sentry.io/support |
+| --- | --- |
+| Render | [dashboard.render.com](https://dashboard.render.com/) |
+| Neon | [console.neon.tech](https://console.neon.tech/) |
+| Cloudflare | [dash.cloudflare.com](https://dash.cloudflare.com/) |
+| Plemsi | soporte y panel de aliados de Plemsi |
+| Sentry | [sentry.io](https://sentry.io/) |

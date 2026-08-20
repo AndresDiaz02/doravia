@@ -1,7 +1,10 @@
-# Integración DIAN — Guía de Activación
+# Integración DIAN — Documento histórico
 
-> Este documento explica exactamente qué pasos debes seguir el lunes cuando tengas tu RUT
-> y hayas decidido entre Aliaddo o MATIAS API como Proveedor Tecnológico (PT).
+> **No usar este documento para activar Doravia hoy.** El proveedor tecnológico
+> vigente es **Plemsi** y la infraestructura vigente es **Render + Neon**. Las
+> secciones sobre Aliaddo, MATIAS y Railway se conservan solo como referencia
+> histórica. Consulta [docs/OPERACIONES.md](docs/OPERACIONES.md) y el panel de
+> Plemsi para cualquier activación o prueba actual.
 
 ---
 

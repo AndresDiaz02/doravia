@@ -169,6 +169,14 @@ const founderRegistrationRateLimit = rateLimit({
 });
 
 // ── Sin auth ────────────────────────────────────────────────────────────────
+// Liveness: no consulta la base. Render la usa para saber si el proceso puede
+// atender tráfico sin confundir una latencia puntual de Neon con una API caída.
+app.get("/live", (_req, res) => {
+  res.json({ ok: true, uptime_s: Math.floor(process.uptime()) });
+});
+
+// Readiness/diagnóstico: confirma además que la base de datos responde. Útil
+// para monitores y soporte, pero no debe controlar los reinicios de Render.
 app.get("/health", async (_req, res) => {
   const start = Date.now();
   try {

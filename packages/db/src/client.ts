@@ -30,7 +30,7 @@ const queryClient = postgres(connectionString, {
   max: 20,           // pool de hasta 20 conexiones simultáneas
   idle_timeout: 30,  // libera conexiones inactivas después de 30s
   connect_timeout: 10,
-  prepare: false,    // necesario si Railway usa PgBouncer
+  prepare: false,    // compatible con pools PgBouncer y Neon
 });
 export const db = drizzle(queryClient, { schema });
 

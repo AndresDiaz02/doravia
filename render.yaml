@@ -9,7 +9,10 @@ services:
     # Para una base nueva, inicializar primero con el procedimiento de OPERACIONES.md.
     preDeployCommand: pnpm db:migrate
     startCommand: pnpm --filter @workspace/api start
-    healthCheckPath: /health
+    # Solo valida que el proceso de Node está vivo. La comprobación /health
+    # conserva el diagnóstico de Neon, pero no reinicia la API por una latencia
+    # puntual de la base de datos.
+    healthCheckPath: /live
     envVars:
       # Configuracion publica/estable. Los secretos se cargan en el panel de Render.
       - key: NODE_ENV

@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           for attempt in 1 2 3 4; do
-            if curl --fail --silent --show-error --connect-timeout 30 --max-time 120 https://doravia-api.onrender.com/health; then
+            if curl --fail --silent --show-error --connect-timeout 30 --max-time 120 https://doravia-api.onrender.com/live; then
               exit 0
             fi
             echo "Intento ${attempt}/4 sin respuesta; se reintentará."

@@ -1,7 +1,7 @@
 /**
  * Servicio Plemsi — integración con facturación electrónica DIAN Colombia
  * URL pruebas:    https://pruebas.plemsi.com
- * URL producción: configurar PLEMSI_URL en Railway
+ * URL producción: configurar PLEMSI_URL_PRODUCCION en el servicio de API
  * Auth: Authorization: Bearer {api_key} — el token es estático, lo da Plemsi por empresa
  */
 

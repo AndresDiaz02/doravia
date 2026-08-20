@@ -1,6 +1,6 @@
 /**
  * Seed de producción — datos estructurales (planes + PUC base + hub de contadores).
- * Seguro para correr en Railway en cada deploy.
+ * Seguro para correr en cualquier despliegue administrado.
  * NO toca tenants de clientes ni usuarios de clientes.
  */
 import { sql, eq } from "drizzle-orm";

@@ -1092,7 +1092,7 @@ export async function seedDemo() {
   console.log("  CREDENCIALES AMBIENTE DE SIMULACIÓN — DORAVIA");
   console.log("════════════════════════════════════════════════════════════");
   console.log("\n  FUNDADORES:");
-  console.log("  andres@doravia.com   / (contraseña Railway)     — Admin fundador");
+  console.log("  andres@doravia.com   / (contraseña configurada) — Admin fundador");
   console.log("  rose@doravia.com     / (ROSE_SEED_PASSWORD)     — Admin fundadora");
   console.log("\n  EMPRESAS (todas con contraseña Demo2026!):");
   for (let i = 0; i < EMPRESAS.length; i++) {

@@ -54,7 +54,7 @@ const migrations = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idempotency_keys_tenant_operacion_clave_unique ON idempotency_keys(tenant_id, operacion, clave)`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS en_prueba boolean NOT NULL DEFAULT true`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS prueba_ends_at timestamptz`,
-  // permisos_contables en users y user_accesos (se omitió en el push inicial de Railway)
+  // permisos_contables en users y user_accesos (se omitió en el push inicial)
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   `ALTER TABLE user_accesos ADD COLUMN IF NOT EXISTS permisos_contables boolean NOT NULL DEFAULT false`,
   // Autorización independiente para reintentar documentos ante DIAN.

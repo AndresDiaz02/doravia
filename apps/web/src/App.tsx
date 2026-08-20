@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -82,27 +82,27 @@ const PagoExito = lazy(() => import("./pages/PagoExito"));
 const PagoFallo = lazy(() => import("./pages/PagoFallo"));
 
 /** Redirige al contador fuera de rutas de escritura/administración. */
-function SoloEscritura({ to = "/dashboard" }: { to?: string }) {
+function SoloEscritura({ to = "/dashboard", children }: { to?: string; children: ReactNode }) {
   const { isContador } = useAuth();
-  return isContador ? <Navigate to={to} replace /> : null;
+  return isContador ? <Navigate to={to} replace /> : <>{children}</>;
 }
 
 /** Redirige a contadores del hub a su panel cuando intentan entrar al ERP. */
-function GuardiaERP() {
+function GuardiaERP({ children }: { children: ReactNode }) {
   const { isContadorHub } = useAuth();
-  return isContadorHub ? <Navigate to="/contador" replace /> : null;
+  return isContadorHub ? <Navigate to="/contador" replace /> : <>{children}</>;
 }
 
 /** El Hub no puede abrirse por URL directa con una cuenta normal. */
-function SoloContadorRegistrado() {
+function SoloContadorRegistrado({ children }: { children: ReactNode }) {
   const { isContadorHub } = useAuth();
-  return !isContadorHub ? <Navigate to="/dashboard" replace /> : null;
+  return !isContadorHub ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
 /** Redirige si el usuario no tiene uno de los roles permitidos. */
-function RequiereRol({ allow, to = "/dashboard" }: { allow: string[]; to?: string }) {
+function RequiereRol({ allow, to = "/dashboard", children }: { allow: string[]; to?: string; children: ReactNode }) {
   const { user } = useAuth();
-  return !allow.includes(user?.role ?? "") ? <Navigate to={to} replace /> : null;
+  return !allow.includes(user?.role ?? "") ? <Navigate to={to} replace /> : <>{children}</>;
 }
 
 export default function App() {
@@ -124,64 +124,64 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/contador" element={<><SoloContadorRegistrado /><ContadorDashboard /></>} />
+            <Route path="/contador" element={<SoloContadorRegistrado><ContadorDashboard /></SoloContadorRegistrado>} />
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<><GuardiaERP /><Dashboard /></>} />
+              <Route path="/dashboard" element={<GuardiaERP><Dashboard /></GuardiaERP>} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/clientes/:id" element={<ClienteDetalle />} />
               <Route path="/facturas" element={<Facturas />} />
-              <Route path="/facturas/nueva" element={<><SoloEscritura to="/facturas" /><FacturaNueva /></>} />
+              <Route path="/facturas/nueva" element={<SoloEscritura to="/facturas"><FacturaNueva /></SoloEscritura>} />
               <Route path="/facturas/:id" element={<FacturaDetalle />} />
               <Route path="/productos" element={<Productos />} />
-              <Route path="/contabilidad" element={<><RequiereRol allow={["admin", "contador"]} /><Contabilidad /></>} />
+              <Route path="/contabilidad" element={<RequiereRol allow={["admin", "contador"]}><Contabilidad /></RequiereRol>} />
               <Route path="/bodegas" element={<Bodegas />} />
               <Route path="/inventario" element={<Inventario />} />
               <Route path="/inventario/kardex" element={<Kardex />} />
               <Route path="/inventario/asesor-pedidos" element={<AsesorPedidos />} />
               <Route path="/alertas/cobro" element={<AlertasCobro />} />
-              <Route path="/recurrentes" element={<><RequiereRol allow={["admin", "contador"]} /><Recurrentes /></>} />
+              <Route path="/recurrentes" element={<RequiereRol allow={["admin", "contador"]}><Recurrentes /></RequiereRol>} />
               <Route path="/cotizaciones" element={<Cotizaciones />} />
               <Route path="/cotizaciones/:id" element={<CotizacionDetalle />} />
-              <Route path="/configuracion/pagos" element={<><RequiereRol allow={["admin"]} /><ConfiguracionPagos /></>} />
-              <Route path="/gastos" element={<><RequiereRol allow={["admin", "contador"]} /><Gastos /></>} />
+              <Route path="/configuracion/pagos" element={<RequiereRol allow={["admin"]}><ConfiguracionPagos /></RequiereRol>} />
+              <Route path="/gastos" element={<RequiereRol allow={["admin", "contador"]}><Gastos /></RequiereRol>} />
               <Route path="/proveedores" element={<Proveedores />} />
               <Route path="/proveedores/:id" element={<ProveedorDetalle />} />
-              <Route path="/centros-costos" element={<><RequiereRol allow={["admin", "contador"]} /><CentrosCostos /></>} />
-              <Route path="/ensamble" element={<><RequiereRol allow={["admin", "contador"]} /><Ensamble /></>} />
-              <Route path="/cartera" element={<><RequiereRol allow={["admin", "contador"]} /><Cartera /></>} />
+              <Route path="/centros-costos" element={<RequiereRol allow={["admin", "contador"]}><CentrosCostos /></RequiereRol>} />
+              <Route path="/ensamble" element={<RequiereRol allow={["admin", "contador"]}><Ensamble /></RequiereRol>} />
+              <Route path="/cartera" element={<RequiereRol allow={["admin", "contador"]}><Cartera /></RequiereRol>} />
               <Route path="/planes" element={<UpgradePlan />} />
               <Route path="/mi-plan" element={<MiPlan />} />
               {/* /contador se maneja fuera del AppLayout */}
-              <Route path="/usuarios" element={<><SoloEscritura /><Usuarios /></>} />
-              <Route path="/configuracion/dian" element={<><SoloEscritura /><ResolucionesDian /></>} />
-              <Route path="/retenciones" element={<><RequiereRol allow={["admin", "contador"]} /><Retenciones /></>} />
+              <Route path="/usuarios" element={<SoloEscritura><Usuarios /></SoloEscritura>} />
+              <Route path="/configuracion/dian" element={<SoloEscritura><ResolucionesDian /></SoloEscritura>} />
+              <Route path="/retenciones" element={<RequiereRol allow={["admin", "contador"]}><Retenciones /></RequiereRol>} />
               <Route path="/notas-credito" element={<NotasCredito />} />
               <Route path="/notas-credito/:id" element={<NotaCreditoDetalle />} />
               <Route path="/notas-debito" element={<NotasDebito />} />
               <Route path="/notas-debito/:id" element={<NotaDebitoDetalle />} />
-              <Route path="/periodos-contables" element={<><RequiereRol allow={["admin", "contador"]} /><PeriodosContables /></>} />
-              <Route path="/configuracion/empresa" element={<><SoloEscritura /><ConfiguracionEmpresa /></>} />
-              <Route path="/pos/cajas" element={<><SoloEscritura /><AdminCajas /></>} />
-              <Route path="/pos/cajeros" element={<><SoloEscritura /><CajerosPOS /></>} />
+              <Route path="/periodos-contables" element={<RequiereRol allow={["admin", "contador"]}><PeriodosContables /></RequiereRol>} />
+              <Route path="/configuracion/empresa" element={<SoloEscritura><ConfiguracionEmpresa /></SoloEscritura>} />
+              <Route path="/pos/cajas" element={<SoloEscritura><AdminCajas /></SoloEscritura>} />
+              <Route path="/pos/cajeros" element={<SoloEscritura><CajerosPOS /></SoloEscritura>} />
               <Route path="/pos/cierre-dian" element={<CierreDian />} />
               <Route path="/remisiones" element={<Remisiones />} />
-              <Route path="/contabilidad/balance-prueba" element={<><RequiereRol allow={["admin", "contador"]} /><BalancePrueba /></>} />
-              <Route path="/contabilidad/auxiliares" element={<><RequiereRol allow={["admin", "contador"]} /><Auxiliares /></>} />
-              <Route path="/contabilidad/iva" element={<><RequiereRol allow={["admin", "contador"]} /><ReporteIVA /></>} />
-              <Route path="/contabilidad/plan-cuentas" element={<><RequiereRol allow={["admin", "contador"]} /><PlanCuentas /></>} />
-              <Route path="/conciliacion-bancaria" element={<><RequiereRol allow={["admin", "contador"]} /><ConciliacionBancaria /></>} />
-              <Route path="/configuracion/modulos" element={<><SoloEscritura /><ModulosAdicionales /></>} />
-              <Route path="/auditoria" element={<><RequiereRol allow={["admin"]} /><AuditLog /></>} />
-              <Route path="/activos-fijos" element={<><RequiereRol allow={["admin", "contador"]} /><ActivosFijos /></>} />
-              <Route path="/documentos-soporte" element={<><RequiereRol allow={["admin", "contador"]} /><DocumentosSoporte /></>} />
+              <Route path="/contabilidad/balance-prueba" element={<RequiereRol allow={["admin", "contador"]}><BalancePrueba /></RequiereRol>} />
+              <Route path="/contabilidad/auxiliares" element={<RequiereRol allow={["admin", "contador"]}><Auxiliares /></RequiereRol>} />
+              <Route path="/contabilidad/iva" element={<RequiereRol allow={["admin", "contador"]}><ReporteIVA /></RequiereRol>} />
+              <Route path="/contabilidad/plan-cuentas" element={<RequiereRol allow={["admin", "contador"]}><PlanCuentas /></RequiereRol>} />
+              <Route path="/conciliacion-bancaria" element={<RequiereRol allow={["admin", "contador"]}><ConciliacionBancaria /></RequiereRol>} />
+              <Route path="/configuracion/modulos" element={<SoloEscritura><ModulosAdicionales /></SoloEscritura>} />
+              <Route path="/auditoria" element={<RequiereRol allow={["admin"]}><AuditLog /></RequiereRol>} />
+              <Route path="/activos-fijos" element={<RequiereRol allow={["admin", "contador"]}><ActivosFijos /></RequiereRol>} />
+              <Route path="/documentos-soporte" element={<RequiereRol allow={["admin", "contador"]}><DocumentosSoporte /></RequiereRol>} />
               <Route path="/agenda-servicios" element={<AgendaServicios />} />
-              <Route path="/nomina/empleados" element={<><RequiereRol allow={["admin", "contador"]} /><NominaEmpleados /></>} />
-              <Route path="/nomina/empleados/nuevo" element={<><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
-              <Route path="/nomina/empleados/:id" element={<><SoloEscritura to="/nomina/empleados" /><NominaEmpleadoForm /></>} />
-              <Route path="/nomina/periodos" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodos /></>} />
-              <Route path="/nomina/periodos/nuevo" element={<><SoloEscritura to="/nomina/periodos" /><NominaPeriodoNuevo /></>} />
-              <Route path="/nomina/periodos/:id" element={<><RequiereRol allow={["admin", "contador"]} /><NominaPeriodoDetalle /></>} />
+              <Route path="/nomina/empleados" element={<RequiereRol allow={["admin", "contador"]}><NominaEmpleados /></RequiereRol>} />
+              <Route path="/nomina/empleados/nuevo" element={<SoloEscritura to="/nomina/empleados"><NominaEmpleadoForm /></SoloEscritura>} />
+              <Route path="/nomina/empleados/:id" element={<SoloEscritura to="/nomina/empleados"><NominaEmpleadoForm /></SoloEscritura>} />
+              <Route path="/nomina/periodos" element={<RequiereRol allow={["admin", "contador"]}><NominaPeriodos /></RequiereRol>} />
+              <Route path="/nomina/periodos/nuevo" element={<SoloEscritura to="/nomina/periodos"><NominaPeriodoNuevo /></SoloEscritura>} />
+              <Route path="/nomina/periodos/:id" element={<RequiereRol allow={["admin", "contador"]}><NominaPeriodoDetalle /></RequiereRol>} />
               <Route path="/nomina/mi-plan" element={<NominaMiPlan />} />
               <Route path="/nomina/*" element={<Navigate to="/nomina/periodos" replace />} />
             </Route>

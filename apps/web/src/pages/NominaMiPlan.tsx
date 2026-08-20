@@ -43,6 +43,7 @@ export default function NominaMiPlan() {
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [configForm, setConfigForm] = useState({ token: "", resolucion_individual: "", prefijo_individual: "", siguiente_numero_individual: "1", resolucion_ajuste: "", prefijo_ajuste: "", siguiente_numero_ajuste: "1", habilitado: false });
   const [guardandoConfig, setGuardandoConfig] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
 
   useEffect(() => {
     apiFetch<PoolNomina>("/api/nomina/pool")
@@ -84,6 +85,15 @@ export default function NominaMiPlan() {
       void data;
       const actualizado = await apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi"); setAlistamiento(actualizado); setConfigForm((form) => ({ ...form, token: "" }));
     } finally { setGuardandoConfig(false); }
+  }
+
+  async function sincronizarNumeraciones() {
+    if (!confirm("Doravia creará las numeraciones faltantes en Plemsi PRUEBAS. ¿Continuar?")) return;
+    setSincronizando(true);
+    try {
+      await apiFetch("/api/nomina/alistamiento-plemsi/sincronizar-numeraciones", { method: "POST" });
+      const actualizado = await apiFetch<AlistamientoPlemsi>("/api/nomina/alistamiento-plemsi"); setAlistamiento(actualizado);
+    } finally { setSincronizando(false); }
   }
 
   return (
@@ -169,6 +179,7 @@ export default function NominaMiPlan() {
             <label className="text-xs text-gray-600 dark:text-slate-300">Resolución individual<input required value={configForm.resolucion_individual} onChange={(e) => setConfigForm({ ...configForm, resolucion_individual: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label><label className="text-xs text-gray-600 dark:text-slate-300">Prefijo individual<input required value={configForm.prefijo_individual} onChange={(e) => setConfigForm({ ...configForm, prefijo_individual: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label>
             <label className="text-xs text-gray-600 dark:text-slate-300">Resolución ajuste<input value={configForm.resolucion_ajuste} onChange={(e) => setConfigForm({ ...configForm, resolucion_ajuste: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label><label className="text-xs text-gray-600 dark:text-slate-300">Prefijo ajuste<input value={configForm.prefijo_ajuste} onChange={(e) => setConfigForm({ ...configForm, prefijo_ajuste: e.target.value })} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800" /></label>
             <label className="col-span-2 flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300"><input type="checkbox" checked={configForm.habilitado} onChange={(e) => setConfigForm({ ...configForm, habilitado: e.target.checked })} /> Habilitar solo para pruebas</label><button disabled={guardandoConfig} className="col-span-2 rounded-md bg-action px-3 py-2 text-sm font-medium text-white disabled:opacity-60">{guardandoConfig ? "Guardando…" : "Guardar configuración de pruebas"}</button>
+            <button type="button" disabled={sincronizando || !alistamiento.token_configurado} onClick={() => void sincronizarNumeraciones()} className="col-span-2 rounded-md border border-action px-3 py-2 text-sm font-medium text-action disabled:opacity-50">{sincronizando ? "Sincronizando…" : "Crear/verificar numeraciones en Plemsi pruebas"}</button>
           </form>}
         </Card>
       )}

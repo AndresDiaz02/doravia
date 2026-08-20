@@ -9,6 +9,7 @@ import { encrypt, decrypt } from "../services/encryption.js";
 import { TIPOS_CONTRATO, ESTADOS_EMPLEADO } from "@workspace/db";
 import { calcularPeriodo, aprobarPeriodo, emitirPeriodo, NominaEstadoError } from "../services/nomina.service.js";
 import { generarPdfColillaConsolidada } from "../services/pdf.service.js";
+import { listarNumeracionesNomina, registrarNumeracionNomina } from "../services/plemsi.service.js";
 
 const router = Router();
 
@@ -102,6 +103,33 @@ router.patch("/alistamiento-plemsi", requireRole(["admin"]), async (req, res) =>
     .onConflictDoUpdate({ target: nomina_plemsi_config.tenant_id, set: values })
     .returning();
   res.json({ ...saved, api_key_encrypted: saved.api_key_encrypted ? "configurado" : null });
+});
+
+// Crea únicamente las numeraciones que no aparezcan aún en la cuenta de pruebas.
+// Este endpoint solo se invoca tras la confirmación explícita del administrador.
+router.post("/alistamiento-plemsi/sincronizar-numeraciones", requireRole(["admin"]), async (req, res) => {
+  const [config] = await db.select().from(nomina_plemsi_config)
+    .where(eq(nomina_plemsi_config.tenant_id, req.tenantId)).limit(1);
+  if (!config?.api_key_encrypted || !config.resolucion_individual || !config.prefijo_individual || !config.resolucion_ajuste || !config.prefijo_ajuste) {
+    return res.status(422).json({ error: "Configura token, resolución y prefijos individual/ajuste antes de sincronizar." });
+  }
+  if (config.ambiente !== "pruebas") return res.status(403).json({ error: "La creación automática de numeraciones solo está habilitada para el entorno de pruebas." });
+  const token = decrypt(config.api_key_encrypted);
+  const listado = await listarNumeracionesNomina(token, config.ambiente);
+  if (!listado.ok) return res.status(502).json({ error: listado.error ?? "No fue posible consultar numeraciones en Plemsi." });
+  const posibles = [listado.respuesta?.data, listado.respuesta?.results, listado.respuesta?.items, listado.respuesta].flatMap((item) => Array.isArray(item) ? item : []);
+  const existe = (prefijo: string) => posibles.some((item) => typeof item === "object" && item !== null && ((item as Record<string, unknown>).prefix === prefijo));
+  const creadas: string[] = [];
+  for (const item of [
+    { tipo: 9 as const, resolucion: config.resolucion_individual, prefijo: config.prefijo_individual, nombre: "individual" },
+    { tipo: 10 as const, resolucion: config.resolucion_ajuste, prefijo: config.prefijo_ajuste, nombre: "ajuste" },
+  ]) {
+    if (existe(item.prefijo)) continue;
+    const resultado = await registrarNumeracionNomina({ apiKey: token, ambiente: config.ambiente, tipoDocumentoId: item.tipo, resolucion: item.resolucion, prefijo: item.prefijo, desde: 1, hasta: 5_000_000 });
+    if (!resultado.ok) return res.status(502).json({ error: `No se pudo crear la numeración de ${item.nombre}: ${resultado.error}` });
+    creadas.push(item.nombre);
+  }
+  res.json({ ok: true, creadas, mensaje: creadas.length ? "Numeraciones sincronizadas con Plemsi." : "Las numeraciones ya existían en Plemsi." });
 });
 
 // ── Empleados ────────────────────────────────────────────────────────────────

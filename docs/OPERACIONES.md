@@ -69,8 +69,14 @@ no se deben convertir en una variable global compartida.
 Programar y verificar backups en Neon. Antes de un cambio estructural, crear
 un backup lógico con `pg_dump` y conservarlo fuera del repositorio.
 
+El equipo que ejecuta el comando debe tener instaladas las **PostgreSQL Client
+Tools**. En Windows, comprueba `Get-Command pg_dump`; si no está en el `PATH`,
+define `PG_DUMP_PATH` con la ruta completa a `pg_dump.exe`. No incluyas ni
+copies la cadena de conexión en chats, tickets o archivos versionados.
+
 ```powershell
 $env:DATABASE_URL = '<cadena SSL de Neon>'
+$env:PG_DUMP_PATH = 'C:\Program Files\PostgreSQL\<version>\bin\pg_dump.exe' # solo si hace falta
 node scripts/backup-db.mjs
 ```
 

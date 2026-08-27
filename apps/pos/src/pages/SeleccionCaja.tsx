@@ -21,7 +21,7 @@ export interface CajaConfig {
 }
 
 interface Caja { id: string; nombre: string; descripcion: string | null; activo: boolean; config: CajaConfig | null; }
-interface TurnoActivo { id: string; caja_id: string; bodega_id: string | null; apertura_at: string; monto_inicial: string; total_ventas: string; }
+interface TurnoActivo { id: string; caja_id: string; bodega_id: string | null; apertura_at: string; monto_inicial: string; total_ventas: string; puede_operar: boolean; }
 interface Bodega { id: string; nombre: string; }
 
 interface Props {
@@ -72,6 +72,10 @@ export default function SeleccionCaja({ onTurnoAbierto, dark, onToggleTheme }: P
   async function handleAbrirTurno(caja: Caja) {
     const turnoExistente = turnosActivos[caja.id];
     if (turnoExistente) {
+      if (!turnoExistente.puede_operar) {
+        setError("Esta caja tiene un turno abierto por otro cajero. Selecciona otra caja o solicita apoyo a administración.");
+        return;
+      }
       onTurnoAbierto(turnoExistente.id, caja.id, caja.nombre, caja.config);
       return;
     }
@@ -158,17 +162,20 @@ export default function SeleccionCaja({ onTurnoAbierto, dark, onToggleTheme }: P
                       <Monitor className="h-5 w-5 text-violet-600 dark:text-violet-300 group-hover:text-white transition-colors" />
                     </div>
                     {turno && (
-                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700/50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                        Turno abierto
+                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${turno.puede_operar ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/60 dark:text-emerald-400" : "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/30 dark:text-amber-300"}`}>
+                        {turno.puede_operar ? "Tu turno abierto" : "Caja en uso"}
                       </span>
                     )}
                   </div>
                   <p className="mt-3 text-base font-semibold text-gray-900 dark:text-white">{caja.nombre}</p>
                   {caja.descripcion && <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{caja.descripcion}</p>}
-                  {turno && (
+                  {turno && turno.puede_operar && (
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
                       Ventas del turno: <span className="font-semibold text-gray-700 dark:text-slate-300">{cop(turno.total_ventas)}</span>
                     </p>
+                  )}
+                  {turno && !turno.puede_operar && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">No disponible para abrir</p>
                   )}
                   {!turno && (
                     <p className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 mt-2 font-medium">

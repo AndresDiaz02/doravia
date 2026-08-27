@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, clientes, facturas, TIPOS_DOCUMENTO } from "@workspace/db";
-import { eq, and, desc, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, desc, inArray, or, isNull, ilike } from "drizzle-orm";
 import { audit } from "../services/audit.service.js";
 import multer from "multer";
 import * as XLSX from "xlsx";
@@ -15,11 +15,20 @@ router.get("/", async (req, res) => {
     const page = Math.max(1, Number(req.query.page ?? 1));
     const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 100)));
     const offset = (page - 1) * limit;
+    const q = String(req.query.q ?? "").trim().slice(0, 100);
+    const conditions = [eq(clientes.tenant_id, req.tenantId), eq(clientes.activo, true)];
+    if (q) {
+      const pattern = `%${q}%`;
+      conditions.push(or(
+        ilike(clientes.nombre, pattern),
+        ilike(clientes.numero_documento, pattern),
+      )!);
+    }
 
     const rows = await db
       .select()
       .from(clientes)
-      .where(and(eq(clientes.tenant_id, req.tenantId), eq(clientes.activo, true)))
+      .where(and(...conditions))
       .orderBy(clientes.nombre)
       .limit(limit)
       .offset(offset);

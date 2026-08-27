@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos, resoluciones_dian } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
-import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray, ilike, or } from "drizzle-orm";
 import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, crearAsientoAnulacionVentaPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
@@ -9,22 +9,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 import { buildItems, calcularTotalesPlemsi, emitirDocumentoPOS, metodoPagoId } from "../services/plemsi.service.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
+import { puedeAdministrarPOS, puedeOperarDianPOS, puedeOperarTurno } from "../lib/pos-access.js";
 
 const router = Router();
 const METODOS_PAGO = ["efectivo", "tarjeta", "transferencia", "nequi", "daviplata"] as const;
-
-/** Un cajero solo puede operar el turno que abrió; administración conserva supervisión total. */
-function puedeOperarTurno(req: { userId: string; userRole: string }, turno: { usuario_id: string }) {
-  return req.userRole === "admin" || turno.usuario_id === req.userId;
-}
-
-function puedeOperarDian(req: { userRole: string; userDian?: boolean }) {
-  return req.userRole === "admin" || req.userRole === "vendedor" || (req.userRole === "contador" && req.userDian === true);
-}
-
-function puedeAdministrarPOS(req: { userRole: string }) {
-  return req.userRole === "admin";
-}
 
 // ── Cajas ─────────────────────────────────────────────────────────────────────
 
@@ -177,14 +165,21 @@ router.get("/turnos/activos", async (req, res) => {
     .select()
     .from(turnos_pos)
     .where(and(eq(turnos_pos.tenant_id, req.tenantId), eq(turnos_pos.estado, "abierto")));
-  res.json(rows);
+  // El estado de una caja puede verse para evitar aperturas duplicadas, pero
+  // un cajero nunca recibe autorización implícita para entrar al turno ajeno.
+  res.json(rows.map((turno) => ({
+    ...turno,
+    puede_operar: puedeOperarTurno(req, turno),
+  })));
 });
 
 router.get("/turnos", async (req, res) => {
+  const conditions = [eq(turnos_pos.tenant_id, req.tenantId)];
+  if (!puedeAdministrarPOS(req)) conditions.push(eq(turnos_pos.usuario_id, req.userId));
   const rows = await db
     .select()
     .from(turnos_pos)
-    .where(eq(turnos_pos.tenant_id, req.tenantId))
+    .where(and(...conditions))
     .orderBy(desc(turnos_pos.apertura_at))
     .limit(50);
   res.json(rows);
@@ -291,7 +286,37 @@ router.patch("/turnos/:id/cerrar", async (req, res) => {
 
 // ── Productos (para el POS) ───────────────────────────────────────────────────
 
+router.get("/productos/categorias", async (req, res) => {
+  const rows = await db
+    .select({ categoria: productos.categoria })
+    .from(productos)
+    .where(and(eq(productos.tenant_id, req.tenantId), eq(productos.activo, true)))
+    .groupBy(productos.categoria)
+    .orderBy(productos.categoria);
+  res.json(rows.map((row) => row.categoria).filter((categoria): categoria is string => Boolean(categoria?.trim())));
+});
+
 router.get("/productos", async (req, res) => {
+  const q = String(req.query.q ?? "").trim().slice(0, 100);
+  const codigo = String(req.query.codigo ?? "").trim().slice(0, 100);
+  const categoria = String(req.query.categoria ?? "").trim().slice(0, 100);
+  const tipo = req.query.tipo === "producto" || req.query.tipo === "servicio" ? req.query.tipo : undefined;
+  const ids = String(req.query.ids ?? "").split(",").filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)).slice(0, 100);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 60)));
+  const conditions = [eq(productos.tenant_id, req.tenantId), eq(productos.activo, true)];
+  if (q) {
+    const pattern = `%${q}%`;
+    conditions.push(or(
+      ilike(productos.nombre, pattern),
+      ilike(productos.codigo, pattern),
+      ilike(productos.codigo_barras, pattern),
+    )!);
+  }
+  if (codigo) conditions.push(or(eq(productos.codigo, codigo), eq(productos.codigo_barras, codigo))!);
+  if (categoria) conditions.push(eq(productos.categoria, categoria));
+  if (tipo) conditions.push(eq(productos.tipo, tipo));
+  if (ids.length > 0) conditions.push(inArray(productos.id, ids));
+
   const rows = await db
     .select({
       id: productos.id,
@@ -306,8 +331,9 @@ router.get("/productos", async (req, res) => {
       stock_actual: productos.stock_actual,
     })
     .from(productos)
-    .where(and(eq(productos.tenant_id, req.tenantId), eq(productos.activo, true)))
-    .orderBy(productos.nombre);
+    .where(and(...conditions))
+    .orderBy(productos.nombre)
+    .limit(limit);
   res.json(rows);
 });
 
@@ -315,6 +341,19 @@ router.get("/productos", async (req, res) => {
 
 router.get("/ventas", async (req, res) => {
   const { turno_id } = req.query as { turno_id?: string };
+  if (turno_id) {
+    const [turno] = await db
+      .select({ usuario_id: turnos_pos.usuario_id })
+      .from(turnos_pos)
+      .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId)))
+      .limit(1);
+    if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
+    if (!puedeOperarTurno(req, turno)) {
+      return res.status(403).json({ error: "No puedes consultar ventas de otro cajero.", code: "POS_TURNO_FORBIDDEN" });
+    }
+  } else if (!puedeAdministrarPOS(req)) {
+    return res.status(403).json({ error: "Selecciona tu turno para consultar ventas.", code: "POS_VENTAS_PROPIAS" });
+  }
   const where = turno_id
     ? and(eq(ventas_pos.tenant_id, req.tenantId), eq(ventas_pos.turno_id, turno_id))
     : eq(ventas_pos.tenant_id, req.tenantId);
@@ -334,6 +373,15 @@ router.get("/ventas/:id", async (req, res) => {
     .from(ventas_pos)
     .where(and(eq(ventas_pos.id, req.params.id), eq(ventas_pos.tenant_id, req.tenantId)));
   if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
+
+  const [turno] = await db
+    .select({ usuario_id: turnos_pos.usuario_id })
+    .from(turnos_pos)
+    .where(and(eq(turnos_pos.id, venta.turno_id), eq(turnos_pos.tenant_id, req.tenantId)))
+    .limit(1);
+  if (!turno || !puedeOperarTurno(req, turno)) {
+    return res.status(403).json({ error: "No puedes consultar ventas de otro cajero.", code: "POS_TURNO_FORBIDDEN" });
+  }
 
   const items = await db
     .select()
@@ -758,6 +806,16 @@ router.get("/gastos-caja", async (req, res) => {
   const { turno_id } = req.query as { turno_id?: string };
   const conditions = [eq(gastos_caja_pos.tenant_id, req.tenantId)];
   if (turno_id) conditions.push(eq(gastos_caja_pos.turno_id, turno_id));
+  if (turno_id) {
+    const [turno] = await db.select({ usuario_id: turnos_pos.usuario_id }).from(turnos_pos)
+      .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId))).limit(1);
+    if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
+    if (!puedeOperarTurno(req, turno)) {
+      return res.status(403).json({ error: "No puedes consultar gastos de otro cajero.", code: "POS_TURNO_FORBIDDEN" });
+    }
+  } else if (!puedeAdministrarPOS(req)) {
+    return res.status(403).json({ error: "Selecciona tu turno para consultar gastos.", code: "POS_GASTOS_PROPIOS" });
+  }
   const rows = await db
     .select()
     .from(gastos_caja_pos)
@@ -816,6 +874,18 @@ router.post("/gastos-caja", async (req, res) => {
 
 router.get("/devoluciones", async (req, res) => {
   const { venta_id } = req.query as { venta_id?: string };
+  if (venta_id) {
+    const [venta] = await db.select({ turno_id: ventas_pos.turno_id }).from(ventas_pos)
+      .where(and(eq(ventas_pos.id, venta_id), eq(ventas_pos.tenant_id, req.tenantId))).limit(1);
+    if (!venta) return res.status(404).json({ error: "Venta no encontrada." });
+    const [turno] = await db.select({ usuario_id: turnos_pos.usuario_id }).from(turnos_pos)
+      .where(and(eq(turnos_pos.id, venta.turno_id), eq(turnos_pos.tenant_id, req.tenantId))).limit(1);
+    if (!turno || !puedeOperarTurno(req, turno)) {
+      return res.status(403).json({ error: "No puedes consultar devoluciones de otro cajero.", code: "POS_TURNO_FORBIDDEN" });
+    }
+  } else if (!puedeAdministrarPOS(req)) {
+    return res.status(403).json({ error: "Indica una venta para consultar devoluciones.", code: "POS_DEVOLUCIONES_PROPIAS" });
+  }
   const conditions = [eq(devoluciones_pos.tenant_id, req.tenantId)];
   if (venta_id) conditions.push(eq(devoluciones_pos.venta_id, venta_id));
   const rows = await db
@@ -1191,6 +1261,20 @@ router.patch("/ventas/:id/anular", async (req, res) => {
 router.get("/reportes", async (req, res) => {
   const { turno_id, fecha } = req.query as { turno_id?: string; fecha?: string };
 
+  if (turno_id) {
+    const [turno] = await db
+      .select({ usuario_id: turnos_pos.usuario_id })
+      .from(turnos_pos)
+      .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId)))
+      .limit(1);
+    if (!turno) return res.status(404).json({ error: "Turno no encontrado." });
+    if (!puedeOperarTurno(req, turno)) {
+      return res.status(403).json({ error: "No puedes ver reportes de otro cajero.", code: "POS_TURNO_FORBIDDEN" });
+    }
+  } else if (!puedeAdministrarPOS(req)) {
+    return res.status(403).json({ error: "Selecciona tu turno para ver tus reportes.", code: "POS_REPORTES_PROPIOS" });
+  }
+
   const ahora = new Date();
   let inicio: Date;
   let fin: Date;
@@ -1288,7 +1372,7 @@ router.get("/reportes", async (req, res) => {
 
 // GET /api/pos/cierre-dian — ventas pendientes de envío a la DIAN
 router.get("/cierre-dian", async (req, res) => {
-  if (!puedeOperarDian(req)) return res.status(403).json({ error: "No tienes permisos para revisar el cierre DIAN." });
+  if (!puedeOperarDianPOS(req)) return res.status(403).json({ error: "No tienes permisos para revisar el cierre DIAN." });
   try {
     const ventas = await db
       .select({
@@ -1320,7 +1404,7 @@ router.get("/cierre-dian", async (req, res) => {
 
 // POST /api/pos/cierre-dian/enviar — marcar lote como enviado a la DIAN
 router.post("/cierre-dian/enviar", async (req, res) => {
-  if (!puedeOperarDian(req)) return res.status(403).json({ error: "No tienes permisos para enviar documentos a la DIAN." });
+  if (!puedeOperarDianPOS(req)) return res.status(403).json({ error: "No tienes permisos para enviar documentos a la DIAN." });
   try {
     const { ids } = req.body as { ids?: string[] };
     if (!Array.isArray(ids) || ids.length === 0) {

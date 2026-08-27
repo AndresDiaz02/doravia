@@ -204,7 +204,7 @@ function AppInner() {
         {vista === "citas"    && <Citas cajaId={turno.cajaId} onIrAVenta={() => setVista("venta")} />}
         {vista === "historial" && <HistorialVentas turnoId={turno.turnoId} />}
         {vista === "gastos"    && <GastosCaja turnoId={turno.turnoId} cajaId={turno.cajaId} />}
-        {vista === "reportes"  && <Reportes />}
+        {vista === "reportes"  && <Reportes turnoId={turno.turnoId} esAdministrador={user.role === "admin"} />}
         </Suspense>
       </div>
 

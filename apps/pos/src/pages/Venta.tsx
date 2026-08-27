@@ -25,7 +25,7 @@ interface Producto {
 interface Cliente {
   id: string;
   nombre: string;
-  nit_cedula: string;
+  numero_documento: string;
 }
 
 interface ItemCarrito {
@@ -69,6 +69,23 @@ const ICONOS_METODO: Record<string, typeof Banknote> = {
   nequi: Smartphone,
   daviplata: Smartphone,
 };
+
+function etiquetaMetodo(metodo: string) {
+  return METODOS.find((item) => item.value === metodo)?.label ?? metodo;
+}
+
+function totalItems(items: ItemCarrito[]) {
+  return items.reduce((total, item) => {
+    const base = item.cantidad * item.precio_unitario * (1 - item.descuento_pct / 100);
+    return total + base * (1 + Number(item.producto.iva_pct) / 100 + Number(item.producto.impoconsumo_pct ?? 0) / 100);
+  }, 0);
+}
+
+function escaparHtml(valor: string) {
+  return valor.replace(/[&<>"']/g, (caracter) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  })[caracter] ?? caracter);
+}
 
 /** El efectivo se captura como pesos COP enteros y se muestra con miles. */
 function formatearPesos(valor: string) {
@@ -132,6 +149,17 @@ function useBarcodeScanner(
             e.preventDefault();
             onClearBusqueda();
             onProductoEscaneado(prod);
+          } else {
+            // El catálogo se pagina para abrir rápido. Si un artículo no está
+            // visible aún, el escáner lo consulta por su código exacto.
+            void apiFetch<Producto[]>(`/api/pos/productos?codigo=${encodeURIComponent(codigo)}&limit=1`)
+              .then((encontrados) => {
+                if (encontrados[0]) {
+                  onClearBusqueda();
+                  onProductoEscaneado(encontrados[0]);
+                }
+              })
+              .catch(() => {});
           }
         }
         return;
@@ -164,6 +192,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
   const [preCuentasReady, setPreCuentasReady] = useState(false);
   const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [categoriasCatalogo, setCategoriasCatalogo] = useState<string[]>([]);
   const [filtroCatalogo, setFiltroCatalogo] = useState("todos");
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
@@ -183,7 +212,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     numero: string; total: number; vuelto: number;
     items: ItemCarrito[]; clienteNombre: string; metodoPago: string;
     montoRecibido: number; subtotal: number; iva: number; impo: number;
-    cajaNombre: string;
+    cajaNombre: string; pagos: Array<{ metodo_pago: string; monto: number }>;
   } | null>(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState("");
@@ -194,12 +223,48 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const ventaIdempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    void apiFetch<Producto[]>("/api/pos/productos").then(setProductos);
-    void apiFetch<{ data: Cliente[] }>("/api/clientes?limit=500").then((r) => setClientes(r.data));
+    void apiFetch<string[]>("/api/pos/productos/categorias").then(setCategoriasCatalogo).catch(() => {});
     void apiFetch<Record<string, { completado: boolean; saltado: boolean }>>("/api/tutoriales/estado")
       .then((est) => { if (!est.pos?.completado && !est.pos?.saltado) setMostrarTutorial(true); })
       .catch(() => {});
   }, []);
+
+  // El catálogo se consulta de forma acotada y con espera breve al escribir.
+  // Así la caja abre rápido incluso con miles de referencias.
+  useEffect(() => {
+    const params = new URLSearchParams({ limit: busqueda.trim() ? "80" : "60" });
+    if (busqueda.trim()) params.set("q", busqueda.trim());
+    if (filtroCatalogo === "tipo:producto") params.set("tipo", "producto");
+    if (filtroCatalogo === "tipo:servicio") params.set("tipo", "servicio");
+    if (filtroCatalogo.startsWith("categoria:")) params.set("categoria", filtroCatalogo.slice("categoria:".length));
+    if (filtroCatalogo === "favoritos") {
+      if (favoritos.length === 0) { setProductos([]); return; }
+      params.set("ids", favoritos.join(","));
+    }
+
+    const timer = window.setTimeout(() => {
+      void apiFetch<Producto[]>(`/api/pos/productos?${params.toString()}`)
+        .then(setProductos)
+        .catch(() => setProductos([]));
+    }, busqueda.trim() ? 180 : 0);
+    return () => window.clearTimeout(timer);
+  }, [busqueda, filtroCatalogo, favoritos]);
+
+  // Buscar en el servidor evita descargar una agenda completa de clientes al
+  // abrir caja. Es especialmente importante para comercios con miles de ventas.
+  useEffect(() => {
+    const q = clienteQuery.trim();
+    if (q.length < 2) {
+      setClientes([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void apiFetch<{ data: Cliente[] }>(`/api/clientes?limit=6&q=${encodeURIComponent(q)}`)
+        .then((respuesta) => setClientes(respuesta.data))
+        .catch(() => setClientes([]));
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [clienteQuery]);
 
   // Las ventas pausadas pertenecen a una caja. Se conservan localmente para que
   // un cajero pueda continuar una atención incluso si el navegador se recarga.
@@ -261,25 +326,11 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   useBarcodeScanner(productos, agregarProducto, () => setBusqueda(""), busquedaRef);
 
-  const categoriasCatalogo = [...new Set(productos.map((p) => p.categoria?.trim()).filter((categoria): categoria is string => Boolean(categoria)))].sort();
   const productosVisibles = productos.filter((p) => {
-      if (filtroCatalogo === "favoritos" && !favoritos.includes(p.id)) return false;
-      if (filtroCatalogo === "tipo:producto" && p.tipo !== "producto") return false;
-      if (filtroCatalogo === "tipo:servicio" && p.tipo !== "servicio") return false;
-      if (filtroCatalogo.startsWith("categoria:") && p.categoria !== filtroCatalogo.slice("categoria:".length)) return false;
-      if (busqueda.trim()) {
-        const q = busqueda.toLowerCase();
-        return p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
-      }
       return true;
     }).sort((a, b) => Number(favoritos.includes(b.id)) - Number(favoritos.includes(a.id))).slice(0, 36);
 
-  const clientesFiltrados = clienteQuery.trim().length >= 2
-    ? clientes.filter((c) =>
-        c.nombre.toLowerCase().includes(clienteQuery.toLowerCase()) ||
-        c.nit_cedula.includes(clienteQuery)
-      ).slice(0, 6)
-    : [];
+  const clientesFiltrados = clienteQuery.trim().length >= 2 ? clientes : [];
 
   const subtotalCarrito = carrito.reduce((s, i) =>
     s + i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100), 0);
@@ -423,6 +474,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
       const pagos = pagosDivididos
         ? METODOS.map((m) => ({ metodo_pago: m.value, monto: pesosAEntero(pagosDivididos[m.value] ?? "") })).filter((p) => p.monto > 0)
         : undefined;
+      const pagosRegistrados = pagos ?? [{ metodo_pago: metodoPago, monto: totalCarrito }];
       const venta = await apiFetch<{ numero: string; total: string }>("/api/pos/ventas", {
         method: "POST",
         headers: { "Idempotency-Key": ventaIdempotencyKeyRef.current ?? crypto.randomUUID() },
@@ -448,6 +500,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
           ? pesosAEntero(montoRecibido)
           : Number(venta.total),
         subtotal: subtotalCarrito, iva: ivaCarrito, impo: impocarrito, cajaNombre,
+        pagos: pagosRegistrados,
       });
       setCarrito([]);
       setShowPago(false);
@@ -518,10 +571,6 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   function generarTextoWhatsApp(venta: NonNullable<typeof ultimaVenta>) {
     const empresa = user?.tenantNombre ?? "Doravia";
     const fecha = new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
-    const METODO_LABEL: Record<string, string> = {
-      efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia",
-      nequi: "Nequi", daviplata: "Daviplata",
-    };
     const itemsTexto = venta.items.map((i) => {
       const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
       const subtotal = base * (1 + Number(i.producto.iva_pct) / 100 + Number(i.producto.impoconsumo_pct ?? 0) / 100);
@@ -529,7 +578,8 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     }).join("\n");
 
     const impoLine = venta.impo > 0 ? `\n*Impoconsumo:* ${cop(venta.impo)}` : "";
-    return `*${empresa}*\nVenta No. ${venta.numero}\n${fecha}\n\n${itemsTexto}\n\n*Subtotal:* ${cop(venta.subtotal)}\n*IVA:* ${cop(venta.iva)}${impoLine}\n*TOTAL:* ${cop(venta.total)}\n*Pago:* ${METODO_LABEL[venta.metodoPago] ?? venta.metodoPago}\n${venta.vuelto > 0 ? `*Vuelto:* ${cop(venta.vuelto)}\n` : ""}\n¡Gracias por su compra!`;
+    const pagosTexto = venta.pagos.map((pago) => `• ${etiquetaMetodo(pago.metodo_pago)}: ${cop(pago.monto)}`).join("\n");
+    return `*${empresa}*\nVenta No. ${venta.numero}\n${fecha}\n\n${itemsTexto}\n\n*Subtotal:* ${cop(venta.subtotal)}\n*IVA:* ${cop(venta.iva)}${impoLine}\n*TOTAL:* ${cop(venta.total)}\n*Pagos:*\n${pagosTexto}\n${venta.vuelto > 0 ? `*Vuelto:* ${cop(venta.vuelto)}\n` : ""}\n¡Gracias por su compra!`;
   }
 
   function enviarWhatsApp() {
@@ -546,15 +596,11 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     if (!ultimaVenta) return;
     const empresa = user?.tenantNombre ?? "Doravia";
     const fecha = new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
-    const METODO_LABEL: Record<string, string> = {
-      efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia",
-      nequi: "Nequi", daviplata: "Daviplata",
-    };
     const itemsHTML = ultimaVenta.items.map((i) => {
       const base = i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100);
       const subtotal = base * (1 + Number(i.producto.iva_pct) / 100 + Number(i.producto.impoconsumo_pct ?? 0) / 100);
       return `
-        <tr><td colspan="2" class="pt-1"><strong>${i.producto.nombre}</strong></td></tr>
+        <tr><td colspan="2" class="pt-1"><strong>${escaparHtml(i.producto.nombre)}</strong></td></tr>
         <tr>
           <td class="pl-2 text-gray-600">${i.cantidad} × ${cop(i.precio_unitario)}${i.descuento_pct > 0 ? ` (-${i.descuento_pct}%)` : ""}</td>
           <td class="text-right">${cop(subtotal)}</td>
@@ -576,11 +622,11 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   .small { font-size: 9px; color: #555; }
   .gracias { text-align: center; margin-top: 8px; font-size: 10px; }
 </style></head><body>
-<h1>${empresa}</h1>
-<p class="center small">${fecha} · Caja: ${ultimaVenta.cajaNombre}</p>
+<h1>${escaparHtml(empresa)}</h1>
+<p class="center small">${escaparHtml(fecha)} · Caja: ${escaparHtml(ultimaVenta.cajaNombre)}</p>
 <hr class="sep">
-<p class="center"><strong>No. ${ultimaVenta.numero}</strong></p>
-${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.clienteNombre}</p>` : ""}
+<p class="center"><strong>No. ${escaparHtml(ultimaVenta.numero)}</strong></p>
+${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${escaparHtml(ultimaVenta.clienteNombre)}</p>` : ""}
 <hr class="sep">
 <table>${itemsHTML}</table>
 <hr class="sep">
@@ -592,7 +638,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
 </table>
 <hr class="sep">
 <table>
-  <tr><td>${METODO_LABEL[ultimaVenta.metodoPago] ?? ultimaVenta.metodoPago}</td><td class="td-r">${cop(ultimaVenta.montoRecibido)}</td></tr>
+  ${ultimaVenta.pagos.map((pago) => `<tr><td>${escaparHtml(etiquetaMetodo(pago.metodo_pago))}</td><td class="td-r">${cop(pago.monto)}</td></tr>`).join("")}
   ${ultimaVenta.vuelto > 0 ? `<tr><td>Vuelto</td><td class="td-r">${cop(ultimaVenta.vuelto)}</td></tr>` : ""}
 </table>
 <p class="gracias">¡Gracias por su compra!<br>Powered by Doravia</p>
@@ -1050,7 +1096,7 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${ultimaVenta.cl
                     </p>
                   </div>
                   <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                    {cop(pc.items.reduce((s, i) => s + i.cantidad * i.precio_unitario * (1 - i.descuento_pct / 100) * (1 + Number(i.producto.iva_pct) / 100), 0))}
+                    {cop(totalItems(pc.items))}
                   </p>
                 </button>
               ))}

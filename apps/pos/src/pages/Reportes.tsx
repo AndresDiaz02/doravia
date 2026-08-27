@@ -19,7 +19,7 @@ const METODO_LABELS: Record<string, string> = {
 
 const HOY = new Date().toISOString().slice(0, 10);
 
-export default function Reportes() {
+export default function Reportes({ turnoId, esAdministrador }: { turnoId: string; esAdministrador: boolean }) {
   const [fecha, setFecha] = useState(HOY);
   const [data, setData] = useState<ReportePOS | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,11 +29,12 @@ export default function Reportes() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    apiFetch<ReportePOS>(`/api/pos/reportes?fecha=${fecha}`)
+    const query = esAdministrador ? `fecha=${fecha}` : `turno_id=${encodeURIComponent(turnoId)}`;
+    apiFetch<ReportePOS>(`/api/pos/reportes?${query}`)
       .then(setData)
       .catch(() => setError("No pudimos cargar los reportes. Intenta nuevamente."))
       .finally(() => setLoading(false));
-  }, [fecha, retry]);
+  }, [fecha, retry, turnoId, esAdministrador]);
 
   const horasConVentas = data?.por_hora.filter((h) => h.total > 0) ?? [];
   const horasPico = [...(data?.por_hora ?? [])].sort((a, b) => b.total - a.total).slice(0, 3);
@@ -43,14 +44,14 @@ export default function Reportes() {
     <div className="flex h-full flex-col overflow-y-auto bg-gradient-to-br from-slate-50 via-violet-50/35 to-slate-100 dark:from-[#080b16] dark:via-[#10132a] dark:to-[#080b16]">
       {/* Selector de fecha */}
       <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-[#0b1020]/85">
-        <p className="font-semibold text-slate-900 dark:text-white">Reportes del día</p>
-        <input
+          <p className="font-semibold text-slate-900 dark:text-white">{esAdministrador ? "Reportes del día" : "Resumen de mi turno"}</p>
+        {esAdministrador && <input
           type="date"
           value={fecha}
           max={HOY}
           onChange={(e) => setFecha(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-violet-950"
-        />
+        />}
       </div>
 
       {loading ? (

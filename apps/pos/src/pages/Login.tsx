@@ -61,11 +61,9 @@ export default function Login({ dark, onToggleTheme }: { dark: boolean; onToggle
         method: "POST",
         body: JSON.stringify({ selectionToken, tenantId }),
       });
-      // La selección de empresa solo entrega tokens; el arranque normal carga
-      // el perfil elegido una única vez.
-      localStorage.setItem("pos_token", data.accessToken);
-      if (data.refreshToken) localStorage.setItem("pos_refresh_token", data.refreshToken);
-      window.location.reload();
+      // El servidor ya devuelve usuario, empresa y tokens. Reutilizar esta
+      // sesión evita recargar el POS y una petición adicional a /auth/me.
+      completeLogin(data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo abrir la empresa seleccionada.");
       if (err instanceof ApiError && err.status === 401) {

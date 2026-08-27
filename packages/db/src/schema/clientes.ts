@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants.ts";
 
 export const TIPOS_DOCUMENTO = ["CC", "NIT", "CE", "PPN", "TI"] as const;
@@ -20,6 +20,9 @@ export const clientes = pgTable("clientes", {
   direccion: varchar("direccion", { length: 300 }),
   municipio: varchar("municipio", { length: 100 }),
   departamento: varchar("departamento", { length: 100 }),
+  // Saldo de fidelización del cliente. Solo se modifica desde operaciones POS
+  // auditables, nunca desde el navegador.
+  puntos_fidelidad: integer("puntos_fidelidad").notNull().default(0),
   activo: boolean("activo").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

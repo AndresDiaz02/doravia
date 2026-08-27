@@ -80,6 +80,7 @@ export const ventas_pos = pgTable("ventas_pos", {
   metodo_pago: varchar("metodo_pago", { length: 20 }).$type<MetodoPagoPOS>().notNull().default("efectivo"),
   monto_recibido: numeric("monto_recibido", { precision: 14, scale: 2 }),
   vuelto: numeric("vuelto", { precision: 14, scale: 2 }),
+  puntos_fidelidad_otorgados: integer("puntos_fidelidad_otorgados").notNull().default(0),
   estado: varchar("estado", { length: 20 }).notNull().default("completada"),
   tipo_documento: varchar("tipo_documento", { length: 30 }).$type<TipoDocumentoPOS>().notNull().default("tiquete_pos"),
   // Estado DIAN — completamente independiente del estado de la venta

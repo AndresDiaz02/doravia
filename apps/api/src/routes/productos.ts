@@ -92,6 +92,10 @@ router.post("/", async (req, res) => {
       imagen_url: imagen_url?.trim() || null,
       tipo,
       precio_base: String(precio_base),
+      // El catálogo del POS siempre debe tener un precio vendible. Mantenerlo
+      // igual al precio registrado evita productos nuevos invisibles o que no
+      // puedan cobrarse hasta pasar por un ajuste de inventario.
+      precio_venta: String(precio_base),
       iva_pct: String(ivaPctNum),
       impoconsumo_pct: String(impoconsumoPctNum),
       codigo_barras: codigo_barras ?? null,
@@ -128,6 +132,7 @@ router.patch("/:id", async (req, res) => {
       ...(categoria !== undefined && { categoria: categoria?.trim() || null }),
       ...(imagen_url !== undefined && { imagen_url: imagen_url?.trim() || null }),
       ...(precio_base !== undefined && { precio_base: String(precio_base) }),
+      ...(precio_base !== undefined && { precio_venta: String(precio_base) }),
       ...(iva_pct !== undefined && { iva_pct: String(iva_pct) }),
       ...(impoconsumo_pct !== undefined && { impoconsumo_pct: String(Number(impoconsumo_pct)) }),
       ...(codigo_barras !== undefined && { codigo_barras: codigo_barras ?? null }),
@@ -204,7 +209,7 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
     if (existente) {
       await db
         .update(productos)
-        .set({ nombre, descripcion, tipo: tipo as typeof TIPOS_PRODUCTO[number], precio_base: String(precio_base), iva_pct: String(iva_pct) })
+        .set({ nombre, descripcion, tipo: tipo as typeof TIPOS_PRODUCTO[number], precio_base: String(precio_base), precio_venta: String(precio_base), iva_pct: String(iva_pct) })
         .where(eq(productos.id, existente.id));
       actualizados++;
     } else {
@@ -215,6 +220,7 @@ router.post("/importar", upload.single("archivo"), async (req, res) => {
         descripcion,
         tipo: tipo as typeof TIPOS_PRODUCTO[number],
         precio_base: String(precio_base),
+        precio_venta: String(precio_base),
         iva_pct: String(iva_pct),
       });
       creados++;

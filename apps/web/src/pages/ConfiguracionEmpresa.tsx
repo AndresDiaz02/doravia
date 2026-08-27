@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean; }
+interface PosConfig { cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean; fidelizacion_activa?: boolean; }
 
 interface EmpresaConfig {
   id: string;
@@ -377,6 +377,12 @@ export default function ConfiguracionEmpresa() {
                 key: "permitir_inventario_negativo" as keyof PosConfig,
                 label: "Permitir inventario negativo",
                 desc: "Permite registrar ventas aunque no haya saldo disponible. Úsalo solo si luego regularizas compras, conteos o entregas pendientes.",
+                default: false,
+              },
+              {
+                key: "fidelizacion_activa" as keyof PosConfig,
+                label: "Fidelización de clientes",
+                desc: "Otorga 1 punto por cada $1.000 COP en ventas cobradas a clientes identificados. Los puntos quedan auditados en cada venta.",
                 default: false,
               },
             ].map(({ key, label, desc, default: def, requiresPuntoPlus }) => {

@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { apiFetch } from "./api";
+import { ApiError, apiFetch } from "./api";
 
 export interface PosConfig {
   cartera_visible?: boolean;
   citas_visible?: boolean;
+  fidelizacion_activa?: boolean;
 }
 
 export interface PosUser {
@@ -24,6 +25,8 @@ interface AuthCtx {
   completeLogin: (session: AuthSessionResponse) => void;
   logout: () => void;
 }
+
+const POS_USER_CACHE_KEY = "doravia-pos-user-cache";
 
 interface MeResponse {
   user: { id: string; nombre: string; email: string; role: string };
@@ -52,6 +55,22 @@ function mapMe(raw: MeResponse): PosUser {
   };
 }
 
+function guardarUsuarioLocal(usuario: PosUser) {
+  localStorage.setItem(POS_USER_CACHE_KEY, JSON.stringify(usuario));
+}
+
+function leerUsuarioLocal(): PosUser | null {
+  try {
+    const raw = localStorage.getItem(POS_USER_CACHE_KEY);
+    if (!raw) return null;
+    const usuario = JSON.parse(raw) as Partial<PosUser>;
+    if (!usuario.id || !usuario.tenantId || !usuario.nombre || !usuario.email) return null;
+    return usuario as PosUser;
+  } catch {
+    return null;
+  }
+}
+
 const Ctx = createContext<AuthCtx>({ user: null, loading: true, login: async () => {}, completeLogin: () => {}, logout: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -72,10 +91,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("pos_token");
     if (!token) { setLoading(false); return; }
     apiFetch<MeResponse>("/api/auth/me")
-      .then((raw) => setUser(mapMe(raw)))
-      .catch(() => {
+      .then((raw) => {
+        const usuario = mapMe(raw);
+        guardarUsuarioLocal(usuario);
+        setUser(usuario);
+      })
+      .catch((error) => {
+        // Sin red se conserva la sesión local únicamente para consultar el
+        // catálogo y preparar el carrito. El cobro permanece bloqueado hasta
+        // recuperar conexión, por lo que no se generan ventas duplicadas.
+        if (error instanceof ApiError && (error.status === 0 || error.status === 408)) {
+          setUser(leerUsuarioLocal());
+          return;
+        }
         localStorage.removeItem("pos_token");
         localStorage.removeItem("pos_refresh_token");
+        localStorage.removeItem(POS_USER_CACHE_KEY);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -87,19 +118,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     localStorage.setItem("pos_token", data.accessToken);
     if (data.refreshToken) localStorage.setItem("pos_refresh_token", data.refreshToken);
-    setUser(mapMe(data));
+    const usuario = mapMe(data);
+    guardarUsuarioLocal(usuario);
+    setUser(usuario);
   }
 
   function completeLogin(session: AuthSessionResponse) {
     localStorage.setItem("pos_token", session.accessToken);
     if (session.refreshToken) localStorage.setItem("pos_refresh_token", session.refreshToken);
-    setUser(mapMe(session));
+    const usuario = mapMe(session);
+    guardarUsuarioLocal(usuario);
+    setUser(usuario);
     setLoading(false);
   }
 
   function logout() {
     localStorage.removeItem("pos_token");
     localStorage.removeItem("pos_refresh_token");
+    localStorage.removeItem(POS_USER_CACHE_KEY);
     setUser(null);
   }
 

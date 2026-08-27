@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos, resoluciones_dian } from "@workspace/db";
+import { db, cajas_pos, turnos_pos, ventas_pos, items_venta_pos, pagos_venta_pos, productos, movimientos_inventario, bodegas, fiados, items_fiado, abonos_fiado, citas_pos, gastos_caja_pos, devoluciones_pos, resoluciones_dian, clientes } from "@workspace/db";
 import type { GrameraConfig } from "@workspace/db";
 import { eq, and, desc, sql, count, ne, gte, lt, sum, between, inArray, ilike, or } from "drizzle-orm";
 import { users } from "@workspace/db";
@@ -324,7 +324,10 @@ router.get("/productos", async (req, res) => {
       nombre: productos.nombre,
       categoria: productos.categoria,
       imagen_url: productos.imagen_url,
-      precio_venta: productos.precio_venta,
+      // Empresas antiguas pueden tener productos creados antes de que el
+      // precio de venta se llenara de forma obligatoria. El POS conserva una
+      // salida segura usando el precio base hasta que el catálogo se actualice.
+      precio_venta: sql<string>`COALESCE(${productos.precio_venta}, ${productos.precio_base})`,
       iva_pct: productos.iva_pct,
       tipo: productos.tipo,
       unidad: productos.unidad,
@@ -474,6 +477,15 @@ router.post("/ventas", async (req, res) => {
 
   let impoconsumo_total = 0;
   const result = await db.transaction(async (tx) => {
+    // El cliente debe pertenecer a la empresa actual. Además de proteger el
+    // enlace de la venta, esto evita acreditar puntos a otra organización.
+    if (cliente_id) {
+      const [cliente] = await tx.select({ id: clientes.id })
+        .from(clientes)
+        .where(and(eq(clientes.id, cliente_id), eq(clientes.tenant_id, req.tenantId), eq(clientes.activo, true)))
+        .limit(1);
+      if (!cliente) throw new Error("El cliente seleccionado no está disponible.");
+    }
     // Los precios e impuestos no se aceptan desde el navegador: se consultan de
     // nuevo en la base de datos del tenant antes de registrar la venta.
     const productosVenta = await Promise.all(items.map(async (item) => {
@@ -486,12 +498,12 @@ router.post("/ventas", async (req, res) => {
           eq(productos.activo, true),
         ))
         .limit(1);
-      if (!producto || producto.precio_venta === null) {
+      if (!producto) {
         throw new Error("Uno de los productos ya no está disponible para la venta.");
       }
 
       const descuento_pct = Number(item.descuento_pct ?? 0);
-      const precio_unitario = Number(producto.precio_venta);
+      const precio_unitario = Number(producto.precio_venta ?? producto.precio_base);
       const subtotal = item.cantidad * precio_unitario * (1 - descuento_pct / 100);
       const iva_valor = subtotal * (Number(producto.iva_pct) / 100);
       const impoconsumo_valor = subtotal * (Number(producto.impoconsumo_pct ?? 0) / 100);
@@ -513,6 +525,9 @@ router.post("/ventas", async (req, res) => {
     impoconsumo_total = productosVenta.reduce((s, i) => s + i.impoconsumo_valor, 0);
     const total = productosVenta.reduce((s, i) => s + i.total, 0);
     const descuento_total = productosVenta.reduce((s, i) => s + (i.cantidad * i.precio_unitario * (i.descuento_pct / 100)), 0);
+    const puntosOtorgados = cliente_id && req.tenant.pos_config?.fidelizacion_activa === true
+      ? Math.floor(total / Math.max(1, Number(req.tenant.pos_config.fidelizacion_pesos_por_punto ?? 1000)))
+      : 0;
 
     const pagosFinales = pagos?.map((p) => ({ metodo_pago: p.metodo_pago as typeof METODOS_PAGO[number], monto: p.monto }))
       ?? [{ metodo_pago: metodo_pago as typeof METODOS_PAGO[number], monto: total }];
@@ -550,11 +565,18 @@ router.post("/ventas", async (req, res) => {
         metodo_pago: metodoRegistrado,
         monto_recibido: montoRecibidoFinal === null ? null : String(montoRecibidoFinal),
         vuelto: vueltoFinal === null ? null : String(vueltoFinal),
+        puntos_fidelidad_otorgados: puntosOtorgados,
         observaciones: observaciones ?? null,
       })
       .returning();
 
     await tx.insert(pagos_venta_pos).values(pagosFinales.map((p) => ({ venta_id: venta.id, ...p, monto: String(p.monto) })));
+
+    if (cliente_id && puntosOtorgados > 0) {
+      await tx.update(clientes)
+        .set({ puntos_fidelidad: sql`COALESCE(${clientes.puntos_fidelidad}, 0) + ${puntosOtorgados}` })
+        .where(and(eq(clientes.id, cliente_id), eq(clientes.tenant_id, req.tenantId)));
+    }
 
     await tx.insert(items_venta_pos).values(
       productosVenta.map((i) => ({
@@ -674,6 +696,7 @@ router.post("/ventas", async (req, res) => {
       "La suma de los métodos de pago debe ser igual al total de la venta.",
       "El monto recibido solo aplica para pagos únicos en efectivo.",
       "El monto recibido no puede ser menor al total de la venta.",
+      "El cliente seleccionado no está disponible.",
     ].includes(message) || message.startsWith("Stock insuficiente para ");
     res.status(esErrorOperativo ? 422 : 500).json({
       error: esErrorOperativo ? message : "Error al registrar la venta. Inténtalo de nuevo.",

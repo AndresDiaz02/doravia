@@ -246,11 +246,14 @@ router.patch("/pos-config", requireNotContador, async (req, res) => {
     if (req.userRole !== "admin") {
       return res.status(403).json({ error: "Solo el administrador puede configurar módulos POS." });
     }
-    const { cartera_visible, citas_visible, permitir_inventario_negativo } = req.body as {
-      cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean;
+    const { cartera_visible, citas_visible, permitir_inventario_negativo, fidelizacion_activa } = req.body as {
+      cartera_visible?: boolean; citas_visible?: boolean; permitir_inventario_negativo?: boolean; fidelizacion_activa?: boolean;
     };
     if (permitir_inventario_negativo !== undefined && typeof permitir_inventario_negativo !== "boolean") {
       return res.status(400).json({ error: "permitir_inventario_negativo debe ser verdadero o falso." });
+    }
+    if (fidelizacion_activa !== undefined && typeof fidelizacion_activa !== "boolean") {
+      return res.status(400).json({ error: "fidelizacion_activa debe ser verdadero o falso." });
     }
     const actual = (req.tenant.pos_config ?? {}) as Record<string, boolean>;
     const nuevo = {
@@ -258,6 +261,11 @@ router.patch("/pos-config", requireNotContador, async (req, res) => {
       ...(cartera_visible !== undefined && { cartera_visible }),
       ...(citas_visible   !== undefined && { citas_visible }),
       ...(permitir_inventario_negativo !== undefined && { permitir_inventario_negativo }),
+      ...(fidelizacion_activa !== undefined && {
+        fidelizacion_activa,
+        // Política inicial clara y auditable: 1 punto por cada $1.000 COP.
+        fidelizacion_pesos_por_punto: 1000,
+      }),
     };
     const [updated] = await db
       .update(tenants)

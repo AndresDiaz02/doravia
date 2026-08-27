@@ -974,6 +974,10 @@ const migrations = [
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS uq_documento_nomina_detalle ON documentos_soporte_nomina(nomina_detalle_id)`,
+  // Fidelización POS: se agregan como columnas para conservar clientes y
+  // ventas existentes sin migraciones destructivas.
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS puntos_fidelidad integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS puntos_fidelidad_otorgados integer NOT NULL DEFAULT 0`,
 ];
 
 for (const migration of migrations) {

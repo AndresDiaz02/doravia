@@ -26,6 +26,7 @@ interface Cliente {
   id: string;
   nombre: string;
   numero_documento: string;
+  puntos_fidelidad?: number;
 }
 
 interface ItemCarrito {
@@ -45,6 +46,8 @@ interface PreCuenta {
 
 const PRECUENTAS_STORAGE_PREFIX = "doravia-pos-precuentas";
 const FAVORITOS_STORAGE_PREFIX = "doravia-pos-favoritos";
+const CARRITO_STORAGE_PREFIX = "doravia-pos-carrito";
+const CATALOGO_STORAGE_PREFIX = "doravia-pos-catalogo";
 
 interface Props {
   turnoId: string;
@@ -189,6 +192,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [busqueda, setBusqueda] = useState("");
   const [mostrarTutorial, setMostrarTutorial] = useState(false);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [carritoReady, setCarritoReady] = useState(false);
   const [preCuentas, setPreCuentas] = useState<PreCuenta[]>([]);
   const [preCuentasReady, setPreCuentasReady] = useState(false);
   const [favoritos, setFavoritos] = useState<string[]>([]);
@@ -217,6 +221,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [enLinea, setEnLinea] = useState(() => navigator.onLine);
   const busquedaRef = useRef<HTMLInputElement>(null);
   // Se conserva durante los reintentos del mismo cobro para que una respuesta
   // perdida de red nunca genere una segunda venta.
@@ -227,6 +232,17 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
     void apiFetch<Record<string, { completado: boolean; saltado: boolean }>>("/api/tutoriales/estado")
       .then((est) => { if (!est.pos?.completado && !est.pos?.saltado) setMostrarTutorial(true); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const online = () => setEnLinea(true);
+    const offline = () => setEnLinea(false);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
   }, []);
 
   // El catálogo se consulta de forma acotada y con espera breve al escribir.
@@ -244,11 +260,51 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
     const timer = window.setTimeout(() => {
       void apiFetch<Producto[]>(`/api/pos/productos?${params.toString()}`)
-        .then(setProductos)
-        .catch(() => setProductos([]));
+        .then((resultado) => {
+          setProductos(resultado);
+          if (!busqueda.trim() && filtroCatalogo === "todos") {
+            localStorage.setItem(`${CATALOGO_STORAGE_PREFIX}:${cajaId}`, JSON.stringify(resultado));
+          }
+        })
+        .catch(() => {
+          // El último catálogo se puede usar para preparar la venta durante
+          // una caída. Nunca se cobra hasta recuperar red y validar stock.
+          if (!busqueda.trim() && filtroCatalogo === "todos") {
+            try {
+              const cache = JSON.parse(localStorage.getItem(`${CATALOGO_STORAGE_PREFIX}:${cajaId}`) ?? "[]");
+              setProductos(Array.isArray(cache) ? cache : []);
+            } catch { setProductos([]); }
+          } else {
+            setProductos([]);
+          }
+        });
     }, busqueda.trim() ? 180 : 0);
     return () => window.clearTimeout(timer);
   }, [busqueda, filtroCatalogo, favoritos]);
+
+  // El carrito activo también sobrevive una recarga o una caída de red. Es un
+  // borrador local: la venta se valida otra vez por completo en el servidor al
+  // recuperar conexión.
+  useEffect(() => {
+    setCarritoReady(false);
+    try {
+      const guardado = JSON.parse(localStorage.getItem(`${CARRITO_STORAGE_PREFIX}:${turnoId}`) ?? "[]");
+      setCarrito(Array.isArray(guardado) ? guardado.filter((item): item is ItemCarrito =>
+        Boolean(item?.producto?.id) && Number.isFinite(item.cantidad) && Number.isFinite(item.precio_unitario)
+      ) : []);
+    } catch {
+      setCarrito([]);
+    } finally {
+      setCarritoReady(true);
+    }
+  }, [turnoId]);
+
+  useEffect(() => {
+    if (!carritoReady) return;
+    const key = `${CARRITO_STORAGE_PREFIX}:${turnoId}`;
+    if (carrito.length === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(carrito));
+  }, [carrito, carritoReady, turnoId]);
 
   // Buscar en el servidor evita descargar una agenda completa de clientes al
   // abrir caja. Es especialmente importante para comercios con miles de ventas.
@@ -406,6 +462,10 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   function abrirPago() {
     if (carrito.length === 0) return;
+    if (!enLinea) {
+      setError("Estás sin conexión. El carrito está guardado; reconéctate para validar inventario y registrar el cobro.");
+      return;
+    }
     ventaIdempotencyKeyRef.current = crypto.randomUUID();
     // El valor recibido solo es necesario cuando se desea calcular vuelto.
     // Sin ese dato, el cobro se registra por el total de la venta.
@@ -742,7 +802,15 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${escaparHtml(ul
         {/* Grid de productos */}
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">Catálogo</p>
-          <div className="flex items-center gap-3"><p className="hidden sm:block text-[11px] text-slate-400 dark:text-slate-500">F2 buscar · F4 cobrar</p><p className="text-xs text-gray-400 dark:text-slate-500">{productosVisibles.length} productos</p></div>
+          <div className="flex items-center gap-3">
+            {!enLinea && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                <WifiOff className="h-3 w-3" /> Sin conexión · borrador local
+              </span>
+            )}
+            <p className="hidden sm:block text-[11px] text-slate-400 dark:text-slate-500">F2 buscar · F4 cobrar</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">{productosVisibles.length} productos</p>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 pt-2">
           {productosVisibles.length === 0 ? (
@@ -859,7 +927,10 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${escaparHtml(ul
                   className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                 >
                   <p className="text-sm text-gray-900 dark:text-white font-medium">{c.nombre}</p>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">{c.nit_cedula}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">
+                    {c.numero_documento}
+                    {user?.posConfig.fidelizacion_activa && ` · ${Number(c.puntos_fidelidad ?? 0)} puntos`}
+                  </p>
                 </button>
               ))}
             </div>
@@ -1060,10 +1131,11 @@ ${ultimaVenta.clienteNombre ? `<p class="center small">Cliente: ${escaparHtml(ul
             </button>
             <button
               onClick={abrirPago}
-              disabled={carrito.length === 0}
+              disabled={carrito.length === 0 || !enLinea}
+              title={!enLinea ? "Reconéctate para validar inventario y cobrar" : undefined}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-30 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40"
             >
-              {carrito.length === 0 ? "Cobrar" : `Cobrar ${cop(totalCarrito)}`}
+              {!enLinea ? "Sin conexión" : carrito.length === 0 ? "Cobrar" : `Cobrar ${cop(totalCarrito)}`}
             </button>
           </div>
         </div>

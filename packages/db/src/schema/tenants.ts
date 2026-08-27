@@ -35,6 +35,10 @@ export const tenants = pgTable("tenants", {
     citas_visible?: boolean;
     /** Permite vender aun cuando el saldo global del producto quede negativo. */
     permitir_inventario_negativo?: boolean;
+    /** Programa de puntos POS. Desactivado hasta que el negocio lo habilite. */
+    fidelizacion_activa?: boolean;
+    /** Pesos COP facturados requeridos para otorgar un punto. */
+    fidelizacion_pesos_por_punto?: number;
     fe_deshabilitada_en?: string;
   }>().default({}),
   // ── Plemsi multi-tenant ──────────────────────────────────────────────────────

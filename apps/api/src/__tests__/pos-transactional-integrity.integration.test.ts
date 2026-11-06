@@ -256,14 +256,15 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
         next("rollback-before"),
       );
       expect(result.response.status).toBe(500);
-      expect(result.body.error).toMatch(/no se registró/i);
+      // La API no expone el detalle interno de un trigger/driver al cajero.
+      expect(result.body.error).toMatch(/error al registrar la venta/i);
     } finally {
       fidelizacionActiva = false;
       await removeTrigger();
     }
     expect(await tenantCounts(tenantAId)).toEqual(before);
     const [product] = await database.db.select({ stock: database.productos.stock_actual }).from(database.productos).where(eq(database.productos.id, productId));
-    expect(product.stock).toBe("2");
+    expect(Number(product.stock)).toBe(2);
     const [customer] = await database.db.select({ points: database.clientes.puntos_fidelidad }).from(database.clientes).where(eq(database.clientes.id, customerId));
     expect(customer.points).toBe(0);
     expect(await turnTotal(turnoId)).toBe(0);
@@ -348,7 +349,7 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
       await db.update(cuentas_contables).set({ activo: true }).where(and(eq(cuentas_contables.codigo, "4135"), isNull(cuentas_contables.tenant_id)));
     }
     const [product] = await db.select({ stock: productos.stock_actual }).from(productos).where(eq(productos.id, productId));
-    expect(product.stock).toBe("1");
+    expect(Number(product.stock)).toBe(1);
     const sales = await db.select().from(database.ventas_pos).where(eq(database.ventas_pos.tenant_id, tenantCId));
     expect(sales).toHaveLength(0);
   });

@@ -6,7 +6,7 @@ import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, crearAsientoAnulacionVentaPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
-import { completarIdempotencia, fallarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
+import { completarIdempotencia, fallarIdempotencia, hashIdempotencyPayload, reconciliarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 import { buildItems, calcularTotalesPlemsi, emitirDocumentoPOS, metodoPagoId } from "../services/plemsi.service.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 import { puedeAdministrarPOS, puedeOperarDianPOS, puedeOperarTurno } from "../lib/pos-access.js";
@@ -454,8 +454,34 @@ router.post("/ventas", async (req, res) => {
     return res.status(422).json({ error: (err as Error).message });
   }
 
-  const reserva = await reservarIdempotencia(req.tenantId, "pos.venta", req.header("Idempotency-Key"));
+  const claveIdempotencia = req.header("Idempotency-Key");
+  const requestHash = hashIdempotencyPayload(req.body);
+  const reserva = await reservarIdempotencia(req.tenantId, "pos.venta", claveIdempotencia, requestHash);
   if (reserva?.estado === "completada") return res.status(201).json(reserva.respuesta);
+  if (reserva?.estado === "conflicto") {
+    return res.status(409).json({ error: reserva.mensaje, code: "IDEMPOTENCY_PAYLOAD_MISMATCH" });
+  }
+  if (reserva?.estado === "reconciliar") {
+    const [ventaConfirmada] = await db.select().from(ventas_pos).where(and(
+      eq(ventas_pos.id, reserva.referenciaId),
+      eq(ventas_pos.tenant_id, req.tenantId),
+    )).limit(1);
+    if (!ventaConfirmada) {
+      return res.status(409).json({
+        error: "La llave de idempotencia requiere reconciliación manual; no se repetirá una venta con estado incierto.",
+        code: "IDEMPOTENCY_RECONCILIATION_REQUIRED",
+      });
+    }
+    const reconciliada = await reconciliarIdempotencia(
+      req.tenantId,
+      "pos.venta",
+      claveIdempotencia!,
+      ventaConfirmada.id,
+      ventaConfirmada as unknown as Record<string, unknown>,
+    );
+    if (reconciliada) return res.status(201).json(ventaConfirmada);
+    return res.status(409).json({ error: "La reconciliación de la venta está en curso.", code: "IDEMPOTENCY_IN_PROGRESS" });
+  }
   if (reserva?.estado === "procesando") {
     return res.status(409).json({ error: "Esta venta ya se está procesando. Espera unos segundos antes de reintentar.", code: "IDEMPOTENCY_IN_PROGRESS" });
   }
@@ -694,7 +720,9 @@ router.post("/ventas", async (req, res) => {
       req.tenantId,
       "pos.venta",
       reserva?.estado === "nueva" ? reserva.clave : undefined,
+      reserva?.estado === "nueva" ? reserva.leaseToken : undefined,
       ventaCompleta as unknown as Record<string, unknown>,
+      ventaCompleta.id,
       tx,
     );
     return ventaCompleta;
@@ -706,7 +734,12 @@ router.post("/ventas", async (req, res) => {
     // Si PostgreSQL revirtió la venta, se deja la llave disponible para un
     // reintento posterior; si este update auxiliar falla, se registra aparte.
     try {
-      await fallarIdempotencia(req.tenantId, "pos.venta", reserva?.estado === "nueva" ? reserva.clave : undefined);
+      await fallarIdempotencia(
+        req.tenantId,
+        "pos.venta",
+        reserva?.estado === "nueva" ? reserva.clave : undefined,
+        reserva?.estado === "nueva" ? reserva.leaseToken : undefined,
+      );
     } catch (idempotencyError) {
       console.error("[POS POST /ventas] No se pudo liberar la llave de idempotencia:", idempotencyError);
     }

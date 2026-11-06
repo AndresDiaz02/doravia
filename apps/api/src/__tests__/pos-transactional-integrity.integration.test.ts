@@ -16,6 +16,8 @@ const isLocalIntegrationDatabase = Boolean(
 
 type DbModule = typeof import("@workspace/db");
 type PosRouter = typeof import("../routes/pos.js");
+type AccountingModule = typeof import("../services/contabilidad.service.js");
+type IdempotencyModule = typeof import("../services/idempotency.service.js");
 
 // La suite no usa conexiones remotas. El workflow P0 la ejecuta contra su
 // servicio PostgreSQL efímero; la suite unitaria normal no debe intentar
@@ -23,6 +25,8 @@ type PosRouter = typeof import("../routes/pos.js");
 describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integrity (PostgreSQL)", () => {
   let database: DbModule;
   let posRouter: PosRouter["default"];
+  let accounting: AccountingModule;
+  let idempotency: IdempotencyModule;
   let server: Server;
   let baseUrl: string;
   let planId: string;
@@ -162,6 +166,8 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     }
     database = await import("@workspace/db");
     ({ default: posRouter } = await import("../routes/pos.js"));
+    accounting = await import("../services/contabilidad.service.js");
+    idempotency = await import("../services/idempotency.service.js");
     const { db, plans, tenants, users, bodegas, cuentas_contables } = database;
     const planSlug = next("p0-pos");
     [planId] = (await db.insert(plans).values({
@@ -241,6 +247,35 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
 
+  it("asigna el consecutivo siguiente al máximo histórico aunque existan huecos", async () => {
+    const { db, asientos_contables } = database;
+    const year = new Date().getFullYear();
+    await db.insert(asientos_contables).values([
+      { tenant_id: tenantAId, numero: `AC-${year}-00001`, fecha: `${year}-01-01`, descripcion: "Histórico P0 1", origen: "manual" },
+      { tenant_id: tenantAId, numero: `AC-${year}-00003`, fecha: `${year}-01-03`, descripcion: "Histórico P0 3", origen: "manual" },
+    ]);
+    await expect(accounting.siguienteNumeroAsiento(tenantAId, year)).resolves.toBe(`AC-${year}-00004`);
+  });
+
+  it("asigna dos asientos concurrentes distintos para la misma empresa", async () => {
+    const { db, asientos_contables } = database;
+    const year = new Date().getFullYear();
+    const crear = (descripcion: string) => db.transaction(async (tx) => {
+      const numero = await accounting.siguienteNumeroAsiento(tenantAId, year, tx);
+      const [asiento] = await tx.insert(asientos_contables).values({
+        tenant_id: tenantAId,
+        numero,
+        fecha: `${year}-02-01`,
+        descripcion,
+        origen: "manual",
+      }).returning({ numero: asientos_contables.numero });
+      return asiento.numero;
+    });
+    const numeros = await Promise.all([crear("Concurrente P0 A"), crear("Concurrente P0 B")]);
+    expect(new Set(numeros).size).toBe(2);
+    expect(numeros.every((numero) => numero.startsWith(`AC-${year}-`))).toBe(true);
+  });
+
   it("revierte venta completa cuando falla antes de crear el asiento", async () => {
     const productId = await createProduct(tenantAId, warehouseAId, 2);
     const customerId = await createCustomer(tenantAId);
@@ -300,6 +335,63 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     const seats = await db.select().from(asientos_contables).where(eq(asientos_contables.tenant_id, tenantAId));
     expect(sales.filter((sale) => sale.id === retry.body.id)).toHaveLength(1);
     expect(seats.filter((seat) => seat.referencia_id === retry.body.id)).toHaveLength(1);
+  });
+
+  it("recupera una reserva abandonada y registra una sola venta", async () => {
+    const { db, idempotency_keys, ventas_pos } = database;
+    const productId = await createProduct(tenantAId, warehouseAId, 1);
+    const { cajaId, turnoId } = await openTurn("a", warehouseAId);
+    const body = saleBody(turnoId, cajaId, productId);
+    const key = next("abandoned");
+    await db.insert(idempotency_keys).values({
+      tenant_id: tenantAId,
+      operacion: "pos.venta",
+      clave: key,
+      request_hash: idempotency.hashIdempotencyPayload(body),
+      estado: "procesando",
+      lease_token: "abandoned-owner",
+      lease_expires_at: new Date(Date.now() - 60_000),
+    });
+    const result = await request("/api/pos/ventas", body, "a", key);
+    expect(result.response.status).toBe(201);
+    const sales = await db.select().from(ventas_pos).where(eq(ventas_pos.id, String(result.body.id)));
+    expect(sales).toHaveLength(1);
+  });
+
+  it("reconcilia una reserva vencida con venta confirmada sin duplicarla", async () => {
+    const { db, idempotency_keys, ventas_pos } = database;
+    const productId = await createProduct(tenantAId, warehouseAId, 1);
+    const { cajaId, turnoId } = await openTurn("a", warehouseAId);
+    const body = saleBody(turnoId, cajaId, productId);
+    const key = next("reconcile");
+    const first = await request("/api/pos/ventas", body, "a", key);
+    expect(first.response.status).toBe(201);
+    await db.update(idempotency_keys).set({
+      estado: "procesando",
+      respuesta: null,
+      lease_token: "stale-owner",
+      lease_expires_at: new Date(Date.now() - 60_000),
+    }).where(and(
+      eq(idempotency_keys.tenant_id, tenantAId),
+      eq(idempotency_keys.operacion, "pos.venta"),
+      eq(idempotency_keys.clave, key),
+    ));
+    const retry = await request("/api/pos/ventas", body, "a", key);
+    expect(retry.response.status).toBe(201);
+    expect(retry.body.id).toBe(first.body.id);
+    const sales = await db.select().from(ventas_pos).where(eq(ventas_pos.id, String(first.body.id)));
+    expect(sales).toHaveLength(1);
+  });
+
+  it("rechaza una llave de idempotencia reutilizada con payload distinto", async () => {
+    const productId = await createProduct(tenantAId, warehouseAId, 2);
+    const { cajaId, turnoId } = await openTurn("a", warehouseAId);
+    const key = next("payload-conflict");
+    const body = saleBody(turnoId, cajaId, productId);
+    expect((await request("/api/pos/ventas", body, "a", key)).response.status).toBe(201);
+    const conflict = await request("/api/pos/ventas", { ...body, observaciones: "payload diferente" }, "a", key);
+    expect(conflict.response.status).toBe(409);
+    expect(conflict.body.code).toBe("IDEMPOTENCY_PAYLOAD_MISMATCH");
   });
 
   it("evita saldos negativos con dos ventas concurrentes de stock limitado", async () => {

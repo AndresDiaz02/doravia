@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, gastos, facturas, ventas_pos, items_venta_pos } from "@workspace/db";
 import { eq, and, gte, lte, isNull, isNotNull, or, desc, sum, inArray, sql, count } from "drizzle-orm";
 import { requireAccountingLevel, requireContableOperativo } from "../middleware/require-plan-feature.js";
-import { crearAsientoManual, crearAsientoFactura, crearAsientoVentaPOS, crearAsientoAnulacionVentaPOS } from "../services/contabilidad.service.js";
+import { crearAsientoManual, crearAsientoFactura, crearAsientoVentaPOS, crearAsientoAnulacionVentaPOS, siguienteNumeroAsiento } from "../services/contabilidad.service.js";
 import * as XLSX from "xlsx";
 
 const router = Router();
@@ -1070,13 +1070,7 @@ router.post("/cierre-anual", requireAccountingLevel(1), requireContableOperativo
     const utilidad = totalIngresos - totalGastos;
 
     // 5. Crear asiento de cierre anual
-    const [{ value: totalAsientos }] = await db
-      .select({ value: count() })
-      .from(asientos_contables)
-      .where(eq(asientos_contables.tenant_id, req.tenantId));
-
-    const seq = String(Number(totalAsientos) + 1).padStart(5, "0");
-    const numeroAsiento = `AC-${anoNum}-${seq}`;
+    const numeroAsiento = await siguienteNumeroAsiento(req.tenantId, anoNum);
     const fechaCierre = `${anoNum}-12-31`;
 
     const [asiento] = await db

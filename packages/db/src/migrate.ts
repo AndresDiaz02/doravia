@@ -46,12 +46,23 @@ const migrations = [
     tenant_id uuid NOT NULL REFERENCES tenants(id),
     operacion varchar(80) NOT NULL,
     clave varchar(200) NOT NULL,
+    request_hash varchar(64),
+    lease_token varchar(64),
+    lease_expires_at timestamptz,
+    referencia_id uuid,
     estado varchar(20) NOT NULL DEFAULT 'procesando',
     respuesta jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     completed_at timestamptz
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idempotency_keys_tenant_operacion_clave_unique ON idempotency_keys(tenant_id, operacion, clave)`,
+  // P0-INT-001: leases para recuperar reservas abandonadas sin reutilizar una
+  // llave con un payload distinto ni repetir un recurso ya confirmado.
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS request_hash varchar(64)`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS lease_token varchar(64)`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS referencia_id uuid`,
+  `CREATE INDEX IF NOT EXISTS idempotency_keys_recovery_idx ON idempotency_keys(tenant_id, operacion, estado, lease_expires_at)`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS en_prueba boolean NOT NULL DEFAULT true`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS prueba_ends_at timestamptz`,
   // permisos_contables en users y user_accesos (se omitió en el push inicial)
@@ -115,6 +126,26 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS productos_tenant_idx ON productos(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS gastos_tenant_fecha_idx ON gastos(tenant_id, fecha)`,
   `CREATE INDEX IF NOT EXISTS asientos_tenant_fecha_idx ON asientos_contables(tenant_id, fecha)`,
+  // P0-INT-001: contador persistente. Se inicia desde el máximo histórico
+  // AC-AAAA-NNNNN, por lo que los huecos nunca se vuelven a asignar.
+  `CREATE TABLE IF NOT EXISTS consecutivos_asientos (
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    anio integer NOT NULL CHECK (anio BETWEEN 2000 AND 9999),
+    ultimo_numero bigint NOT NULL DEFAULT 0 CHECK (ultimo_numero >= 0),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (tenant_id, anio)
+  )`,
+  `INSERT INTO consecutivos_asientos (tenant_id, anio, ultimo_numero)
+   SELECT
+     tenant_id,
+     (substring(numero FROM '^AC-([0-9]{4})-[0-9]+$'))::integer,
+     MAX((substring(numero FROM '^AC-[0-9]{4}-([0-9]+)$'))::bigint)
+   FROM asientos_contables
+   WHERE numero ~ '^AC-[0-9]{4}-[0-9]+$'
+   GROUP BY tenant_id, (substring(numero FROM '^AC-([0-9]{4})-[0-9]+$'))::integer
+   ON CONFLICT (tenant_id, anio) DO UPDATE
+   SET ultimo_numero = GREATEST(consecutivos_asientos.ultimo_numero, EXCLUDED.ultimo_numero),
+       updated_at = now()`,
   // P0-INT-001: no se borran ni consolidan duplicados históricos sin revisión.
   // Si los hay, se detiene antes de instalar la garantía de unicidad.
   `DO $$ BEGIN

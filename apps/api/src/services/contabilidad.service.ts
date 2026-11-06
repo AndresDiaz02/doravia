@@ -1,5 +1,5 @@
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, pagos_venta_pos } from "@workspace/db";
-import { eq, and, gte, lte, lt, isNull, or, inArray, count, sql } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, or, inArray, sql } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
 /**
@@ -124,22 +124,30 @@ async function getCuenta(tenantId: string, codigo: string, executor: DbExecutor 
   return rows[0];
 }
 
-async function getConsecutivoAsiento(tenantId: string, anio: number, executor: DbExecutor = db): Promise<string> {
-  // Serializa solamente los asientos del mismo tenant y año. La restricción
-  // única en BD es la defensa final ante cualquier escritor fuera de este flujo.
-  await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`asiento_${tenantId}_${anio}`}))`);
-  const inicio = `${anio}-01-01`;
-  const siguienteAno = `${anio + 1}-01-01`;
-  const [{ value }] = await executor
-    .select({ value: count() })
-    .from(asientos_contables)
-    .where(and(
-      eq(asientos_contables.tenant_id, tenantId),
-      gte(asientos_contables.fecha, inicio),
-      lt(asientos_contables.fecha, siguienteAno),
-    ));
+export async function siguienteNumeroAsiento(tenantId: string, anio: number, executor: DbExecutor = db): Promise<string> {
+  if (!Number.isInteger(anio) || anio < 2000 || anio > 9999) throw new Error("Año inválido para consecutivo contable.");
+  const patron = `^AC-${anio}-([0-9]+)$`;
 
-  const seq = String(Number(value) + 1).padStart(5, "0");
+  // El registro se inicializa a partir del máximo histórico, no del COUNT.
+  // Así un hueco (AC-2026-00002 ausente) nunca permite reutilizar ese número.
+  // ON CONFLICT y el UPDATE posterior son seguros aun cuando dos procesos
+  // inauguren el mismo tenant/año a la vez.
+  await executor.execute(sql`
+    INSERT INTO consecutivos_asientos (tenant_id, anio, ultimo_numero)
+    SELECT ${tenantId}, ${anio}, COALESCE(MAX((regexp_match(numero, ${patron}))[1]::bigint), 0)
+    FROM asientos_contables
+    WHERE tenant_id = ${tenantId}
+    ON CONFLICT (tenant_id, anio) DO NOTHING
+  `);
+  const rows = await executor.execute(sql`
+    UPDATE consecutivos_asientos
+    SET ultimo_numero = ultimo_numero + 1, updated_at = now()
+    WHERE tenant_id = ${tenantId} AND anio = ${anio}
+    RETURNING ultimo_numero
+  `) as unknown as Array<{ ultimo_numero: number | string }>;
+  const ultimo = Number(rows[0]?.ultimo_numero);
+  if (!Number.isSafeInteger(ultimo) || ultimo < 1) throw new Error("No se pudo asignar el consecutivo contable.");
+  const seq = String(ultimo).padStart(5, "0");
   return `AC-${anio}-${seq}`;
 }
 
@@ -182,7 +190,7 @@ export async function crearAsientoManual(
   if (cuentas.length !== new Set(lineas.map((l) => l.cuenta_id)).size) throw new Error("Una o más cuentas no existen, no pertenecen a la empresa o están inactivas.");
   if (cuentas.some((cuenta) => cuenta.nivel < 3)) throw new Error("Selecciona cuentas auxiliares o de detalle para registrar movimientos.");
 
-  const numero = await getConsecutivoAsiento(tenantId, Number(fecha.slice(0, 4)));
+  const numero = await siguienteNumeroAsiento(tenantId, Number(fecha.slice(0, 4)));
   return db.transaction(async (tx) => {
     const [asiento] = await tx.insert(asientos_contables).values({
       tenant_id: tenantId,
@@ -211,7 +219,7 @@ export async function crearAsientoPagoProveedor(tenantId: string, gasto: Gasto, 
     getCuenta(tenantId, CODIGOS.PROVEEDORES),
     getCuenta(tenantId, cuentaPagoCodigo),
   ]);
-  const numero = await getConsecutivoAsiento(tenantId, Number(fecha.slice(0, 4)));
+  const numero = await siguienteNumeroAsiento(tenantId, Number(fecha.slice(0, 4)));
   const [asiento] = await db.insert(asientos_contables).values({
     tenant_id: tenantId, numero, fecha,
     descripcion: `Pago a proveedor: ${gasto.descripcion}`.slice(0, 300),
@@ -245,7 +253,7 @@ export async function crearAsientoFactura(
   if (existente) return existente;
 
   const fecha = new Date(factura.fecha_emision);
-  const numero = await getConsecutivoAsiento(tenantId, fecha.getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, fecha.getFullYear());
 
   const cuentasCodigos: string[] = [CODIGOS.CLIENTES, ingresosCodigo, CODIGOS.IVA_POR_PAGAR];
   if (impoconsumoTotal > 0) cuentasCodigos.push(CODIGOS.IMPOCONSUMO_POR_PAGAR);
@@ -339,7 +347,7 @@ export async function crearAsientoGasto(tenantId: string, gasto: Gasto): Promise
   const fecha = gasto.fecha; // date string "YYYY-MM-DD"
   await verificarPeriodoCerrado(tenantId, fecha);
 
-  const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, new Date(fecha).getFullYear());
   const codigoGasto = CATEGORIA_A_PUC[gasto.categoria] ?? "5195";
 
   const cuentaCodigos = [codigoGasto, CODIGOS.IVA_POR_PAGAR, gasto.proveedor_id ? CODIGOS.PROVEEDORES : CODIGOS.BANCOS];
@@ -416,7 +424,7 @@ export async function crearAsientoVentaPOS(
   const fecha = venta.created_at.toISOString().split("T")[0];
   await verificarPeriodoAbierto(tenantId, fecha, runner);
 
-  const numero = await getConsecutivoAsiento(tenantId, venta.created_at.getFullYear(), runner);
+  const numero = await siguienteNumeroAsiento(tenantId, venta.created_at.getFullYear(), runner);
   const pagosRegistrados = await runner
     .select({ metodo_pago: pagos_venta_pos.metodo_pago, monto: pagos_venta_pos.monto })
     .from(pagos_venta_pos)
@@ -510,7 +518,7 @@ export async function crearAsientoAnulacionVentaPOS(
 
   const fecha = new Date().toISOString().slice(0, 10);
   await verificarPeriodoCerrado(tenantId, fecha);
-  const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, new Date(fecha).getFullYear());
   const pagosRegistrados = await db
     .select({ metodo_pago: pagos_venta_pos.metodo_pago, monto: pagos_venta_pos.monto })
     .from(pagos_venta_pos)
@@ -570,7 +578,7 @@ export async function crearAsientoFiado(
   const fecha = fiado.created_at.toISOString().split("T")[0];
   await verificarPeriodoCerrado(tenantId, fecha);
 
-  const numero = await getConsecutivoAsiento(tenantId, fiado.created_at.getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, fiado.created_at.getFullYear());
   const total = Number(fiado.monto_total);
   const subtotal = total - ivaTotal;
 
@@ -613,7 +621,7 @@ export async function crearAsientoAbonoFiado(
   const fecha = abono.created_at.toISOString().split("T")[0];
   await verificarPeriodoCerrado(tenantId, fecha);
 
-  const numero = await getConsecutivoAsiento(tenantId, abono.created_at.getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, abono.created_at.getFullYear());
   const codigoCaja = METODO_PAGO_A_CUENTA[abono.metodo_pago] ?? "1105";
 
   const [cCaja, cClientes] = await Promise.all([
@@ -693,7 +701,7 @@ export async function crearAsientoGastoCaja(
   gasto: GastoCajaPOS,
 ): Promise<string> {
   const fecha = gasto.created_at.toISOString().split("T")[0];
-  const numero = await getConsecutivoAsiento(tenantId, gasto.created_at.getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, gasto.created_at.getFullYear());
   const codigoGasto = CONCEPTO_CAJA_A_PUC[gasto.concepto] ?? "5195";
 
   const [cGasto, cCaja] = await Promise.all([
@@ -731,7 +739,7 @@ export async function crearAsientoDevolucionPOS(
   devolucion: DevolucionPOS,
 ): Promise<string> {
   const fecha = devolucion.created_at.toISOString().split("T")[0];
-  const numero = await getConsecutivoAsiento(tenantId, devolucion.created_at.getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, devolucion.created_at.getFullYear());
   const codigoContraparte = METODO_PAGO_A_CUENTA[devolucion.metodo_devolucion] ?? CODIGOS.CAJA;
 
   const [cIngresos, cCaja] = await Promise.all([
@@ -780,7 +788,7 @@ export async function crearAsientoNomina(
   const fecha = new Date().toISOString().split("T")[0];
   await verificarPeriodoCerrado(tenantId, fecha);
 
-  const numero = await getConsecutivoAsiento(tenantId, new Date(fecha).getFullYear());
+  const numero = await siguienteNumeroAsiento(tenantId, new Date(fecha).getFullYear());
 
   const [cGastos, cBancos, cAportes] = await Promise.all([
     getCuenta(tenantId, CODIGOS.GASTOS_PERSONAL),

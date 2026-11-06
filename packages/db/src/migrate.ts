@@ -115,6 +115,25 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS productos_tenant_idx ON productos(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS gastos_tenant_fecha_idx ON gastos(tenant_id, fecha)`,
   `CREATE INDEX IF NOT EXISTS asientos_tenant_fecha_idx ON asientos_contables(tenant_id, fecha)`,
+  // P0-INT-001: no se borran ni consolidan duplicados históricos sin revisión.
+  // Si los hay, se detiene antes de instalar la garantía de unicidad.
+  `DO $$ BEGIN
+    IF EXISTS (
+      SELECT 1 FROM asientos_contables
+      GROUP BY tenant_id, numero HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen asientos duplicados por tenant/numero; revisar antes de crear índice único.';
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM asientos_contables
+      WHERE referencia_id IS NOT NULL
+      GROUP BY tenant_id, origen, referencia_id HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen asientos automáticos duplicados; revisar antes de crear índice único.';
+    END IF;
+  END $$`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS asientos_contables_tenant_numero_unique ON asientos_contables(tenant_id, numero)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS asientos_contables_tenant_origen_referencia_unique ON asientos_contables(tenant_id, origen, referencia_id) WHERE referencia_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS lineas_asiento_asiento_idx ON lineas_asiento(asiento_id)`,
   `CREATE INDEX IF NOT EXISTS cotizaciones_tenant_idx ON cotizaciones(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
@@ -217,6 +236,16 @@ const migrations = [
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
   // Índices únicos como segunda capa de protección contra consecutivos duplicados
+  // P0-INT-001: la migración se detiene y preserva los registros si una base
+  // histórica todavía tiene colisiones que requieren revisión humana.
+  `DO $$ BEGIN
+    IF EXISTS (
+      SELECT 1 FROM ventas_pos
+      GROUP BY tenant_id, consecutivo HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen ventas POS duplicadas por tenant/consecutivo; revisar antes de crear índice único.';
+    END IF;
+  END $$`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ventas_pos_tenant_consecutivo_unique ON ventas_pos(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS remisiones_tenant_consecutivo_unique ON remisiones(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS cotizaciones_tenant_consecutivo_unique ON cotizaciones(tenant_id, consecutivo)`,

@@ -1,5 +1,5 @@
 import { db, asientos_contables, lineas_asiento, cuentas_contables, periodos_contables, pagos_venta_pos } from "@workspace/db";
-import { eq, and, gte, lte, isNull, or, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, lt, isNull, or, inArray, count, sql } from "drizzle-orm";
 import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, DevolucionPOS, ConceptoGastoCaja, NominaPeriodo, NominaDetalle } from "@workspace/db";
 
 /**
@@ -7,8 +7,15 @@ import type { Factura, Gasto, VentaPOS, Fiado, AbonoFiado, GastoCajaPOS, Devoluc
  * generar un comprobante se reutiliza el que ya corresponda al documento, para
  * que un reintento no duplique ingresos ni impuestos en el libro diario.
  */
-async function buscarAsientoAutomatico(tenantId: string, referenciaId: string, origen: "factura" | "pago" | "nomina" | "ajuste") {
-  const [existente] = await db
+type DbExecutor = Pick<typeof db, "select" | "insert" | "update" | "execute">;
+
+async function buscarAsientoAutomatico(
+  tenantId: string,
+  referenciaId: string,
+  origen: "factura" | "pago" | "nomina" | "ajuste",
+  executor: DbExecutor = db,
+) {
+  const [existente] = await executor
     .select({ id: asientos_contables.id })
     .from(asientos_contables)
     .where(and(
@@ -24,10 +31,14 @@ async function buscarAsientoAutomatico(tenantId: string, referenciaId: string, o
  * Verifica que la fecha no caiga dentro de un período contable cerrado.
  * Lanza un Error si el período está cerrado — el llamador debe capturarlo y devolver 422.
  */
-export async function verificarPeriodoAbierto(tenantId: string, fecha: Date | string): Promise<void> {
+export async function verificarPeriodoAbierto(
+  tenantId: string,
+  fecha: Date | string,
+  executor: DbExecutor = db,
+): Promise<void> {
   const fechaStr = typeof fecha === "string" ? fecha.slice(0, 10) : fecha.toISOString().slice(0, 10);
 
-  const [periodoCerrado] = await db
+  const [periodoCerrado] = await executor
     .select({ nombre: periodos_contables.nombre })
     .from(periodos_contables)
     .where(
@@ -95,30 +106,38 @@ const CATEGORIA_A_PUC: Record<string, string> = {
   otros:             "5195",
 };
 
-async function getCuenta(tenantId: string, codigo: string) {
-  const rows = await db
+async function getCuenta(tenantId: string, codigo: string, executor: DbExecutor = db) {
+  const rows = await executor
     .select()
     .from(cuentas_contables)
     .where(
       and(
         eq(cuentas_contables.codigo, codigo),
+        eq(cuentas_contables.activo, true),
         or(eq(cuentas_contables.tenant_id, tenantId), isNull(cuentas_contables.tenant_id))
       )
     )
     .orderBy(cuentas_contables.tenant_id) // tenant-specific primero si existe
     .limit(1);
 
-  if (!rows[0]) throw new Error(`Cuenta PUC no encontrada: ${codigo}`);
+  if (!rows[0]) throw new Error(`Configuración contable incompleta: falta una cuenta PUC activa para ${codigo}.`);
   return rows[0];
 }
 
-async function getConsecutivoAsiento(tenantId: string, anio: number): Promise<string> {
-  // Contador simple: cuenta asientos del año para el tenant
-  const { count } = await import("drizzle-orm");
-  const [{ value }] = await db
+async function getConsecutivoAsiento(tenantId: string, anio: number, executor: DbExecutor = db): Promise<string> {
+  // Serializa solamente los asientos del mismo tenant y año. La restricción
+  // única en BD es la defensa final ante cualquier escritor fuera de este flujo.
+  await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`asiento_${tenantId}_${anio}`}))`);
+  const inicio = `${anio}-01-01`;
+  const siguienteAno = `${anio + 1}-01-01`;
+  const [{ value }] = await executor
     .select({ value: count() })
     .from(asientos_contables)
-    .where(eq(asientos_contables.tenant_id, tenantId));
+    .where(and(
+      eq(asientos_contables.tenant_id, tenantId),
+      gte(asientos_contables.fecha, inicio),
+      lt(asientos_contables.fecha, siguienteAno),
+    ));
 
   const seq = String(Number(value) + 1).padStart(5, "0");
   return `AC-${anio}-${seq}`;
@@ -388,16 +407,16 @@ export async function crearAsientoVentaPOS(
   tenantId: string,
   venta: VentaPOS,
   impoconsumoTotal = 0,
-  tx?: typeof db,
+  tx?: DbExecutor,
 ): Promise<string> {
-  const existente = await buscarAsientoAutomatico(tenantId, venta.id, "factura");
+  const runner = tx ?? db;
+  const existente = await buscarAsientoAutomatico(tenantId, venta.id, "factura", runner);
   if (existente) return existente;
 
-  const runner = tx ?? db;
   const fecha = venta.created_at.toISOString().split("T")[0];
-  await verificarPeriodoCerrado(tenantId, fecha);
+  await verificarPeriodoAbierto(tenantId, fecha, runner);
 
-  const numero = await getConsecutivoAsiento(tenantId, venta.created_at.getFullYear());
+  const numero = await getConsecutivoAsiento(tenantId, venta.created_at.getFullYear(), runner);
   const pagosRegistrados = await runner
     .select({ metodo_pago: pagos_venta_pos.metodo_pago, monto: pagos_venta_pos.monto })
     .from(pagos_venta_pos)
@@ -409,10 +428,10 @@ export async function crearAsientoVentaPOS(
   const codigosPago = [...new Set(pagos.map((p) => METODO_PAGO_A_CUENTA[p.metodo_pago] ?? CODIGOS.CAJA))];
 
   const [cuentasPago, cIngresos, cIva, cImpoconsumo] = await Promise.all([
-    Promise.all(codigosPago.map((codigo) => getCuenta(tenantId, codigo))),
-    getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO),
-    getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR),
-    impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR) : Promise.resolve(null),
+    Promise.all(codigosPago.map((codigo) => getCuenta(tenantId, codigo, runner))),
+    getCuenta(tenantId, CODIGOS.INGRESOS_COMERCIO, runner),
+    getCuenta(tenantId, CODIGOS.IVA_POR_PAGAR, runner),
+    impoconsumoTotal > 0 ? getCuenta(tenantId, CODIGOS.IMPOCONSUMO_POR_PAGAR, runner) : Promise.resolve(null),
   ]);
 
   const total    = Number(venta.total);

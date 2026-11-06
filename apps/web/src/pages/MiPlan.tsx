@@ -195,7 +195,7 @@ export default function MiPlan() {
           {productosCuenta.map((producto) => {
             const activo = producto.status === "active";
             return (
-              <div key={`${producto.product}-${producto.plan_slug}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
+              <div key={`${producto.product}-${"plan_slug" in producto ? producto.plan_slug : producto.plan_nombre}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{PRODUCT_LABELS[producto.product] ?? producto.product}</p>
                   <p className="truncate text-xs text-gray-500 dark:text-gray-400">{producto.plan_nombre}</p>

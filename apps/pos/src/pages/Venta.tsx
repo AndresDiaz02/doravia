@@ -382,7 +382,7 @@ export default function Venta({ turnoId, cajaId, cajaNombre, cajaConfig, onCerra
 
   useBarcodeScanner(productos, agregarProducto, () => setBusqueda(""), busquedaRef);
 
-  const productosVisibles = productos.filter((p) => {
+  const productosVisibles = productos.filter(() => {
       return true;
     }).sort((a, b) => Number(favoritos.includes(b.id)) - Number(favoritos.includes(a.id))).slice(0, 36);
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import {
-  Plus, Upload, CheckCircle, XCircle, RefreshCw, Lock, ChevronLeft, AlertTriangle,
+  Plus, Upload, CheckCircle, RefreshCw, Lock, ChevronLeft, AlertTriangle,
   Building2, FileText, Sparkles, Trash2, X, Pencil
 } from "lucide-react";
 import { apiFetch, ApiError } from "../lib/api";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, FileText, ShieldOff, Calendar, PawPrint, Scissors, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, ShieldOff, Calendar, PawPrint, Scissors } from "lucide-react";
 import { apiFetch, cop, fecha } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";

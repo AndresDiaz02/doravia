@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, RefreshCw, TrendingDown } from "lucide-react";
+import { Plus, TrendingDown } from "lucide-react";
 import { apiFetch, ApiError, cop, fecha } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";

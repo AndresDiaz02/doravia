@@ -8,7 +8,8 @@
     "build": "pnpm typecheck",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "start": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "node ../../scripts/run-api-postgres-integration.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.26.0",

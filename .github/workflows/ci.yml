@@ -12,6 +12,20 @@ jobs:
   validate:
     name: Typecheck, tests and builds
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: doravia_test_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d doravia_test_qa"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,6 +46,10 @@ jobs:
           # conectan a PostgreSQL. Evita que la ausencia de esta variable
           # oculte fallos reales de la suite.
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test
+      - name: API PostgreSQL integration tests
+        run: pnpm --filter @workspace/api test:integration
+        env:
+          DATABASE_URL_TEST: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_qa
       - name: ERP build
         run: pnpm --filter @workspace/web build
       - name: POS build

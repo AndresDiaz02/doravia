@@ -29,6 +29,11 @@ try {
 const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
 const allowedHosts = new Set(["127.0.0.1", "::1"]);
 const databaseName = parsed.pathname.replace(/^\//, "");
+const ciContainerServerAllowed =
+  process.env.CI === "true" &&
+  process.env.DORAVIA_QA_ALLOW_CONTAINER_SERVER === "true";
+const isDockerPrivateAddress = (address) =>
+  /^172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(address ?? "");
 if (
   !["postgres:", "postgresql:"].includes(parsed.protocol) ||
   !allowedHosts.has(hostname) ||
@@ -60,9 +65,15 @@ try {
     SELECT current_database() AS database_name, inet_server_addr()::text AS server_address
   `;
   const serverAddress = connection?.server_address?.split("/")[0];
+  // En GitHub Actions el puerto 127.0.0.1 del runner se publica dentro de
+  // Docker; Postgres observa su IP privada 172.16/12. Solo se admite con las
+  // dos señales explícitas de CI, nunca en una ejecución local.
+  const serverIsApproved =
+    allowedHosts.has(serverAddress) ||
+    (ciContainerServerAllowed && isDockerPrivateAddress(serverAddress));
   if (
     connection?.database_name !== databaseName ||
-    !allowedHosts.has(serverAddress)
+    !serverIsApproved
   ) {
     throw new Error("El servidor PostgreSQL conectado no es la base local efímera esperada.");
   }

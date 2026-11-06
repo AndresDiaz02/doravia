@@ -45,7 +45,7 @@ jobs:
           # Las pruebas unitarias inicializan el cliente Drizzle, aunque no se
           # conectan a PostgreSQL. Evita que la ausencia de esta variable
           # oculte fallos reales de la suite.
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_qa
       - name: API PostgreSQL integration tests
         run: pnpm --filter @workspace/api test:integration
         env:

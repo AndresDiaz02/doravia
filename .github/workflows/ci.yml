@@ -50,6 +50,7 @@ jobs:
         run: pnpm --filter @workspace/api test:integration
         env:
           DATABASE_URL_TEST: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_qa
+          DORAVIA_QA_ALLOW_SCHEMA_RESET: "true"
       - name: ERP build
         run: pnpm --filter @workspace/web build
       - name: POS build

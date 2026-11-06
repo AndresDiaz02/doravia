@@ -8,6 +8,7 @@ const postgresModule = requireFromDb("postgres");
 const postgres = postgresModule.default ?? postgresModule;
 
 const databaseUrl = process.env.DATABASE_URL_TEST;
+const resetExplicitlyAllowed = process.env.DORAVIA_QA_ALLOW_SCHEMA_RESET === "true";
 
 if (!databaseUrl) {
   console.error("DATABASE_URL_TEST es requerida para las pruebas de integración locales.");
@@ -22,16 +23,24 @@ try {
   process.exit(1);
 }
 
-const allowedHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+// No se acepta un hostname resoluble (ni siquiera "localhost"): una entrada
+// manipulada en hosts/DNS podría redirigir el borrado a un servicio remoto.
+// El uso de literales loopback hace que esta primera barrera no dependa de DNS.
+const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
+const allowedHosts = new Set(["127.0.0.1", "::1"]);
 const databaseName = parsed.pathname.replace(/^\//, "");
-const disallowedConnectionOptions = ["host", "hostaddr", "service"];
 if (
   !["postgres:", "postgresql:"].includes(parsed.protocol) ||
-  !allowedHosts.has(parsed.hostname) ||
+  !allowedHosts.has(hostname) ||
   !/^doravia_test_[a-z0-9_]+$/i.test(databaseName) ||
-  disallowedConnectionOptions.some((option) => parsed.searchParams.has(option))
+  parsed.searchParams.size > 0
 ) {
-  console.error("Las pruebas solo aceptan PostgreSQL local y una base doravia_test_*. No se ejecutó nada.");
+  console.error("Las pruebas solo aceptan una IP loopback y una base doravia_test_* sin parámetros de conexión. No se ejecutó nada.");
+  process.exit(1);
+}
+
+if (!resetExplicitlyAllowed) {
+  console.error("DORAVIA_QA_ALLOW_SCHEMA_RESET=true es requerida para autorizar el reinicio de la base efímera.");
   process.exit(1);
 }
 
@@ -44,6 +53,20 @@ const pnpmCommand = isWindows ? (process.env.ComSpec ?? "cmd.exe") : "pnpm";
 // datos de la primera; no existe ruta desde aquí hacia Neon o producción.
 const sql = postgres(databaseUrl, { max: 1 });
 try {
+  // Segunda barrera: aun si un puerto local fuera un túnel hacia otra red, el
+  // servidor debe confirmar que su dirección de escucha es loopback y que la
+  // base efectiva coincide exactamente con la validada en la URL.
+  const [connection] = await sql`
+    SELECT current_database() AS database_name, inet_server_addr()::text AS server_address
+  `;
+  const serverAddress = connection?.server_address?.split("/")[0];
+  if (
+    connection?.database_name !== databaseName ||
+    !allowedHosts.has(serverAddress)
+  ) {
+    throw new Error("El servidor PostgreSQL conectado no es la base local efímera esperada.");
+  }
+
   await sql.unsafe("DROP SCHEMA public CASCADE");
   await sql.unsafe("CREATE SCHEMA public");
   await sql.unsafe("GRANT ALL ON SCHEMA public TO CURRENT_USER");

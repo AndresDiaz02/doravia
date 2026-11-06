@@ -7,6 +7,7 @@ export const bold_payments = pgTable("bold_payments", {
   reference_id: varchar("reference_id", { length: 100 }).notNull().unique(),
   transaction_id: varchar("transaction_id", { length: 100 }),
   plan_id: varchar("plan_id", { length: 50 }),
+  ciclo_pago: varchar("ciclo_pago", { length: 20 }).notNull().default("anual"),
   monto: numeric("monto", { precision: 14, scale: 2 }).notNull(),
   moneda: varchar("moneda", { length: 10 }).notNull().default("COP"),
   metodo_pago: varchar("metodo_pago", { length: 30 }),
@@ -14,6 +15,10 @@ export const bold_payments = pgTable("bold_payments", {
   descripcion: varchar("descripcion", { length: 200 }),
   callback_url: varchar("callback_url", { length: 500 }),
   bold_response: jsonb("bold_response").$type<Record<string, unknown>>(),
+  registro_email: varchar("registro_email", { length: 200 }),
+  registro_secret_hash: varchar("registro_secret_hash", { length: 64 }),
+  registro_secret_expires_at: timestamp("registro_secret_expires_at", { withTimezone: true }),
+  registro_secret_used_at: timestamp("registro_secret_used_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

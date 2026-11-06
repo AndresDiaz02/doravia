@@ -6,6 +6,7 @@ interface IntentResponse {
   firma: string;
   api_key: string;
   monto: number;
+  registration_secret?: string;
 }
 
 interface PagoBoldProps {
@@ -19,6 +20,8 @@ interface PagoBoldProps {
   /** Ruta base del API. Por defecto "/api/pagos/bold" (requiere auth).
    *  Usar "/api/pagos/bold/public" para clientes nuevos sin cuenta. */
   apiBase?: string;
+  /** Requerido para el flujo público: vincula el pago con el correo comprador. */
+  registrationEmail?: string;
 }
 
 export default function PagoBold({
@@ -27,6 +30,7 @@ export default function PagoBold({
   ciclo = "anual",
   onCancelar,
   apiBase = "/api/pagos/bold",
+  registrationEmail,
 }: PagoBoldProps) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +50,10 @@ export default function PagoBold({
     try {
       const data = await apiFetch<IntentResponse>(`${apiBase}/intent`, {
         method: "POST",
-        body: JSON.stringify({ plan_id: planSlug, ciclo, descripcion }),
+        body: JSON.stringify({ plan_id: planSlug, ciclo, descripcion, registro_email: registrationEmail }),
       });
+      if (isPublic && !data.registration_secret) throw new Error("No se recibió el secreto de registro.");
+      if (isPublic) sessionStorage.setItem(`doravia:registro:${data.reference_id}`, data.registration_secret!);
       setIntent(data);
     } catch {
       setError("No se pudo iniciar el pago. Intenta de nuevo.");

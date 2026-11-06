@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import PagoBold from "../components/PagoBold";
 
 const PLANES: Record<string, { nombre: string; descripcion: string; color: string; textoColor: string }> = {
@@ -21,6 +22,8 @@ export default function Checkout() {
   const monto = Number(searchParams.get("monto") ?? "590000");
   const planInfo = PLANES[plan] ?? PLANES.semilla;
   const montoFormateado = monto.toLocaleString("es-CO");
+  const [email, setEmail] = useState("");
+  const [continuar, setContinuar] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
@@ -59,13 +62,19 @@ export default function Checkout() {
 
         {/* Botón de pago Bold — sin autenticación */}
         <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <PagoBold
-            planSlug={plan}
-            monto={monto}
-            descripcion={`Plan ${planInfo.nombre} Doravia — Anual`}
-            apiBase="/api/pagos/bold/public"
-            onCancelar={() => { window.location.href = "https://doraviasoft.com"; }}
-          />
+          {!continuar ? <form onSubmit={(e) => { e.preventDefault(); setContinuar(true); }} className="space-y-4">
+            <label className="block text-sm font-medium text-gray-700">Correo para vincular tu compra
+              <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3" placeholder="tu@empresa.com" />
+            </label>
+            <button className="w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white">Continuar al pago</button>
+          </form> : <PagoBold
+              planSlug={plan}
+              monto={monto}
+              descripcion={`Plan ${planInfo.nombre} Doravia — Anual`}
+              apiBase="/api/pagos/bold/public"
+              registrationEmail={email.trim().toLowerCase()}
+              onCancelar={() => { window.location.href = "https://doraviasoft.com"; }}
+            />}
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 
 export default function ResultadoPago() {
   const [params] = useSearchParams();
-  const { login, plan: authPlan } = useAuth();
+  const { plan: authPlan } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "approved" | "declined" | "pending">("loading");
   const [isRegistro, setIsRegistro] = useState(false);
@@ -87,16 +87,16 @@ export default function ResultadoPago() {
 
   async function verificarRegistro(wompiReference: string, intento = 1) {
     try {
-      const data = await apiFetch<{ completed: boolean; accessToken?: string; refreshToken?: string }>(
+      const data = await apiFetch<{ completed: boolean }>(
         "/api/auth/verificar-registro",
         { method: "POST", body: JSON.stringify({ wompi_reference: wompiReference }) },
       );
 
-      if (data.completed && data.accessToken && data.refreshToken) {
-        await login(data.accessToken, data.refreshToken);
+      if (data.completed) {
         setStatus("approved");
-        // Redirigir al onboarding
-        setTimeout(() => navigate("/configuracion/dian", { replace: true }), 1800);
+        // La confirmación de pago no autentica al usuario. Debe iniciar sesión
+        // con las credenciales que eligió durante el registro.
+        setTimeout(() => navigate("/login", { replace: true }), 1800);
       } else if (intento < 5) {
         // El webhook puede tardar unos segundos — reintentar
         setTimeout(() => verificarRegistro(wompiReference, intento + 1), 2000);
@@ -128,7 +128,7 @@ export default function ResultadoPago() {
     approved: {
       title: isRegistro ? "¡Cuenta activada!" : "¡Pago exitoso!",
       desc: isRegistro
-        ? "Tu empresa está lista. Te estamos llevando al panel…"
+        ? "Tu empresa está lista. Te llevaremos al inicio de sesión…"
         : "Tu plan ha sido activado. Puede tomar unos segundos reflejarse.",
     },
     declined: {

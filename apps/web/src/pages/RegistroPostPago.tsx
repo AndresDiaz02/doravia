@@ -11,6 +11,7 @@ export default function RegistroPostPago() {
   const ref = searchParams.get("ref") ?? "";
   const plan = searchParams.get("plan") ?? "semilla";
   const monto = Number(searchParams.get("monto") ?? "0");
+  const registrationSecret = ref ? sessionStorage.getItem(`doravia:registro:${ref}`) ?? "" : "";
 
   const [verificando, setVerificando] = useState(true);
   const [pagoValido, setPagoValido] = useState(false);
@@ -29,6 +30,11 @@ export default function RegistroPostPago() {
   useEffect(() => {
     if (!ref) {
       setError("Referencia de pago no encontrada.");
+      setVerificando(false);
+      return;
+    }
+    if (!registrationSecret) {
+      setError("No encontramos el secreto de registro. Por seguridad, inicia una nueva compra desde este navegador.");
       setVerificando(false);
       return;
     }
@@ -72,6 +78,7 @@ export default function RegistroPostPago() {
         method: "POST",
         body: JSON.stringify({
           bold_reference: ref,
+          registration_secret: registrationSecret,
           tenant_nombre: form.tenant_nombre.trim(),
           nit: form.nit.trim(),
           usuario_nombre: form.usuario_nombre.trim(),

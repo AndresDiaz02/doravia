@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, users, tenants, plans, pending_registrations, password_reset_tokens, bold_payments, contador_registrations } from "@workspace/db";
-import { eq, and, ilike } from "drizzle-orm";
+import { eq, and, ilike, gt, isNull } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../middleware/auth.js";
@@ -18,6 +18,8 @@ import {
   cambiarEmpresa,
   getEmpresasUsuario,
 } from "../services/auth.service.js";
+import { hashRegistrationSecret } from "../services/registration-payment.service.js";
+import { resolverMontoBold, type CicloPago } from "../lib/bold-monto.js";
 
 const router = Router();
 
@@ -141,8 +143,9 @@ router.post("/register-trial", async (req, res) => {
 // POST /api/auth/register-from-payment
 // Crea cuenta después de un pago Bold exitoso (flujo: pagar → registrarse).
 router.post("/register-from-payment", async (req, res) => {
-  const { bold_reference, tenant_nombre, nit, usuario_nombre, email, password } = req.body as {
+  const { bold_reference, registration_secret, tenant_nombre, nit, usuario_nombre, email, password } = req.body as {
     bold_reference?: string;
+    registration_secret?: string;
     tenant_nombre?: string;
     nit?: string;
     usuario_nombre?: string;
@@ -150,7 +153,7 @@ router.post("/register-from-payment", async (req, res) => {
     password?: string;
   };
 
-  if (!bold_reference || !tenant_nombre || !nit || !usuario_nombre || !email || !password) {
+  if (!bold_reference || !registration_secret || !tenant_nombre || !nit || !usuario_nombre || !email || !password) {
     return res.status(400).json({ error: "Todos los campos son requeridos." });
   }
   if ((password as string).length < 8) {
@@ -158,7 +161,10 @@ router.post("/register-from-payment", async (req, res) => {
   }
 
   try {
-    // Verificar que el pago existe, está APPROVED y no tiene cuenta asociada aún
+    const emailNormalizado = email.trim().toLowerCase();
+    const ahora = new Date();
+    // Las comprobaciones iniciales dan mensajes útiles. El consumo real se hace
+    // atómicamente dentro de la transacción para impedir carreras y reutilización.
     const [pago] = await db
       .select()
       .from(bold_payments)
@@ -166,49 +172,72 @@ router.post("/register-from-payment", async (req, res) => {
       .limit(1);
 
     if (!pago) return res.status(404).json({ error: "Referencia de pago no encontrada." });
-    if (pago.tenant_id) return res.status(409).json({ error: "Este pago ya tiene una cuenta asociada." });
+    if (pago.tenant_id || pago.registro_secret_used_at) return res.status(409).json({ error: "Este pago ya fue usado para crear una cuenta." });
     if (pago.estado !== "APPROVED") {
       return res.status(402).json({ error: `El pago no está aprobado. Estado actual: ${pago.estado}.` });
+    }
+    if (!pago.registro_secret_expires_at || new Date(pago.registro_secret_expires_at) <= ahora) {
+      return res.status(410).json({ error: "El secreto de registro expiró. Inicia una nueva compra." });
+    }
+    if (pago.registro_email !== emailNormalizado || pago.registro_secret_hash !== hashRegistrationSecret(registration_secret)) {
+      return res.status(403).json({ error: "No se pudo verificar la identidad del comprador." });
     }
 
     // Validaciones de unicidad
     const [nitExistente] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.nit, nit)).limit(1);
     if (nitExistente) return res.status(422).json({ error: "Ya existe una empresa registrada con ese NIT." });
 
-    const [emailExistente] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    const [emailExistente] = await db.select({ id: users.id }).from(users).where(ilike(users.email, emailNormalizado)).limit(1);
     if (emailExistente) return res.status(422).json({ error: "Ya existe un usuario con ese correo electrónico." });
 
     const planSlug = pago.plan_id ?? "semilla";
     const [plan] = await db.select().from(plans).where(eq(plans.slug, planSlug)).limit(1);
     if (!plan) return res.status(422).json({ error: `Plan "${planSlug}" no encontrado.` });
+    const montoEsperado = resolverMontoBold(plan, pago.ciclo_pago as CicloPago);
+    if (Number(pago.monto) !== montoEsperado || pago.moneda !== "COP") {
+      return res.status(422).json({ error: "El pago no coincide con el plan registrado." });
+    }
 
-    const hoy = new Date();
-    const planFin = new Date(hoy);
+    const planFin = new Date(ahora);
     planFin.setFullYear(planFin.getFullYear() + 1);
     const password_hash = await bcrypt.hash(password, 12);
 
     const { tenant, user } = await db.transaction(async (tx) => {
+      const [consumido] = await tx.update(bold_payments).set({ registro_secret_used_at: ahora, updated_at: ahora })
+        .where(and(
+          eq(bold_payments.reference_id, bold_reference),
+          eq(bold_payments.estado, "APPROVED"),
+          eq(bold_payments.registro_email, emailNormalizado),
+          eq(bold_payments.registro_secret_hash, hashRegistrationSecret(registration_secret)),
+          eq(bold_payments.plan_id, planSlug),
+          eq(bold_payments.moneda, "COP"),
+          eq(bold_payments.monto, String(montoEsperado)),
+          isNull(bold_payments.tenant_id),
+          isNull(bold_payments.registro_secret_used_at),
+          gt(bold_payments.registro_secret_expires_at, ahora),
+        )).returning({ id: bold_payments.id });
+      if (!consumido) throw new Error("El pago ya fue usado, expiró o no coincide con el registro.");
       const [tenant] = await tx.insert(tenants).values({
         nombre: tenant_nombre,
         nit,
         plan_id: plan.id,
-        plan_starts_at: hoy,
+        plan_starts_at: ahora,
         plan_ends_at: planFin,
         activo: true,
-        ultimo_pago_confirmado_at: hoy,
+        ultimo_pago_confirmado_at: ahora,
       }).returning();
 
       const [user] = await tx.insert(users).values({
         tenant_id: tenant.id,
-        email,
+        email: emailNormalizado,
         nombre: usuario_nombre,
         role: "admin",
         password_hash,
       }).returning();
 
       // Asociar el pago al nuevo tenant
-      await tx.update(bold_payments).set({ tenant_id: tenant.id, updated_at: new Date() })
-        .where(eq(bold_payments.reference_id, bold_reference));
+      await tx.update(bold_payments).set({ tenant_id: tenant.id, updated_at: ahora })
+        .where(eq(bold_payments.id, consumido.id));
 
       return { tenant, user };
     });
@@ -232,7 +261,7 @@ router.post("/register-from-payment", async (req, res) => {
 
 // POST /api/auth/verificar-registro
 // Verifica si un registro pendiente ya fue completado (para usar en ResultadoPago).
-// Si está completo, devuelve tokens para auto-login.
+// Nunca emite credenciales: la referencia de pago no prueba la identidad del usuario.
 router.post("/verificar-registro", async (req, res) => {
   const { wompi_reference } = req.body as { wompi_reference?: string };
   if (!wompi_reference) return res.status(400).json({ error: "wompi_reference es requerido." });
@@ -250,18 +279,7 @@ router.post("/verificar-registro", async (req, res) => {
       return res.status(202).json({ completed: false, message: "Pago aún en proceso." });
     }
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, pending.email))
-      .limit(1);
-
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado." });
-
-    const accessToken = signAccessToken(user, user.tenant_id);
-    const refreshToken = await createRefreshToken(user.id, user.tenant_id);
-
-    return res.json({ completed: true, accessToken, refreshToken });
+    return res.json({ completed: true });
   } catch (err) {
     if (err instanceof Error) return res.status(422).json({ error: err.message });
     throw err;

@@ -6,6 +6,7 @@ import { verifyAccessToken } from "../services/auth.service.js";
 import { bold, generarFirma, BOLD_IDENTITY_KEY } from "../services/bold.service.js";
 import { resolverMontoBold, type CicloPago } from "../lib/bold-monto.js";
 import { activarSuscripcionProducto } from "../services/product-subscription.service.js";
+import { createRegistrationSecret, hashRegistrationSecret, registrationSecretExpiresAt } from "../services/registration-payment.service.js";
 
 const router = Router();
 
@@ -119,7 +120,6 @@ router.post("/intent", authenticate, async (req, res) => {
     if (!plan_id) {
       return res.status(400).json({ error: "plan_id es requerido." });
     }
-
     const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_id)).limit(1);
     if (!plan) {
       return res.status(404).json({ error: `Plan "${plan_id}" no encontrado.` });
@@ -221,14 +221,19 @@ router.get("/status/:reference_id", async (req, res) => {
 // El monto viene SIEMPRE de la BD — cualquier monto enviado por el cliente se ignora.
 router.post("/public/intent", async (req, res) => {
   try {
-    const { plan_id, ciclo, descripcion } = req.body as {
+    const { plan_id, ciclo, descripcion, registro_email } = req.body as {
       plan_id?: string;
       ciclo?: CicloPago;
       descripcion?: string;
+      registro_email?: string;
     };
 
     if (!plan_id) {
       return res.status(400).json({ error: "plan_id es requerido." });
+    }
+    const email = registro_email?.trim().toLowerCase();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ error: "registro_email válido es requerido." });
     }
 
     const [plan] = await db.select().from(plans).where(eq(plans.slug, plan_id)).limit(1);
@@ -239,21 +244,27 @@ router.post("/public/intent", async (req, res) => {
     const dbMonto = resolverMontoBold(plan, ciclo);
     const reference_id = `DORAVIA-NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
     const desc = descripcion ?? `Suscripción Doravia — ${plan.nombre}`;
+    const registrationSecret = createRegistrationSecret();
 
     // tenant_id queda NULL hasta que el cliente crea su cuenta
     await db.insert(bold_payments).values({
       reference_id,
       plan_id,
+      ciclo_pago: ciclo ?? "anual",
       monto: String(dbMonto),
       moneda: "COP",
       estado: "PENDING",
       descripcion: desc,
       callback_url: `${APP_URL}/registro-post-pago?ref=${reference_id}&plan=${plan_id}&monto=${dbMonto}`,
+      registro_email: email,
+      registro_secret_hash: hashRegistrationSecret(registrationSecret),
+      registro_secret_expires_at: registrationSecretExpiresAt(),
     });
 
     const firma = generarFirma(reference_id, dbMonto);
 
-    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY, monto: dbMonto });
+    // El secreto se conserva solo en sessionStorage del navegador; nunca va en la URL de Bold.
+    return res.json({ reference_id, firma, api_key: BOLD_IDENTITY_KEY, monto: dbMonto, registration_secret: registrationSecret });
   } catch (err) {
     console.error("[Bold] Error en POST /public/intent:", err);
     return res.status(500).json({ error: "Error interno del servidor." });

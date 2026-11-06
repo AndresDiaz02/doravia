@@ -225,6 +225,12 @@ const migrations = [
   `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS forma_pago varchar(30)`,
   // bold_payments.tenant_id nullable para pagos pre-registro (clientes nuevos sin cuenta)
   `ALTER TABLE bold_payments ALTER COLUMN tenant_id DROP NOT NULL`,
+  // SEC-002 — secreto de registro de un solo uso para pagos Bold pre-registro.
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS ciclo_pago varchar(20) NOT NULL DEFAULT 'anual'`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS registro_email varchar(200)`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS registro_secret_hash varchar(64)`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS registro_secret_expires_at timestamptz`,
+  `ALTER TABLE bold_payments ADD COLUMN IF NOT EXISTS registro_secret_used_at timestamptz`,
   // unidad_medida en items_factura (en schema pero nunca aplicada a la BD)
   `ALTER TABLE items_factura ADD COLUMN IF NOT EXISTS unidad_medida varchar(10) NOT NULL DEFAULT 'UN'`,
   // PLEMSI — integración facturación electrónica DIAN vía Plemsi

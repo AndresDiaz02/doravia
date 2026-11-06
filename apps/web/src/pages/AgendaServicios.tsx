@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   Calendar, BarChart2, Settings, ChevronLeft, ChevronRight,
-  MessageCircle, AlertCircle, CheckCircle2, Clock, PawPrint,
-  Scissors, User, TrendingDown, Save, Phone,
+  AlertCircle, CheckCircle2, PawPrint,
+  Scissors, TrendingDown, Save,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../lib/auth";

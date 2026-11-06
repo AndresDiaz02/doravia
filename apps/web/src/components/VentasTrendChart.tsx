@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -38,9 +39,9 @@ export default function VentasTrendChart({ data }: { data: VentaTendencia[] }) {
           width={56}
         />
         <Tooltip
-          formatter={(value: number) => [cop(value), "Ventas"]}
-          labelFormatter={(label: string) => {
-            const [year, month] = label.split("-");
+          formatter={(value) => [cop(Number(value ?? 0)), "Ventas"] as [ReactNode, string]}
+          labelFormatter={(label) => {
+            const [year, month] = String(label ?? "").split("-");
             return `${["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][Number(month)]} ${year}`;
           }}
           contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}

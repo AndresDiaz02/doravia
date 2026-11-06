@@ -1,6 +1,6 @@
 import { cn } from "../../lib/cn";
 
-type BadgeVariant = "green" | "yellow" | "red" | "gray" | "blue";
+type BadgeVariant = "green" | "yellow" | "red" | "gray" | "blue" | "purple" | "default" | "secondary" | "outline";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -14,6 +14,10 @@ const variants: Record<BadgeVariant, string> = {
   red: "bg-red-100 text-red-800",
   gray: "bg-gray-100 text-gray-700",
   blue: "bg-blue-100 text-blue-800",
+  purple: "bg-purple-100 text-purple-800",
+  default: "bg-blue-100 text-blue-800",
+  secondary: "bg-gray-100 text-gray-700",
+  outline: "border border-gray-300 bg-transparent text-gray-700",
 };
 
 export function Badge({ children, variant = "gray", className }: BadgeProps) {

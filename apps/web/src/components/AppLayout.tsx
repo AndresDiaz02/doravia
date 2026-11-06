@@ -49,7 +49,7 @@ import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
 
-const NAV_BASE = [
+const NAV_BASE: Array<{ to: string; label: string; icon: ElementType; feature?: string }> = [
   { to: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
   { to: "/clientes",     label: "Clientes",     icon: Users },
   { to: "/facturas",      label: "Facturas",      icon: FileText },

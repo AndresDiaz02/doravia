@@ -37,8 +37,13 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
   let warehouseCId: string;
   let sequence = 0;
   let fidelizacionActiva = false;
+  const runId = Math.floor(Date.now() / 1_000).toString(36);
 
-  const next = (prefix: string) => `${prefix}-${Date.now()}-${++sequence}`;
+  // Algunos campos de negocio (por ejemplo plans.slug y número de documento)
+  // admiten como máximo 20 caracteres. Mantener las semillas únicas y dentro
+  // de ese contrato evita que la infraestructura de prueba oculte el escenario
+  // transaccional que queremos verificar.
+  const next = (prefix: string) => `${prefix.slice(0, 8)}-${runId}-${++sequence}`;
 
   async function request(
     path: string,

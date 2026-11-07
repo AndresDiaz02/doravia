@@ -134,9 +134,13 @@ describe("POS commercial flow (PostgreSQL)", () => {
       await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantAId));
       // QA-002 debe permanecer ejecutable sin P0-INT-001. Si la migración P0
       // está presente, borra únicamente los contadores de estos tenants.
-      const sequenceTable = await db.execute(sql`SELECT to_regclass('public.consecutivos_asientos') AS table_name`);
-      if (sequenceTable.rows[0]?.table_name) {
+      try {
         await db.execute(sql`DELETE FROM consecutivos_asientos WHERE tenant_id IN (${tenantAId}, ${tenantBId})`);
+      } catch (error) {
+        // En QA-002 aislado la migración P0 todavía no crea la tabla. Solo
+        // ignora ese caso; cualquier otra falla de limpieza sigue fallando.
+        const cause = error as { code?: string; cause?: { code?: string } };
+        if (cause.code !== "42P01" && cause.cause?.code !== "42P01") throw error;
       }
       await db.delete(users).where(eq(users.tenant_id, tenantAId));
       await db.delete(tenants).where(eq(tenants.id, tenantAId));

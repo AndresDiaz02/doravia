@@ -174,7 +174,7 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     const {
       db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos,
       movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos,
-      bodegas, cuentas_contables, idempotency_keys, consecutivos_asientos,
+      bodegas, cuentas_contables, idempotency_keys,
       clientes, users, tenants,
     } = database;
     // La aplicación conserva el FK restrictivo para empresas con historial.
@@ -192,7 +192,7 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     await db.delete(productos).where(eq(productos.tenant_id, tenantId));
     await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantId));
     await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantId));
-    await db.delete(consecutivos_asientos).where(eq(consecutivos_asientos.tenant_id, tenantId));
+    await db.execute(sql`DELETE FROM consecutivos_asientos WHERE tenant_id = ${tenantId}`);
     await db.delete(clientes).where(eq(clientes.tenant_id, tenantId));
     await db.delete(users).where(eq(users.tenant_id, tenantId));
     await db.delete(tenants).where(eq(tenants.id, tenantId));

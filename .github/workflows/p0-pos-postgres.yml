@@ -42,5 +42,9 @@ jobs:
         run: |
           pnpm --filter @workspace/db push
           pnpm --filter @workspace/db migrate
-      - name: Run P0-INT-001 integration suite
-        run: pnpm --filter @workspace/api exec vitest run src/__tests__/pos-transactional-integrity.integration.test.ts
+      - name: Run QA-002 and P0-INT-001 integration suites
+        run: pnpm --filter @workspace/api test:integration
+        env:
+          DATABASE_URL_TEST: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_p0
+          DORAVIA_QA_ALLOW_SCHEMA_RESET: "true"
+          DORAVIA_QA_ALLOW_CONTAINER_SERVER: "true"

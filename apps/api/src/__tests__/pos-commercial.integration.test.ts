@@ -2,7 +2,7 @@ import express from "express";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import type { TenantWithPlan } from "../lib/tenant.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -113,25 +113,35 @@ describe("POS commercial flow (PostgreSQL)", () => {
   });
 
   afterAll(async () => {
-    if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-    const { db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos, movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos, bodegas, cuentas_contables, idempotency_keys, users, tenants, plans } = database;
-    await db.delete(lineas_asiento).where(sql`${lineas_asiento.asiento_id} IN (SELECT id FROM asientos_contables WHERE tenant_id = ${tenantAId})`);
-    await db.delete(pagos_venta_pos).where(sql`${pagos_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantAId})`);
-    await db.delete(items_venta_pos).where(sql`${items_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantAId})`);
-    await db.delete(movimientos_inventario).where(eq(movimientos_inventario.tenant_id, tenantAId));
-    await db.delete(ventas_pos).where(eq(ventas_pos.tenant_id, tenantAId));
-    await db.delete(asientos_contables).where(eq(asientos_contables.tenant_id, tenantAId));
-    await db.delete(turnos_pos).where(eq(turnos_pos.tenant_id, tenantAId));
-    await db.delete(cajas_pos).where(eq(cajas_pos.tenant_id, tenantAId));
-    await db.delete(cuentas_contables).where(eq(cuentas_contables.tenant_id, tenantAId));
-    await db.delete(productos).where(eq(productos.tenant_id, tenantAId));
-    await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantAId));
-    await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantAId));
-    await db.delete(users).where(eq(users.tenant_id, tenantAId));
-    await db.delete(tenants).where(eq(tenants.id, tenantAId));
-    await db.delete(productos).where(eq(productos.tenant_id, tenantBId));
-    await db.delete(tenants).where(eq(tenants.id, tenantBId));
-    await db.delete(plans).where(eq(plans.id, planId));
+    const { db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos, movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos, bodegas, cuentas_contables, idempotency_keys, consecutivos_asientos, users, tenants, plans } = database;
+    try {
+      if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    } finally {
+      // La aplicación no elimina empresas con historial contable: conserva
+      // el FK restrictivo. Esta limpieza se limita explícitamente a los dos
+      // tenants efímeros creados por esta suite, incluidos sus contadores.
+      await db.delete(lineas_asiento).where(sql`${lineas_asiento.asiento_id} IN (SELECT id FROM asientos_contables WHERE tenant_id = ${tenantAId})`);
+      await db.delete(pagos_venta_pos).where(sql`${pagos_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantAId})`);
+      await db.delete(items_venta_pos).where(sql`${items_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantAId})`);
+      await db.delete(movimientos_inventario).where(eq(movimientos_inventario.tenant_id, tenantAId));
+      await db.delete(ventas_pos).where(eq(ventas_pos.tenant_id, tenantAId));
+      await db.delete(asientos_contables).where(eq(asientos_contables.tenant_id, tenantAId));
+      await db.delete(turnos_pos).where(eq(turnos_pos.tenant_id, tenantAId));
+      await db.delete(cajas_pos).where(eq(cajas_pos.tenant_id, tenantAId));
+      await db.delete(cuentas_contables).where(eq(cuentas_contables.tenant_id, tenantAId));
+      await db.delete(productos).where(eq(productos.tenant_id, tenantAId));
+      await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantAId));
+      await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantAId));
+      await db.delete(consecutivos_asientos).where(or(
+        eq(consecutivos_asientos.tenant_id, tenantAId),
+        eq(consecutivos_asientos.tenant_id, tenantBId),
+      ));
+      await db.delete(users).where(eq(users.tenant_id, tenantAId));
+      await db.delete(tenants).where(eq(tenants.id, tenantAId));
+      await db.delete(productos).where(eq(productos.tenant_id, tenantBId));
+      await db.delete(tenants).where(eq(tenants.id, tenantBId));
+      await db.delete(plans).where(eq(plans.id, planId));
+    }
   });
 
   it("registra una venta, conserva el pago, descuenta stock, crea asiento y cierra caja", async () => {

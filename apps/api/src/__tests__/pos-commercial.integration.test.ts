@@ -132,7 +132,12 @@ describe("POS commercial flow (PostgreSQL)", () => {
       await db.delete(productos).where(eq(productos.tenant_id, tenantAId));
       await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantAId));
       await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantAId));
-      await db.execute(sql`DELETE FROM consecutivos_asientos WHERE tenant_id IN (${tenantAId}, ${tenantBId})`);
+      // QA-002 debe permanecer ejecutable sin P0-INT-001. Si la migración P0
+      // está presente, borra únicamente los contadores de estos tenants.
+      const sequenceTable = await db.execute(sql`SELECT to_regclass('public.consecutivos_asientos') AS table_name`);
+      if (sequenceTable.rows[0]?.table_name) {
+        await db.execute(sql`DELETE FROM consecutivos_asientos WHERE tenant_id IN (${tenantAId}, ${tenantBId})`);
+      }
       await db.delete(users).where(eq(users.tenant_id, tenantAId));
       await db.delete(tenants).where(eq(tenants.id, tenantAId));
       await db.delete(productos).where(eq(productos.tenant_id, tenantBId));

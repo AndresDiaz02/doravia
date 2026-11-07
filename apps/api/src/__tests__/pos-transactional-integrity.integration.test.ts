@@ -41,6 +41,7 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
   let warehouseCId: string;
   let sequence = 0;
   let fidelizacionActiva = false;
+  const pendingFailureTriggerCleanups = new Set<() => Promise<void>>();
   const runId = Math.floor(Date.now() / 1_000).toString(36);
 
   // Algunos campos de negocio (por ejemplo plans.slug y número de documento)
@@ -154,10 +155,19 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     const triggerName = `p0_trigger_${table}`;
     await db.execute(sql.raw(`CREATE OR REPLACE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'P0 forced ${table} failure'; END; $$`));
     await db.execute(sql.raw(`CREATE TRIGGER ${triggerName} BEFORE INSERT ON ${table} FOR EACH ROW EXECUTE FUNCTION ${functionName}()`));
-    return async () => {
-      await db.execute(sql.raw(`DROP TRIGGER IF EXISTS ${triggerName} ON ${table}`));
-      await db.execute(sql.raw(`DROP FUNCTION IF EXISTS ${functionName}()`));
+    let cleaned = false;
+    const cleanup = async () => {
+      if (cleaned) return;
+      try {
+        await db.execute(sql.raw(`DROP TRIGGER IF EXISTS ${triggerName} ON ${table}`));
+        await db.execute(sql.raw(`DROP FUNCTION IF EXISTS ${functionName}()`));
+        cleaned = true;
+      } finally {
+        if (cleaned) pendingFailureTriggerCleanups.delete(cleanup);
+      }
     };
+    pendingFailureTriggerCleanups.add(cleanup);
+    return cleanup;
   }
 
   beforeAll(async () => {
@@ -244,7 +254,13 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
   });
 
   afterAll(async () => {
-    if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    try {
+      if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    } finally {
+      // Cada escenario usa finally. Esta segunda barrera evita que un fallo de
+      // infraestructura deje un trigger P0 instalado para otra suite.
+      for (const cleanup of [...pendingFailureTriggerCleanups]) await cleanup();
+    }
   });
 
   it("asigna el consecutivo siguiente al máximo histórico aunque existan huecos", async () => {

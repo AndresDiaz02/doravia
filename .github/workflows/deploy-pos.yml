@@ -1,14 +1,72 @@
-name: Deploy POS
+name: Deploy POS (manual)
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "SHA completo de un commit ya integrado en main"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-pos
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify-release:
+    name: Verify main release revision
     runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.revision.outputs.commit_sha }}
+    steps:
+      - name: Reject non-main workflow runs
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Este workflow solo puede ejecutarse desde la rama main." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+      - id: revision
+        name: Verify requested commit belongs to main
+        shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.commit_sha }}
+        run: |
+          if ! [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Indica un SHA completo de 40 caracteres hexadecimales." >&2
+            exit 1
+          fi
+
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "$ACTUAL_SHA" != "$REQUESTED_SHA" ]]; then
+            echo "El SHA solicitado no pudo resolverse de forma exacta." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$ACTUAL_SHA" origin/main; then
+            echo "El SHA solicitado no pertenece al historial de main." >&2
+            exit 1
+          fi
+
+          echo "commit_sha=$ACTUAL_SHA" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: verify-release
+    runs-on: ubuntu-latest
+    environment:
+      name: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-release.outputs.commit_sha }}
 
       - uses: pnpm/action-setup@v4
         with:

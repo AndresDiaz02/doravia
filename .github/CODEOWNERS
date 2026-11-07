@@ -1,0 +1,16 @@
+# Estos propietarios se aplican solamente si las reglas de protección de la rama
+# requieren revisión de CODEOWNERS. Mantener la lista con usuarios o equipos que
+# tengan acceso de escritura al repositorio.
+
+# Automatizaciones y definiciones de despliegue.
+/.github/workflows/ @AndresDiaz02
+/render.yaml @AndresDiaz02
+/wrangler.jsonc @AndresDiaz02
+/apps/landing/wrangler.jsonc @AndresDiaz02
+/apps/web/netlify.toml @AndresDiaz02
+/apps/pos/netlify.toml @AndresDiaz02
+/apps/landing/netlify.toml @AndresDiaz02
+
+# Runbooks que gobiernan las publicaciones y recuperación.
+/docs/OPERACIONES.md @AndresDiaz02
+/docs/OPS-001A-DESPLIEGUES-CONTROLADOS.md @AndresDiaz02

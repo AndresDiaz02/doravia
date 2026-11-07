@@ -170,6 +170,34 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     return cleanup;
   }
 
+  async function cleanupTestTenant(tenantId: string) {
+    const {
+      db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos,
+      movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos,
+      bodegas, cuentas_contables, idempotency_keys, consecutivos_asientos,
+      clientes, users, tenants,
+    } = database;
+    // La aplicación conserva el FK restrictivo para empresas con historial.
+    // La suite solo puede borrar los tenants que ella misma creó, en orden de
+    // dependencias, sin tocar filas de otra empresa.
+    await db.delete(lineas_asiento).where(sql`${lineas_asiento.asiento_id} IN (SELECT id FROM asientos_contables WHERE tenant_id = ${tenantId})`);
+    await db.delete(pagos_venta_pos).where(sql`${pagos_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantId})`);
+    await db.delete(items_venta_pos).where(sql`${items_venta_pos.venta_id} IN (SELECT id FROM ventas_pos WHERE tenant_id = ${tenantId})`);
+    await db.delete(movimientos_inventario).where(eq(movimientos_inventario.tenant_id, tenantId));
+    await db.delete(ventas_pos).where(eq(ventas_pos.tenant_id, tenantId));
+    await db.delete(asientos_contables).where(eq(asientos_contables.tenant_id, tenantId));
+    await db.delete(turnos_pos).where(eq(turnos_pos.tenant_id, tenantId));
+    await db.delete(cajas_pos).where(eq(cajas_pos.tenant_id, tenantId));
+    await db.delete(cuentas_contables).where(eq(cuentas_contables.tenant_id, tenantId));
+    await db.delete(productos).where(eq(productos.tenant_id, tenantId));
+    await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantId));
+    await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantId));
+    await db.delete(consecutivos_asientos).where(eq(consecutivos_asientos.tenant_id, tenantId));
+    await db.delete(clientes).where(eq(clientes.tenant_id, tenantId));
+    await db.delete(users).where(eq(users.tenant_id, tenantId));
+    await db.delete(tenants).where(eq(tenants.id, tenantId));
+  }
+
   beforeAll(async () => {
     if (!isLocalIntegrationDatabase) {
       throw new Error("P0-INT-001 requiere PostgreSQL local con DATABASE_URL doravia_test_*.");
@@ -257,9 +285,14 @@ describe.runIf(isLocalIntegrationDatabase)("P0-INT-001 POS transactional integri
     try {
       if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     } finally {
-      // Cada escenario usa finally. Esta segunda barrera evita que un fallo de
-      // infraestructura deje un trigger P0 instalado para otra suite.
-      for (const cleanup of [...pendingFailureTriggerCleanups]) await cleanup();
+      try {
+        // Cada escenario usa finally. Esta segunda barrera evita que un fallo de
+        // infraestructura deje un trigger P0 instalado para otra suite.
+        for (const cleanup of [...pendingFailureTriggerCleanups]) await cleanup();
+      } finally {
+        for (const tenantId of [tenantAId, tenantBId, tenantCId]) await cleanupTestTenant(tenantId);
+        await database.db.delete(database.plans).where(eq(database.plans.id, planId));
+      }
     }
   });
 

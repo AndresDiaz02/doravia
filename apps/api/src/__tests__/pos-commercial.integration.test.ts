@@ -2,7 +2,7 @@ import express from "express";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { TenantWithPlan } from "../lib/tenant.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -113,7 +113,7 @@ describe("POS commercial flow (PostgreSQL)", () => {
   });
 
   afterAll(async () => {
-    const { db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos, movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos, bodegas, cuentas_contables, idempotency_keys, consecutivos_asientos, users, tenants, plans } = database;
+    const { db, lineas_asiento, asientos_contables, pagos_venta_pos, items_venta_pos, movimientos_inventario, ventas_pos, turnos_pos, cajas_pos, productos, bodegas, cuentas_contables, idempotency_keys, users, tenants, plans } = database;
     try {
       if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     } finally {
@@ -132,10 +132,7 @@ describe("POS commercial flow (PostgreSQL)", () => {
       await db.delete(productos).where(eq(productos.tenant_id, tenantAId));
       await db.delete(bodegas).where(eq(bodegas.tenant_id, tenantAId));
       await db.delete(idempotency_keys).where(eq(idempotency_keys.tenant_id, tenantAId));
-      await db.delete(consecutivos_asientos).where(or(
-        eq(consecutivos_asientos.tenant_id, tenantAId),
-        eq(consecutivos_asientos.tenant_id, tenantBId),
-      ));
+      await db.execute(sql`DELETE FROM consecutivos_asientos WHERE tenant_id IN (${tenantAId}, ${tenantBId})`);
       await db.delete(users).where(eq(users.tenant_id, tenantAId));
       await db.delete(tenants).where(eq(tenants.id, tenantAId));
       await db.delete(productos).where(eq(productos.tenant_id, tenantBId));

@@ -6,7 +6,7 @@ import { users } from "@workspace/db";
 import { crearAsientoVentaPOS, crearAsientoFiado, crearAsientoAbonoFiado, crearAsientoGastoCaja, crearAsientoDevolucionPOS, crearAsientoAnulacionVentaPOS, verificarPeriodoAbierto } from "../services/contabilidad.service.js";
 import { siguienteConsecutivo } from "../services/consecutivo.service.js";
 import Anthropic from "@anthropic-ai/sdk";
-import { completarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
+import { completarIdempotencia, fallarIdempotencia, hashIdempotencyPayload, reconciliarIdempotencia, reservarIdempotencia } from "../services/idempotency.service.js";
 import { buildItems, calcularTotalesPlemsi, emitirDocumentoPOS, metodoPagoId } from "../services/plemsi.service.js";
 import { getPlemsiCredentials, PlemsiNotConfiguredError } from "../services/get-plemsi-credentials.js";
 import { puedeAdministrarPOS, puedeOperarDianPOS, puedeOperarTurno } from "../lib/pos-access.js";
@@ -454,29 +454,61 @@ router.post("/ventas", async (req, res) => {
     return res.status(422).json({ error: (err as Error).message });
   }
 
-  const reserva = await reservarIdempotencia(req.tenantId, "pos.venta", req.header("Idempotency-Key"));
+  const claveIdempotencia = req.header("Idempotency-Key");
+  const requestHash = hashIdempotencyPayload(req.body);
+  const reserva = await reservarIdempotencia(req.tenantId, "pos.venta", claveIdempotencia, requestHash);
   if (reserva?.estado === "completada") return res.status(201).json(reserva.respuesta);
+  if (reserva?.estado === "conflicto") {
+    return res.status(409).json({ error: reserva.mensaje, code: "IDEMPOTENCY_PAYLOAD_MISMATCH" });
+  }
+  if (reserva?.estado === "reconciliar") {
+    const [ventaConfirmada] = await db.select().from(ventas_pos).where(and(
+      eq(ventas_pos.id, reserva.referenciaId),
+      eq(ventas_pos.tenant_id, req.tenantId),
+    )).limit(1);
+    if (!ventaConfirmada) {
+      return res.status(409).json({
+        error: "La llave de idempotencia requiere reconciliación manual; no se repetirá una venta con estado incierto.",
+        code: "IDEMPOTENCY_RECONCILIATION_REQUIRED",
+      });
+    }
+    const reconciliada = await reconciliarIdempotencia(
+      req.tenantId,
+      "pos.venta",
+      claveIdempotencia!,
+      ventaConfirmada.id,
+      ventaConfirmada as unknown as Record<string, unknown>,
+    );
+    if (reconciliada) return res.status(201).json(ventaConfirmada);
+    return res.status(409).json({ error: "La reconciliación de la venta está en curso.", code: "IDEMPOTENCY_IN_PROGRESS" });
+  }
   if (reserva?.estado === "procesando") {
     return res.status(409).json({ error: "Esta venta ya se está procesando. Espera unos segundos antes de reintentar.", code: "IDEMPOTENCY_IN_PROGRESS" });
   }
 
   try {
 
-  // Verifica turno abierto
-  const [turno] = await db
-    .select()
-    .from(turnos_pos)
-    .where(and(eq(turnos_pos.id, turno_id), eq(turnos_pos.tenant_id, req.tenantId), eq(turnos_pos.estado, "abierto")));
-  if (!turno) return res.status(400).json({ error: "El turno no está abierto." });
-  if (!puedeOperarTurno(req, turno)) return res.status(403).json({ error: "No puedes registrar ventas en el turno de otro usuario.", code: "POS_TURNO_FORBIDDEN" });
-  if (turno.caja_id !== caja_id) return res.status(400).json({ error: "La caja no corresponde al turno abierto." });
-
-  // Genera consecutivo con bloqueo para evitar duplicados en inserciones concurrentes
-  const consecutivo = await siguienteConsecutivo("ventas_pos", "consecutivo", req.tenantId);
-  const numero = `POS-${String(consecutivo).padStart(6, "0")}`;
-
   let impoconsumo_total = 0;
   const result = await db.transaction(async (tx) => {
+    // El turno se bloquea y se valida dentro de la misma transacción que la
+    // venta; no puede cerrarse o cambiar de caja entre la validación y el cobro.
+    const [turno] = await tx
+      .select()
+      .from(turnos_pos)
+      .where(and(
+        eq(turnos_pos.id, turno_id),
+        eq(turnos_pos.tenant_id, req.tenantId),
+        eq(turnos_pos.estado, "abierto"),
+      ))
+      .for("update");
+    if (!turno) throw new Error("El turno no está abierto.");
+    if (!puedeOperarTurno(req, turno)) throw new Error("No puedes registrar ventas en el turno de otro usuario.");
+    if (turno.caja_id !== caja_id) throw new Error("La caja no corresponde al turno abierto.");
+
+    // El lock de consecutivo debe vivir hasta el commit de la venta, no en una
+    // transacción previa que deje una ventana de carrera entre número e insert.
+    const consecutivo = await siguienteConsecutivo("ventas_pos", "consecutivo", req.tenantId, tx);
+    const numero = `POS-${String(consecutivo).padStart(6, "0")}`;
     // El cliente debe pertenecer a la empresa actual. Además de proteger el
     // enlace de la venta, esto evita acreditar puntos a otra organización.
     if (cliente_id) {
@@ -667,25 +699,50 @@ router.post("/ventas", async (req, res) => {
     await tx
       .update(turnos_pos)
       .set({ total_ventas: sql`total_ventas + ${total}` })
-      .where(eq(turnos_pos.id, turno_id));
+      .where(and(
+        eq(turnos_pos.id, turno_id),
+        eq(turnos_pos.tenant_id, req.tenantId),
+        eq(turnos_pos.estado, "abierto"),
+      ));
 
-    return venta;
+    // El asiento y sus líneas son efectos locales obligatorios. Si falta una
+    // cuenta PUC o falla cualquier insert, PostgreSQL revierte también venta,
+    // pagos, inventario, kardex, puntos y total de turno.
+    const asientoId = await crearAsientoVentaPOS(req.tenantId, venta, impoconsumo_total, tx);
+    const [ventaCompleta] = await tx
+      .update(ventas_pos)
+      .set({ asiento_id: asientoId })
+      .where(and(eq(ventas_pos.id, venta.id), eq(ventas_pos.tenant_id, req.tenantId)))
+      .returning();
+    if (!ventaCompleta) throw new Error("No se pudo vincular el asiento a la venta.");
+
+    await completarIdempotencia(
+      req.tenantId,
+      "pos.venta",
+      reserva?.estado === "nueva" ? reserva.clave : undefined,
+      reserva?.estado === "nueva" ? reserva.leaseToken : undefined,
+      ventaCompleta as unknown as Record<string, unknown>,
+      ventaCompleta.id,
+      tx,
+    );
+    return ventaCompleta;
   });
-
-  // Asiento contable — fuera de la tx de inventario para no bloquearla si el tenant
-  // no tiene cuentas configuradas (plan sin contabilidad)
-  try {
-    const asientoId = await crearAsientoVentaPOS(req.tenantId, result, impoconsumo_total);
-    await db.update(ventas_pos).set({ asiento_id: asientoId }).where(eq(ventas_pos.id, result.id));
-    result.asiento_id = asientoId;
-  } catch (err) {
-    console.error("Error al crear asiento de venta POS:", err);
-  }
-
-  await completarIdempotencia(req.tenantId, "pos.venta", reserva?.estado === "nueva" ? reserva.clave : undefined, result as unknown as Record<string, unknown>);
   res.status(201).json(result);
 
   } catch (err) {
+    // La marca de reintento no puede ocultar el error transaccional original.
+    // Si PostgreSQL revirtió la venta, se deja la llave disponible para un
+    // reintento posterior; si este update auxiliar falla, se registra aparte.
+    try {
+      await fallarIdempotencia(
+        req.tenantId,
+        "pos.venta",
+        reserva?.estado === "nueva" ? reserva.clave : undefined,
+        reserva?.estado === "nueva" ? reserva.leaseToken : undefined,
+      );
+    } catch (idempotencyError) {
+      console.error("[POS POST /ventas] No se pudo liberar la llave de idempotencia:", idempotencyError);
+    }
     console.error("[POS POST /ventas]", err);
     // Las validaciones que dependen del estado transaccional (stock,
     // disponibilidad del producto y suma de pagos) deben llegar al cajero
@@ -697,7 +754,12 @@ router.post("/ventas", async (req, res) => {
       "El monto recibido solo aplica para pagos únicos en efectivo.",
       "El monto recibido no puede ser menor al total de la venta.",
       "El cliente seleccionado no está disponible.",
-    ].includes(message) || message.startsWith("Stock insuficiente para ");
+      "El turno no está abierto.",
+      "No puedes registrar ventas en el turno de otro usuario.",
+      "La caja no corresponde al turno abierto.",
+    ].includes(message) ||
+      message.startsWith("Stock insuficiente para ") ||
+      message.startsWith("Configuración contable incompleta:");
     res.status(esErrorOperativo ? 422 : 500).json({
       error: esErrorOperativo ? message : "Error al registrar la venta. Inténtalo de nuevo.",
     });

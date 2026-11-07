@@ -1,0 +1,46 @@
+name: P0 POS PostgreSQL integration
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pos-transactional-integrity:
+    name: POS transactional integrity (ephemeral PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: doravia_test_p0
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d doravia_test_p0"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_p0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Initialize isolated PostgreSQL schema
+        run: |
+          pnpm --filter @workspace/db push
+          pnpm --filter @workspace/db migrate
+      - name: Run P0-INT-001 integration suite
+        run: pnpm --filter @workspace/api exec vitest run src/__tests__/pos-transactional-integrity.integration.test.ts

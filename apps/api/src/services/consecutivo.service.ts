@@ -1,6 +1,8 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
+type DbExecutor = Pick<typeof db, "execute">;
+
 const TABLAS_CON_CONSECUTIVO = new Set([
   "cotizaciones",
   "documentos_soporte",
@@ -34,10 +36,11 @@ export async function siguienteConsecutivo(
   tabla: string,
   campoConsecutivo: string,
   tenantId: string,
+  executor?: DbExecutor,
 ): Promise<number> {
   validarConfiguracionConsecutivo(tabla, campoConsecutivo);
 
-  const resultado = await db.transaction(async (tx) => {
+  const calcular = async (tx: DbExecutor) => {
     // Adquiere un advisory lock exclusivo a nivel de transacción.
     // hashtext() produce un int4 estable para el par (tabla, tenantId).
     // El lock se libera automáticamente al final de la transacción.
@@ -59,7 +62,11 @@ export async function siguienteConsecutivo(
     const arr = rows as unknown as Array<{ siguiente: number | string }>;
     const row = arr[0];
     return Number(row?.siguiente ?? 1);
-  });
+  };
+
+  const resultado = executor
+    ? await calcular(executor)
+    : await db.transaction(async (tx) => calcular(tx));
 
   return resultado;
 }

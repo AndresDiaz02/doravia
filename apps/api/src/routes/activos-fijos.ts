@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db, activos_fijos, depreciaciones_activo, asientos_contables, lineas_asiento, cuentas_contables } from "@workspace/db";
-import { eq, and, isNull, or, sql, count } from "drizzle-orm";
+import { eq, and, isNull, or, sql } from "drizzle-orm";
 import { requireContableOperativo } from "../middleware/require-plan-feature.js";
+import { siguienteNumeroAsiento } from "../services/contabilidad.service.js";
 
 const router = Router();
 
@@ -362,13 +363,7 @@ router.post("/:id/calcular-depreciacion", requireContableOperativo, async (req, 
     let asientoId: string | null = null;
     if (activo.cuenta_gasto && activo.cuenta_depreciacion) {
       try {
-        const [{ value: totalAsientos }] = await db
-          .select({ value: count() })
-          .from(asientos_contables)
-          .where(eq(asientos_contables.tenant_id, req.tenantId));
-
-        const seq = String(Number(totalAsientos) + 1).padStart(5, "0");
-        const numeroAsiento = `AC-${anoCalculo}-${seq}`;
+        const numeroAsiento = await siguienteNumeroAsiento(req.tenantId, anoCalculo);
         const fechaAsiento = `${anoCalculo}-${String(mesCalculo).padStart(2, "0")}-${new Date(anoCalculo, mesCalculo, 0).getDate()}`;
 
         const cuentaGasto = await getCuentaContable(req.tenantId, activo.cuenta_gasto);

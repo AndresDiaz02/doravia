@@ -48,3 +48,10 @@ jobs:
           DATABASE_URL_TEST: postgresql://postgres:postgres@127.0.0.1:5432/doravia_test_p0
           DORAVIA_QA_ALLOW_SCHEMA_RESET: "true"
           DORAVIA_QA_ALLOW_CONTAINER_SERVER: "true"
+      # Evaluation-only: even if a suite exposes an incompatibility, run the
+      # idempotent schema setup again to surface migration drift separately.
+      - name: Reapply isolated migrations (drift check)
+        if: always()
+        run: |
+          pnpm --filter @workspace/db push
+          pnpm --filter @workspace/db migrate

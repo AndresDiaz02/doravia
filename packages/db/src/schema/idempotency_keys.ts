@@ -10,6 +10,14 @@ export const idempotency_keys = pgTable("idempotency_keys", {
   tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
   operacion: varchar("operacion", { length: 80 }).notNull(),
   clave: varchar("clave", { length: 200 }).notNull(),
+  // Hash canónico del payload. Las filas previas a P0-INT-001 pueden no
+  // tenerlo; por seguridad no se reutilizan automáticamente.
+  request_hash: varchar("request_hash", { length: 64 }),
+  // Token que identifica al dueño actual de una reserva con lease.
+  lease_token: varchar("lease_token", { length: 64 }),
+  lease_expires_at: timestamp("lease_expires_at", { withTimezone: true }),
+  // Recurso ya confirmado; permite reconciliar un reintento sin repetirlo.
+  referencia_id: uuid("referencia_id"),
   estado: varchar("estado", { length: 20 }).notNull().default("procesando"),
   respuesta: jsonb("respuesta"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

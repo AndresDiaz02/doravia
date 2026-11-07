@@ -46,12 +46,23 @@ const migrations = [
     tenant_id uuid NOT NULL REFERENCES tenants(id),
     operacion varchar(80) NOT NULL,
     clave varchar(200) NOT NULL,
+    request_hash varchar(64),
+    lease_token varchar(64),
+    lease_expires_at timestamptz,
+    referencia_id uuid,
     estado varchar(20) NOT NULL DEFAULT 'procesando',
     respuesta jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     completed_at timestamptz
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idempotency_keys_tenant_operacion_clave_unique ON idempotency_keys(tenant_id, operacion, clave)`,
+  // P0-INT-001: leases para recuperar reservas abandonadas sin reutilizar una
+  // llave con un payload distinto ni repetir un recurso ya confirmado.
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS request_hash varchar(64)`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS lease_token varchar(64)`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz`,
+  `ALTER TABLE idempotency_keys ADD COLUMN IF NOT EXISTS referencia_id uuid`,
+  `CREATE INDEX IF NOT EXISTS idempotency_keys_recovery_idx ON idempotency_keys(tenant_id, operacion, estado, lease_expires_at)`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS en_prueba boolean NOT NULL DEFAULT true`,
   `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS prueba_ends_at timestamptz`,
   // permisos_contables en users y user_accesos (se omitió en el push inicial)
@@ -115,6 +126,45 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS productos_tenant_idx ON productos(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS gastos_tenant_fecha_idx ON gastos(tenant_id, fecha)`,
   `CREATE INDEX IF NOT EXISTS asientos_tenant_fecha_idx ON asientos_contables(tenant_id, fecha)`,
+  // P0-INT-001: contador persistente. Se inicia desde el máximo histórico
+  // AC-AAAA-NNNNN, por lo que los huecos nunca se vuelven a asignar.
+  `CREATE TABLE IF NOT EXISTS consecutivos_asientos (
+    tenant_id uuid NOT NULL REFERENCES tenants(id),
+    anio integer NOT NULL CHECK (anio BETWEEN 2000 AND 9999),
+    ultimo_numero bigint NOT NULL DEFAULT 0 CHECK (ultimo_numero >= 0),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (tenant_id, anio)
+  )`,
+  `INSERT INTO consecutivos_asientos (tenant_id, anio, ultimo_numero)
+   SELECT
+     tenant_id,
+     (substring(numero FROM '^AC-([0-9]{4})-[0-9]+$'))::integer,
+     MAX((substring(numero FROM '^AC-[0-9]{4}-([0-9]+)$'))::bigint)
+   FROM asientos_contables
+   WHERE numero ~ '^AC-[0-9]{4}-[0-9]+$'
+   GROUP BY tenant_id, (substring(numero FROM '^AC-([0-9]{4})-[0-9]+$'))::integer
+   ON CONFLICT (tenant_id, anio) DO UPDATE
+   SET ultimo_numero = GREATEST(consecutivos_asientos.ultimo_numero, EXCLUDED.ultimo_numero),
+       updated_at = now()`,
+  // P0-INT-001: no se borran ni consolidan duplicados históricos sin revisión.
+  // Si los hay, se detiene antes de instalar la garantía de unicidad.
+  `DO $$ BEGIN
+    IF EXISTS (
+      SELECT 1 FROM asientos_contables
+      GROUP BY tenant_id, numero HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen asientos duplicados por tenant/numero; revisar antes de crear índice único.';
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM asientos_contables
+      WHERE referencia_id IS NOT NULL
+      GROUP BY tenant_id, origen, referencia_id HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen asientos automáticos duplicados; revisar antes de crear índice único.';
+    END IF;
+  END $$`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS asientos_contables_tenant_numero_unique ON asientos_contables(tenant_id, numero)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS asientos_contables_tenant_origen_referencia_unique ON asientos_contables(tenant_id, origen, referencia_id) WHERE referencia_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS lineas_asiento_asiento_idx ON lineas_asiento(asiento_id)`,
   `CREATE INDEX IF NOT EXISTS cotizaciones_tenant_idx ON cotizaciones(tenant_id)`,
   `CREATE INDEX IF NOT EXISTS notas_credito_tenant_idx ON notas_credito(tenant_id)`,
@@ -217,6 +267,16 @@ const migrations = [
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
   // Índices únicos como segunda capa de protección contra consecutivos duplicados
+  // P0-INT-001: la migración se detiene y preserva los registros si una base
+  // histórica todavía tiene colisiones que requieren revisión humana.
+  `DO $$ BEGIN
+    IF EXISTS (
+      SELECT 1 FROM ventas_pos
+      GROUP BY tenant_id, consecutivo HAVING COUNT(*) > 1
+    ) THEN
+      RAISE EXCEPTION 'P0-INT-001: existen ventas POS duplicadas por tenant/consecutivo; revisar antes de crear índice único.';
+    END IF;
+  END $$`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ventas_pos_tenant_consecutivo_unique ON ventas_pos(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS remisiones_tenant_consecutivo_unique ON remisiones(tenant_id, consecutivo)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS cotizaciones_tenant_consecutivo_unique ON cotizaciones(tenant_id, consecutivo)`,
